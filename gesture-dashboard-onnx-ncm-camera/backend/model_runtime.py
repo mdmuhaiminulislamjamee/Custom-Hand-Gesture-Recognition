@@ -1003,7 +1003,12 @@ class InferenceEngine:
             resolver_rows: dict[str, dict[str, dict | None]] = {}
             for name, (probabilities, _, _) in model_rows.items():
                 resolved_rows[name], resolver_rows[name] = self.resolver.resolve(
-                    probabilities, landmarks
+                    probabilities,
+                    landmarks,
+                    handedness=detector_quality.get("selected_handedness"),
+                    handedness_confidence=detector_quality.get(
+                        "selected_handedness_confidence"
+                    ),
                 )
 
         raw_probabilities, classifier_ms, selected_quality = model_rows[selected_name]

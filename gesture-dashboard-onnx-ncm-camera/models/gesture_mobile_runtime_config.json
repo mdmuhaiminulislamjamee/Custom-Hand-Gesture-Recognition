@@ -182,7 +182,7 @@
   },
   "directional_resolution": {
     "pose_score": 0.5,
-    "minimum_axis_dominance": 0.78,
+    "minimum_axis_dominance": 0.73,
     "maximum_mean_non_index_finger_extension": 0.7,
     "minimum_index_extension": 0.45,
     "minimum_index_straightness": 0.70,
@@ -190,6 +190,13 @@
     "hard_geometry_veto": true,
     "horizontal_mirror": false,
     "horizontal_semantic_swap": true
+  },
+  "palm_surface_validation": {
+    "enabled": true,
+    "camera_pixels_mirrored": false,
+    "minimum_handedness_confidence": 0.75,
+    "surface_winding_margin": 0.25,
+    "ambiguous_edge_on_policy": "do not grant low-mass geometry recovery"
   },
   "dorsal_resolution": {
     "pose_score": 0.76,

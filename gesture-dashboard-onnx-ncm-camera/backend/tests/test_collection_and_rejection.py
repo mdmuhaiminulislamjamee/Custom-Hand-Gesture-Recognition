@@ -133,6 +133,22 @@ def test_stale_camera_image_cannot_be_frozen(tmp_path):
         store.freeze()
 
 
+def test_frozen_preview_includes_landmarks_from_the_same_frame(tmp_path):
+    store = CollectionStore(tmp_path)
+    landmarks = representative_hand().round(6).tolist()
+    store.observe(7, jpeg_bytes(), {
+        'landmarks': landmarks,
+        'feature_vector': [0.0] * 76,
+        'runtime_prediction': 'open_palm',
+    })
+
+    frozen = store.freeze()
+
+    assert frozen['frame_id'] == 7
+    assert frozen['landmarks'] == landmarks
+    assert frozen['has_features'] is True
+
+
 @pytest.mark.parametrize('raised', [9, 13, 17])
 @pytest.mark.parametrize('direction,angle', [('up', -np.pi/2), ('down', np.pi/2), ('left', 0), ('right', np.pi)])
 def test_other_fingers_cannot_be_directional_even_with_confident_model(raised, direction, angle):
@@ -160,7 +176,12 @@ def test_real_index_has_strong_evidence_but_low_mass_still_rejected(direction):
 
 def test_open_palm_with_strong_shape_and_partial_mass_needs_longer_hold():
     config = RuntimeConfig(known_mass_floor=.95)
-    p, details = GeometryResolver(config).resolve(np.eye(8)[4], representative_hand())
+    p, details = GeometryResolver(config).resolve(
+        np.eye(8)[4],
+        representative_hand(),
+        handedness='Left',
+        handedness_confidence=.99,
+    )
     assert details['pose_validation']['geometry_supported']
     gate = TemporalGate(config)
     for t in (1., 1.1, 1.2, 1.3):

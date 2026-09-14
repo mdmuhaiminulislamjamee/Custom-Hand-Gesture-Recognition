@@ -4,8 +4,8 @@ Open **05 Data Collection** at http://127.0.0.1:3200.
 
 1. Connect the board camera. Create an ID such as `person-001`; reuse that ID for the same person on later visits.
 2. Follow **Collect now**. Directions come first: index finger only, with eight viewing variations including casual placement. Palm and other commands follow, then no-gesture examples (face/ear, other fingers, background and relaxed hands).
-3. Choose one of four balanced groups: right hand with fingers toward the camera, right hand with fingers away, left hand with fingers toward, or left hand with fingers away. Then set lighting and distance. Press **Capture image**; a three-second timer gives you time to pose.
-4. Review the frozen photo, then **Confirm label & save image**, or Retake. The prompt is the human label; a wrong model prediction does not prevent saving.
+3. Choose one of four balanced groups: right hand with fingers toward the camera, right hand with fingers away, left hand with fingers toward, or left hand with fingers away. Then set lighting and distance. Press **Capture image** or press **Space**; a three-second timer gives you time to pose. The live camera and detected hand landmarks are shown side by side.
+4. Review the frozen photo and its matching landmark view, then select **Confirm label & save image** or press **Space** again. Choose Retake if needed. The prompt is the human label; a wrong model prediction does not prevent saving.
 5. Collect three images in each hand/angle group (12 per prompt). The collector then advances to the next unfinished prompt. You can skip or jump to any prompt. Counts survive server restarts.
 6. Saved images for the current prompt appear as thumbnails. Select one or more and use **Delete selected**, or use **Delete last image** in Recent saves. Both ask for confirmation and remove the matching JPEG and JSON label together.
 

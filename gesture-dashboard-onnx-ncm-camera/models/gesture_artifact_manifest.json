@@ -29,8 +29,8 @@
       "sha256": "1aec12c072aa86e5f72de405ffba9f0914eb0a7939a19fcb069152b46931fc95"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 7709,
-      "sha256": "27fccc24eb4a718cd26f0bc34c773a61ef2f3dd350ca14b20938022fa9f230d4"
+      "bytes": 7951,
+      "sha256": "361da12d8b0f1fd7de877c6bc3c1d656b8fa5a36d156b5b8ee6bf603024591d4"
     },
     "gesture_online_replay_cache.npz": {
       "bytes": 504860,
@@ -59,8 +59,8 @@
     "dorsal",
     "ok"
   ],
-  "created_utc": "2026-09-10T05:56:51.250883+00:00",
+  "created_utc": "2026-09-13T02:49:52.017428+00:00",
   "feature_count": 76,
-  "release_fingerprint": "51bda214478924291aaf77bba1eaad5bed5e587ce38ab5bcaebca9859d499602",
+  "release_fingerprint": "9726252ec8d474f89e008e753e5d838b84a7829875f8d82e5733e22d6ce065a9",
   "schema_version": 1
 }

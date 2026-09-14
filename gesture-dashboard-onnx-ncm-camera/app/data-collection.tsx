@@ -10,8 +10,13 @@ type OrientationCounts = { toward_camera?: number; away_from_camera?: number; no
 type RecentSample = { sample_id: string; label: string; view: string; handedness: string; finger_orientation?: string; image_path: string };
 type CollectedSample = RecentSample & { sample_ref: string; step_id: string; created_at_utc: string };
 type Summary = { root: string; available: boolean; participants: string[]; participant_id: string | null; counts: Record<string, number>; counts_by_hand?: Record<string, HandCounts>; counts_by_hand_orientation?: Record<string, Partial<Record<Handedness | 'none' | 'unspecified', OrientationCounts>>>; total: number; plan: Step[]; recent: RecentSample[] };
-type Snapshot = { token: string; image_url: string; frame_id: number; prediction: string; reason: string; has_features: boolean; issues: string[] };
-type Props = { api: string; active: boolean; connected: boolean; ready: boolean; streamRevision: number; toggleCamera: () => void };
+type Snapshot = { token: string; image_url: string; frame_id: number; prediction: string; reason: string; landmarks: number[][]; has_features: boolean; issues: string[] };
+type Props = { api: string; active: boolean; connected: boolean; ready: boolean; streamRevision: number; liveLandmarks?: number[][]; toggleCamera: () => void };
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15],
+  [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
+];
 const pretty = (value: string) => value.replaceAll('_', ' ');
 const viewLabels: Record<string, string> = {
   front: 'Face the camera',
@@ -88,7 +93,63 @@ const viewSymbols: Record<string, string> = {
   roll_left: '↙', roll_right: '↘', casual: '〰',
 };
 
-export default function DataCollection({ api, active, connected, ready, streamRevision, toggleCamera }: Props) {
+const validLandmarks = (landmarks?: number[][]): landmarks is number[][] =>
+  landmarks?.length === 21 && landmarks.every(point => point.length >= 2 && Number.isFinite(point[0]) && Number.isFinite(point[1]));
+
+const isFormControl = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"]'));
+
+function HandLandmarkPreview({ landmarks, expectHand }: { landmarks?: number[][]; expectHand: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hasLandmarks = validLandmarks(landmarks);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const width = Math.max(1, Math.round(canvas.clientWidth || 480));
+    const height = Math.max(1, Math.round(canvas.clientHeight || width * .75));
+    const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    if (!validLandmarks(landmarks)) return;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.lineWidth = Math.max(2, width / 190);
+    context.strokeStyle = 'rgba(73, 217, 209, .95)';
+    context.beginPath();
+    HAND_CONNECTIONS.forEach(([from, to]) => {
+      context.moveTo(landmarks[from][0] * width, landmarks[from][1] * height);
+      context.lineTo(landmarks[to][0] * width, landmarks[to][1] * height);
+    });
+    context.stroke();
+    landmarks.forEach(([x, y], index) => {
+      context.beginPath();
+      context.fillStyle = index === 0 ? '#ffb454' : '#f4f7ff';
+      context.arc(x * width, y * height, Math.max(2.5, width / 125), 0, Math.PI * 2);
+      context.fill();
+    });
+  }, [landmarks]);
+
+  useEffect(() => {
+    draw();
+    if (typeof ResizeObserver === 'undefined' || !canvasRef.current) return;
+    const observer = new ResizeObserver(draw);
+    observer.observe(canvasRef.current);
+    return () => observer.disconnect();
+  }, [draw]);
+
+  return <div className="collection-preview-pane collection-landmark-preview" aria-label="Detected hand landmarks">
+    <span className="collection-preview-label">HAND LANDMARKS</span>
+    <canvas ref={canvasRef} className="collection-landmark-canvas" />
+    {!hasLandmarks && <div className="collection-landmark-empty"><span aria-hidden="true">◇</span><strong>No hand landmarks detected</strong><small>{expectHand ? 'Keep the complete hand and wrist inside the camera view.' : 'This is expected for the current no-hand prompt.'}</small></div>}
+  </div>;
+}
+
+export default function DataCollection({ api, active, connected, ready, streamRevision, liveLandmarks, toggleCamera }: Props) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [participant, setParticipant] = useState('');
   const [newParticipant, setNewParticipant] = useState('');
@@ -117,6 +178,7 @@ export default function DataCollection({ api, active, connected, ready, streamRe
   const lastSave = summary?.recent[0];
   const guide = step ? (step.label === 'no_gesture' ? negativeGuides[step.view] : gestureGuides[step.label]) : undefined;
   const showGuide = !!guide && countdown === null && snapshot === null;
+  const displayedLandmarks = snapshot ? snapshot.landmarks : connected && active ? liveLandmarks : undefined;
 
   const request = useCallback(async (path: string, body?: object) => {
     const response = await fetch(`${api}/api/collection${path}`, body === undefined ? {} : {
@@ -164,7 +226,7 @@ export default function DataCollection({ api, active, connected, ready, streamRe
     finally { setBusy(false); }
   }
 
-  async function capture() {
+  const capture = useCallback(async () => {
     setBusy(true); setError(''); setMessage('');
     const generation = ++captureGeneration.current;
     try {
@@ -178,9 +240,9 @@ export default function DataCollection({ api, active, connected, ready, streamRe
       if (generation === captureGeneration.current) setSnapshot(result);
     } catch (e) { setError(e instanceof Error ? e.message : 'Capture failed.'); }
     finally { setBusy(false); setCountdown(null); }
-  }
+  }, [request]);
 
-  async function save() {
+  const save = useCallback(async () => {
     if (!snapshot || !step) return;
     setBusy(true); setError('');
     try {
@@ -207,7 +269,24 @@ export default function DataCollection({ api, active, connected, ready, streamRe
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.'); }
     finally { setBusy(false); }
-  }
+  }, [distance, fingerOrientation, handedness, lighting, note, participant, request, requiresHands, snapshot, step, stepIndex]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!active || busy || event.repeat || event.isComposing || isFormControl(event.target)) return;
+      if (event.code !== 'Space' && event.key !== ' ') return;
+      if (deleteArmed || deleteSelectionArmed) return;
+      if (snapshot && step) {
+        event.preventDefault();
+        void save();
+      } else if (countdown === null && participant && connected && step) {
+        event.preventDefault();
+        void capture();
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [active, busy, capture, connected, countdown, deleteArmed, deleteSelectionArmed, participant, save, snapshot, step]);
 
   async function deleteLast() {
     if (!participant || !lastSave) return;
@@ -298,13 +377,17 @@ export default function DataCollection({ api, active, connected, ready, streamRe
           <div className="collection-count"><strong>{count}<span> / {step.target}</span></strong><small>images saved</small></div>
         </article>}
         <article className="panel">
-          <div className="panel-header"><div>{snapshot ? 'REVIEW THIS IMAGE' : 'BOARD CAMERA'}</div><span>{snapshot ? `FRAME ${snapshot.frame_id}` : 'RAW IMAGE · NO LANDMARK OVERLAY'}</span></div>
+          <div className="panel-header"><div>{snapshot ? 'REVIEW THIS IMAGE' : 'BOARD CAMERA'}</div><span>{snapshot ? `FRAME ${snapshot.frame_id} · RAW IMAGE KEPT CLEAN` : 'RAW IMAGE + LIVE HAND LANDMARKS'}</span></div>
           <div className="collection-preview">
-            {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect the camera to begin</strong><p>Select a participant, follow the prompt, and capture an image.</p></div>}
+            <div className="collection-preview-pane collection-image-preview">
+              <span className="collection-preview-label">{snapshot ? 'CAPTURED IMAGE' : connected && active ? 'LIVE CAMERA' : 'CAMERA'}</span>
+              {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect the camera to begin</strong><p>Select a participant, follow the prompt, and capture an image.</p></div>}
+            </div>
+            <HandLandmarkPreview landmarks={displayedLandmarks} expectHand={requiresHands} />
             {countdown !== null && <div className="collection-countdown" role="status">{countdown}</div>}
           </div>
           <div className="collection-review">
-            {snapshot ? <><p>Does this image match <strong>{step?.title} / {viewLabel(step?.view ?? '')}</strong>? Save it even if the current model is wrong.</p><small>Model: {pretty(snapshot.prediction)} · {snapshot.has_features ? 'landmarks available' : 'raw image saved for later extraction'}{snapshot.reason ? ` · ${snapshot.reason}` : ''}</small><div className="heading-actions"><button className="secondary-button" disabled={busy} onClick={() => setSnapshot(null)}>Retake</button><button className="primary-button" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Confirm label & save image'}</button></div></> : <><p>Move slightly between photos. Keep the intended gesture recognizable and the whole hand in view.</p><button className="primary-button" disabled={busy || !participant || !connected || !step} onClick={() => void capture()}>{countdown ? 'Get ready…' : 'Capture image · 3 second timer'}</button></>}
+            {snapshot ? <><p>Does this image match <strong>{step?.title} / {viewLabel(step?.view ?? '')}</strong>? Press <kbd>Space</kbd> to confirm the label and save it, even if the current model is wrong.</p><small>Model: {pretty(snapshot.prediction)} · {snapshot.has_features ? 'matching landmarks shown beside the image' : 'raw image saved for later extraction'}{snapshot.reason ? ` · ${snapshot.reason}` : ''}</small><div className="heading-actions"><button className="secondary-button" disabled={busy} onClick={() => setSnapshot(null)}>Retake</button><button className="primary-button" aria-keyshortcuts="Space" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Confirm label & save image · Space'}</button></div></> : <><p>Move slightly between photos. Keep the intended gesture recognizable and the whole hand in view. Press <kbd>Space</kbd> to capture.</p><button className="primary-button" aria-keyshortcuts="Space" disabled={busy || !participant || !connected || !step} onClick={() => void capture()}>{countdown ? 'Get ready…' : 'Capture image · Space · 3 second timer'}</button></>}
           </div>
         </article>
         {error && <p className="collection-error" role="alert">{error}</p>}

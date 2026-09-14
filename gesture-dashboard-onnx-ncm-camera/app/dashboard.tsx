@@ -974,7 +974,7 @@ export default function Dashboard() {
       </nav>
 
       <section className="workspace">
-        <DataCollection api={API_URL} active={activeTab === 'data_collection'} connected={cameraActive && Boolean(ncmStatus?.connected)} ready={serverReady} streamRevision={streamRevision} toggleCamera={toggleCamera} />
+        <DataCollection api={API_URL} active={activeTab === 'data_collection'} connected={cameraActive && Boolean(ncmStatus?.connected)} ready={serverReady} streamRevision={streamRevision} liveLandmarks={prediction.landmarks} toggleCamera={toggleCamera} />
         <div hidden={activeTab !== 'live' && activeTab !== 'feedback'}><RangeDiagnostics prediction={prediction} connected={cameraActive} /></div>
         {activeTab === 'live' && <>
           <div className="section-heading">

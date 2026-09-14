@@ -206,8 +206,7 @@ class TemporalGate:
             and geometry_gesture in {"left", "right", "up", "down"}
         )
         supported_hand = bool(
-            geometry_supported and known_gesture_mass >= .50
-            and geometry_gesture == "open_palm"
+            geometry_supported and geometry_gesture == "open_palm"
         )
         if known_gesture_mass < self.config.known_mass_floor and not (
             dorsal_fallback or directional_fallback or supported_hand
@@ -261,7 +260,7 @@ class TemporalGate:
         if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.40)
         if supported_hand and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.40)
+            required_hold = max(required_hold, 0.45)
         execute = bool(
             confidence >= self.config.confidence_floor
             and stable_frames >= self.config.stable_frames_required

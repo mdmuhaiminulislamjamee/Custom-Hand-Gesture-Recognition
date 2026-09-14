@@ -261,6 +261,65 @@ def dorsal_geometry_support(geometry: dict) -> bool:
     )
 
 
+def hand_surface_orientation(
+    landmarks_xy: np.ndarray,
+    handedness: str | None,
+    handedness_confidence: float | None = None,
+    *,
+    minimum_handedness_confidence: float = 0.75,
+    surface_winding_margin: float = 0.25,
+) -> dict[str, float | bool | str | None]:
+    """Estimate whether an unmirrored NCM frame shows palm or dorsal skin.
+
+    The 2-D landmarks alone are ambiguous: a right dorsal hand has the same
+    winding as a left palmar hand. MediaPipe handedness resolves that ambiguity.
+    On the unmirrored NCM feed, dorsal right hands have a positive wrist/index/
+    pinky winding and dorsal left hands have a negative winding. The opposite
+    sign exposes the palm. Near-edge-on hands are deliberately left unknown.
+    """
+    points = np.asarray(landmarks_xy, dtype=np.float32).reshape(21, 2)
+    hand = str(handedness or "").strip().lower()
+    confidence = 0.0 if handedness_confidence is None else float(handedness_confidence)
+    index_palm = points[5] - points[0]
+    pinky_palm = points[17] - points[0]
+    denominator = float(np.linalg.norm(index_palm) * np.linalg.norm(pinky_palm))
+    if (
+        hand not in {"left", "right"}
+        or not np.isfinite(confidence)
+        or confidence < minimum_handedness_confidence
+        or denominator < 1e-8
+    ):
+        return {
+            "surface": None,
+            "palm_visible": False,
+            "dorsal_visible": False,
+            "surface_score": 0.0,
+            "handedness": hand or None,
+            "handedness_confidence": confidence,
+        }
+    winding = float(
+        (index_palm[0] * pinky_palm[1] - index_palm[1] * pinky_palm[0])
+        / denominator
+    )
+    # Positive means dorsal for a right hand and palmar for a left hand.
+    dorsal_score = winding * (1.0 if hand == "right" else -1.0)
+    surface = (
+        "dorsal"
+        if dorsal_score >= surface_winding_margin
+        else "palmar"
+        if dorsal_score <= -surface_winding_margin
+        else None
+    )
+    return {
+        "surface": surface,
+        "palm_visible": surface == "palmar",
+        "dorsal_visible": surface == "dorsal",
+        "surface_score": dorsal_score,
+        "handedness": hand,
+        "handedness_confidence": confidence,
+    }
+
+
 def _set_probability_floor(probabilities: np.ndarray, target_index: int, floor: float) -> np.ndarray:
     adjusted = np.asarray(probabilities, dtype=np.float64).copy()
     if adjusted[target_index] < floor:
@@ -322,6 +381,99 @@ class GeometryResolver:
             float(np.dot(points[8] - points[tip], vector / norm) / palm_scale)
             for tip in (12, 16, 20)
         )
+        index_reach = norm / palm_scale
+        # Compare each fingertip with its own MCP. This avoids penalising a
+        # naturally short index finger merely because the neighbouring MCPs
+        # begin farther along the requested screen direction.
+        maximum_other_projected_reach = max(
+            float(np.dot(points[tip] - points[mcp], vector / norm) / palm_scale)
+            for mcp, tip in ((9, 12), (13, 16), (17, 20))
+        )
+        relative_index_reach = index_reach - maximum_other_projected_reach
+        index_extension = finger_extension_score(points, 5, 6, 7, 8)
+        projected_hand = return_main_pose_geometry(points)
+        finger_mcps = np.asarray((5, 9, 13, 17))
+        finger_tips = np.asarray((8, 12, 16, 20))
+        finger_vectors = points[finger_tips] - points[finger_mcps]
+        finger_norms = np.linalg.norm(finger_vectors, axis=1)
+        finger_units = finger_vectors / np.maximum(finger_norms[:, None], 1e-8)
+        finger_reaches = finger_norms / palm_scale
+        finger_extensions = np.concatenate((
+            np.asarray([index_extension], dtype=np.float32),
+            non_index_extensions,
+        ))
+        palm_down_alignment = float((points[9, 1] - points[0, 1]) / palm_scale)
+        fingertip_descent = np.diff(points[finger_tips, 1]) / palm_scale
+        inner_fingertip_y = points[finger_tips[:3], 1]
+        inner_tip_spread = float(np.ptp(inner_fingertip_y) / palm_scale)
+        outer_tip_drop = float(
+            (points[finger_tips[3], 1] - float(inner_fingertip_y.max())) / palm_scale
+        )
+        outer_reach_advantage = float(
+            finger_reaches[3] / max(float(finger_reaches[:3].mean()), 1e-6)
+        )
+        # In a steep edge-on Down pose, MediaPipe can project the folded-finger
+        # chains almost parallel with the index and place the pinky outline past
+        # the index tip. Preserve this tightly bounded silhouette without
+        # weakening the ordinary index-lead requirement for other directions.
+        edge_on_down = bool(
+            gesture == "down"
+            and dominance >= .82
+            and index_straightness >= .76
+            and index_reach >= .55
+            and index_extension >= .35
+            and projected_hand["downward_finger_count"] == 3
+            and projected_hand["downward_score"] >= .90
+            and projected_hand["parallel_score"] >= .88
+            and projected_hand["together_score"] >= .50
+            and projected_hand["score"] < .76
+        )
+        # A second edge-on projection can make the visible index, middle, and
+        # ring chains curl back toward their MCPs while the outer hand edge is
+        # reconstructed as a long pinky chain. The ordered fingertip cascade
+        # and four aligned MCP-to-tip vectors identify this Down silhouette.
+        curled_edge_down = bool(
+            gesture == "down"
+            and dominance >= .88
+            and index_reach >= .40
+            # The wrist-to-palm line tilts slightly as the same edge-on pose
+            # moves across the NCM lens, even though all finger vectors remain
+            # almost vertical. Allow that perspective shift while retaining
+            # the much stricter four-finger alignment below.
+            and palm_down_alignment >= .85
+            and float(finger_units[:, 1].min()) >= .86
+            and projected_hand["parallel_score"] >= .92
+            # Adjacent tips can be nearly level at this camera angle. They may
+            # not reverse order, which continues to reject a folded non-Down
+            # hand while accepting small landmark jitter between frames.
+            and bool(np.all(fingertip_descent >= 0.0))
+            and float(finger_extensions[:3].max()) <= .45
+            and finger_extensions[3] >= .75
+            and finger_reaches[3] >= 1.45
+            and projected_hand["downward_finger_count"] == 1
+            and projected_hand["score"] < .55
+        )
+        # At the most foreshortened NCM angle the first three fingertips merge
+        # into a compact row and the outer finger can also appear locally bent.
+        # The row plus a substantially lower outer tip is a stable silhouette
+        # across these frames, so it does not depend on any one joint looking
+        # straight or on pixel-level ordering inside the clustered row.
+        clustered_edge_down = bool(
+            gesture == "down"
+            and dominance >= .80
+            and index_reach >= .55
+            and palm_down_alignment >= .80
+            and float(finger_units[:, 1].min()) >= .80
+            and projected_hand["downward_score"] >= .95
+            and projected_hand["parallel_score"] >= .84
+            and projected_hand["downward_finger_count"] <= 1
+            and projected_hand["score"] < .55
+            and inner_tip_spread <= .45
+            and outer_tip_drop >= .75
+            and float(finger_extensions[:3].max()) <= .45
+            and finger_reaches[3] >= 1.55
+            and outer_reach_advantage >= 1.55
+        )
         ordered = np.sort(probabilities)
         model_agrees = bool(
             raw == gesture
@@ -330,11 +482,41 @@ class GeometryResolver:
         )
         # Folded OTHER fingers supplied half the old pose score, so a folded
         # index could pass. Require extension and prominence of the index itself.
-        index_extension = finger_extension_score(points, 5, 6, 7, 8)
         index_only = bool(index_extension >= .45 and index_straightness >= .70 and index_lead >= .04)
+        short_straight_index = bool(
+            index_straightness >= .88
+            and index_reach >= .27
+            and max(index_lead, relative_index_reach) >= .12
+            and float(non_index_extensions.mean()) <= .35
+        )
+        index_only = bool(index_only or short_straight_index)
         supported_pose = bool(model_agrees and index_extension >= .45
                               and index_straightness >= .80 and index_lead >= .20)
-        directional = bool(dominance >= 0.78 and index_only and (strict_pose or supported_pose))
+        supported_pose = bool(
+            supported_pose
+            or (model_agrees and short_straight_index)
+            or edge_on_down
+            or curled_edge_down
+            or clustered_edge_down
+        )
+        settings = (self.config.raw.get("directional_resolution") or {})
+        minimum_axis_dominance = float(settings.get("minimum_axis_dominance", 0.73))
+        directional = bool(
+            dominance >= minimum_axis_dominance
+            and (
+                (index_only and (strict_pose or supported_pose))
+                or edge_on_down
+                or curled_edge_down
+                or clustered_edge_down
+            )
+        )
+        strong_short_index = bool(
+            short_straight_index
+            and gesture == "down"
+            and model_agrees
+            and float(ordered[-1]) >= .95
+            and dominance >= .80
+        )
         details = {
             "valid": directional if raw in {"left", "right", "up", "down"} else True,
             "gesture": gesture,
@@ -344,11 +526,39 @@ class GeometryResolver:
             "mean_non_index_extension": float(non_index_extensions.mean()),
             "index_straightness": index_straightness,
             "index_lead_ratio": index_lead,
+            "index_reach_ratio": index_reach,
+            "maximum_other_projected_reach": maximum_other_projected_reach,
+            "relative_index_reach": relative_index_reach,
             "index_extension": index_extension,
             "index_only": index_only,
-            "strong_geometry": bool(directional and model_agrees and float(ordered[-1]) >= .95
-                                    and index_extension >= .85 and index_straightness >= .92
-                                    and index_lead >= .30 and dominance >= .86),
+            "short_straight_index": short_straight_index,
+            "edge_on_down": edge_on_down,
+            "curled_edge_down": curled_edge_down,
+            "clustered_edge_down": clustered_edge_down,
+            "palm_down_alignment": palm_down_alignment,
+            "minimum_finger_down_alignment": float(finger_units[:, 1].min()),
+            "finger_reach_ratios": finger_reaches.tolist(),
+            "fingertip_descent_ratios": fingertip_descent.tolist(),
+            "inner_tip_spread_ratio": inner_tip_spread,
+            "outer_tip_drop_ratio": outer_tip_drop,
+            "outer_reach_advantage": outer_reach_advantage,
+            "strong_geometry": bool(
+                directional
+                and (
+                    edge_on_down
+                    or curled_edge_down
+                    or clustered_edge_down
+                    or (
+                        model_agrees
+                        and float(ordered[-1]) >= .95
+                        and (
+                            (index_extension >= .85 and index_straightness >= .92
+                             and index_lead >= .30 and dominance >= .86)
+                            or strong_short_index
+                        )
+                    )
+                )
+            ),
             "model_supported_pose": supported_pose,
             "horizontal_mirror": False,
             "horizontal_semantic_swap": True,
@@ -357,7 +567,7 @@ class GeometryResolver:
             if raw in {"left", "right", "up", "down"}:
                 details["reason"] = (
                     "Point more horizontally or vertically; the direction is diagonal"
-                    if dominance < 0.78 else
+                    if dominance < minimum_axis_dominance else
                     "Extend the index finger past the other fingertips and hold the direction"
                 )
             return probabilities, details
@@ -368,8 +578,12 @@ class GeometryResolver:
         ), details
 
     def _hand_shape(
-        self, probabilities: np.ndarray, landmarks: np.ndarray
-    ) -> tuple[np.ndarray, dict[str, float | int | bool | str]]:
+        self,
+        probabilities: np.ndarray,
+        landmarks: np.ndarray,
+        handedness: str | None = None,
+        handedness_confidence: float | None = None,
+    ) -> tuple[np.ndarray, dict[str, float | int | bool | str | None]]:
         points = np.asarray(landmarks, dtype=np.float32).reshape(21, 2)
         adjusted = np.asarray(probabilities, dtype=np.float64).copy()
         raw = self.config.class_names[int(np.argmax(adjusted))]
@@ -389,6 +603,25 @@ class GeometryResolver:
         gap = thumb_index_gap_ratio(points)
         dorsal = return_main_pose_geometry(points)
         dorsal_supported = dorsal_geometry_support(dorsal)
+        surface_settings = self.config.raw.get("palm_surface_validation") or {}
+        surface_validation_enabled = bool(surface_settings.get("enabled", True))
+        normalized_handedness = str(handedness or "").strip().lower()
+        surface_validation_active = bool(
+            surface_validation_enabled and normalized_handedness in {"left", "right"}
+        )
+        surface_handedness = handedness if surface_validation_active else None
+        surface = hand_surface_orientation(
+            points,
+            surface_handedness,
+            handedness_confidence,
+            minimum_handedness_confidence=float(
+                surface_settings.get("minimum_handedness_confidence", 0.75)
+            ),
+            surface_winding_margin=float(
+                surface_settings.get("surface_winding_margin", 0.25)
+            ),
+        )
+        palm_visible = bool(surface["palm_visible"])
         dorsal_valid = bool(
             dorsal["score"] >= 0.76
             and dorsal["downward_finger_count"] >= 4
@@ -398,6 +631,17 @@ class GeometryResolver:
             extended_non_thumb_count == 4
             and float(non_thumb.mean()) >= 0.78
             and not dorsal_valid
+            # Offline caches do not contain handedness, so preserve their
+            # historical evaluation path. A live hand with reported but weak
+            # or ambiguous handedness is not allowed to claim Open Palm.
+            and (not surface_validation_active or palm_visible)
+        )
+        palm_geometry_supported = bool(
+            open_palm_valid
+            and palm_visible
+            and float(non_thumb.min()) >= .65
+            and float(non_thumb.mean()) >= .82
+            and extensions[0] >= .45
         )
         like_valid = bool(
             extensions[0] >= 0.60
@@ -431,7 +675,7 @@ class GeometryResolver:
                 adjusted, self.config.class_to_idx["dorsal"], 0.96
             )
             raw = "dorsal"
-        elif open_palm_valid and raw in {"open_palm", "dorsal"}:
+        elif palm_geometry_supported or (open_palm_valid and raw in {"open_palm", "dorsal"}):
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx["open_palm"], 0.96
             )
@@ -453,16 +697,29 @@ class GeometryResolver:
             "extended_non_thumb_count": extended_non_thumb_count,
             "dorsal_score": float(dorsal["score"]),
             "dorsal_geometry_supported": dorsal_supported,
-            "palm_geometry_supported": bool(raw == "open_palm" and open_palm_valid
-                and float(probabilities[self.config.class_to_idx["open_palm"]]) >= .95
-                and float(non_thumb.min()) >= .70 and float(non_thumb.mean()) >= .90
-                and extensions[0] >= .60),
+            "palm_geometry_supported": palm_geometry_supported,
+            "hand_surface": surface["surface"],
+            "hand_surface_score": float(surface["surface_score"]),
+            "handedness": surface["handedness"],
+            "handedness_confidence": float(surface["handedness_confidence"]),
             "downward_finger_count": int(dorsal["downward_finger_count"]),
         }
 
-    def resolve(self, probabilities: np.ndarray, landmarks: np.ndarray) -> tuple[np.ndarray, dict[str, dict | None]]:
+    def resolve(
+        self,
+        probabilities: np.ndarray,
+        landmarks: np.ndarray,
+        *,
+        handedness: str | None = None,
+        handedness_confidence: float | None = None,
+    ) -> tuple[np.ndarray, dict[str, dict | None]]:
         adjusted, directional = self._directional(probabilities, landmarks)
-        adjusted, shape = self._hand_shape(adjusted, landmarks)
+        adjusted, shape = self._hand_shape(
+            adjusted,
+            landmarks,
+            handedness=handedness,
+            handedness_confidence=handedness_confidence,
+        )
         resolved = self.config.class_names[int(np.argmax(adjusted))]
         valid = bool(shape.get("valid", True))
         reason = str(shape.get("reason", "pose geometry accepted"))

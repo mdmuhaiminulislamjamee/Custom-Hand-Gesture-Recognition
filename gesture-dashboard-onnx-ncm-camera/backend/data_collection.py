@@ -140,6 +140,7 @@ class CollectionStore:
                         image_url="data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii"),
                         prediction=result.get("runtime_prediction", "no_gesture"),
                         reason=result.get("action_reason", result.get("message", "")),
+                        landmarks=result.get("landmarks") or [],
                         has_features=len(result.get("feature_vector") or []) == 76,
                         issues=(result.get("quality") or {}).get("issues", []))
 
