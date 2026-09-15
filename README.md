@@ -1,5 +1,7 @@
 # Custom Hand Gesture Recognition
 
+## Demo Video Link: https://drive.google.com/drive/folders/15p14beDXWMqsz5UzX4Rb9WQASzxa1ay1
+
 This repository is organized as a monorepo for multiple deployment editions of
 the MediaPipe hand-gesture recognition system.
 
