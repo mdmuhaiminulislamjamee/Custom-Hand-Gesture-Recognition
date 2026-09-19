@@ -3,7 +3,12 @@ import pytest
 
 import backend.geometry as geometry
 from backend.config import RuntimeConfig
-from backend.geometry import GeometryResolver, hand_surface_orientation, landmarks_to_feature
+from backend.geometry import (
+    GeometryResolver,
+    foreshortened_fist_geometry,
+    hand_surface_orientation,
+    landmarks_to_feature,
+)
 from backend.runtime import TemporalGate
 
 
@@ -64,6 +69,35 @@ def side_view_pointing_hand():
     return points
 
 
+def closed_hand_pose(*, thumb_down: bool) -> np.ndarray:
+    """Synthetic curled hand with either a folded or downward thumb."""
+    points = np.zeros((21, 2), dtype=np.float32)
+    points[0] = [0.50, 0.90]
+    for finger, x in enumerate((0.42, 0.50, 0.58, 0.66)):
+        mcp = 5 + 4 * finger
+        points[mcp:mcp + 4] = [
+            [x, 0.65], [x, 0.52], [x + 0.06, 0.58], [x + 0.01, 0.68]
+        ]
+    points[1:5] = (
+        [[0.40, 0.74], [0.38, 0.82], [0.36, 0.93], [0.35, 1.07]]
+        if thumb_down
+        else [[0.40, 0.76], [0.35, 0.67], [0.42, 0.66], [0.45, 0.74]]
+    )
+    return points
+
+
+def camera_facing_fist_pose() -> np.ndarray:
+    """Landmark regression for the user's raised, camera-facing fist angle."""
+    return np.asarray([
+        [0.541, 0.432],
+        [0.660, 0.445], [0.750, 0.420], [0.820, 0.380], [0.860, 0.330],
+        [0.610, 0.270], [0.650, 0.230], [0.680, 0.250], [0.660, 0.350],
+        [0.680, 0.240], [0.720, 0.200], [0.760, 0.240], [0.710, 0.350],
+        [0.760, 0.240], [0.800, 0.200], [0.840, 0.250], [0.780, 0.380],
+        [0.850, 0.280], [0.890, 0.250], [0.910, 0.310], [0.830, 0.410],
+    ], dtype=np.float32)
+
+
 @pytest.mark.parametrize("gesture,rotation", [
     ("left", 0), ("right", np.pi),
 ])
@@ -75,7 +109,7 @@ def test_side_view_pointing_reaches_confirmed_action(gesture, rotation):
         [np.sin(rotation), np.cos(rotation)],
     ])
     points = (points @ transform.T) * 0.15 + 0.5
-    probabilities = np.full(8, 0.01)
+    probabilities = np.full(len(config.class_names), 0.01)
     probabilities[config.class_to_idx[gesture]] = 0.93
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
     assert details["directional"]["mean_non_index_extension"] > 0.70
@@ -105,20 +139,22 @@ def test_side_view_fallback_rejects_non_pointing_poses(pose):
         angle = np.pi / 4
         points = points @ np.asarray([[np.cos(angle), -np.sin(angle)],
                                      [np.sin(angle), np.cos(angle)]]).T
-    probabilities = np.zeros(8)
+    probabilities = np.zeros(len(config.class_names))
     probabilities[0] = 1.0
     _, details = GeometryResolver(config).resolve(probabilities, points)
     assert details["pose_validation"]["valid"] is False
 
 
-@pytest.mark.parametrize("probabilities", [
-    [0.6, 0.4, 0, 0, 0, 0, 0, 0],
-    [0.01, 0.99, 0, 0, 0, 0, 0, 0],
+@pytest.mark.parametrize("left,right", [
+    (0.6, 0.4),
+    (0.01, 0.99),
 ])
-def test_side_view_fallback_requires_confident_matching_model(probabilities):
-    _, details = GeometryResolver(RuntimeConfig()).resolve(
-        np.asarray(probabilities), side_view_pointing_hand()
-    )
+def test_side_view_fallback_requires_confident_matching_model(left, right):
+    config = RuntimeConfig()
+    probabilities = np.zeros(len(config.class_names))
+    probabilities[config.class_to_idx['left']] = left
+    probabilities[config.class_to_idx['right']] = right
+    _, details = GeometryResolver(config).resolve(probabilities, side_view_pointing_hand())
     assert details["pose_validation"]["valid"] is False
 
 
@@ -126,29 +162,40 @@ def test_clear_dorsal_survives_classifier_domain_miss_but_requires_longer_hold()
     config = RuntimeConfig()
     points = 1.0 - representative_hand()
     points[:, 0] *= 0.4  # Four fingers held together, as in the camera regression.
-    probabilities = np.eye(8)[config.class_to_idx['like']]
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx['like']]
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
     pose = details['pose_validation']
     assert pose['gesture'] == 'dorsal'
     assert pose['valid'] and pose['geometry_supported']
     gate = TemporalGate(config)
     for now in (1.0, 1.1, 1.2, 1.3):
-        decision = gate.update(resolved, now=now, known_gesture_mass=.01,
+        decision = gate.update(resolved, now=now, known_gesture_mass=.20,
                                pose_valid=pose['valid'], geometry_supported=pose['geometry_supported'])
         assert not decision.execute
-    decision = gate.update(resolved, now=1.4, known_gesture_mass=.01,
+    decision = gate.update(resolved, now=1.4, known_gesture_mass=.20,
                            pose_valid=True, geometry_supported=True)
     assert decision.execute
     assert decision.predicted_gesture == 'dorsal'
-    assert decision.known_gesture_mass == .01  # Never falsify the classifier score.
+    assert decision.known_gesture_mass == .20  # Never falsify the classifier score.
     assert decision.reason == 'stable Dorsal geometry'
     assert not gate.update(resolved, known_gesture_mass=.01, geometry_supported=False).execute
 
 
 def test_geometry_support_never_bypasses_invalid_pose_or_other_class_rejection():
-    gate = TemporalGate(RuntimeConfig())
-    assert not gate.update(np.eye(8)[0], known_gesture_mass=.01, geometry_supported=True).execute
-    decision = gate.update(np.eye(8)[6], known_gesture_mass=.01, geometry_supported=True, pose_valid=False)
+    config = RuntimeConfig()
+    gate = TemporalGate(config)
+    probabilities = np.eye(len(config.class_names))
+    assert not gate.update(
+        probabilities[config.class_to_idx['left']],
+        known_gesture_mass=.01,
+        geometry_supported=True,
+    ).execute
+    decision = gate.update(
+        probabilities[config.class_to_idx['dorsal']],
+        known_gesture_mass=.01,
+        geometry_supported=True,
+        pose_valid=False,
+    )
     assert decision.predicted_gesture == 'no_gesture'
 
 
@@ -156,13 +203,13 @@ def test_geometry_support_never_bypasses_invalid_pose_or_other_class_rejection()
 def test_strong_direction_geometry_recovers_camera_angle_mass_miss(gesture):
     config = RuntimeConfig()
     gate = TemporalGate(config)
-    row = np.eye(8)[config.class_to_idx[gesture]]
+    row = np.eye(len(config.class_names))[config.class_to_idx[gesture]]
     for now in (1.0, 1.1, 1.2, 1.3):
-        decision = gate.update(row, now=now, known_gesture_mass=.01,
+        decision = gate.update(row, now=now, known_gesture_mass=.20,
                                pose_valid=True, geometry_supported=True,
                                directional_recovery=True)
         assert not decision.execute
-    decision = gate.update(row, now=1.41, known_gesture_mass=.01,
+    decision = gate.update(row, now=1.41, known_gesture_mass=.20,
                            pose_valid=True, geometry_supported=True,
                            directional_recovery=True)
     assert decision.execute
@@ -173,7 +220,7 @@ def test_strong_direction_geometry_recovers_camera_angle_mass_miss(gesture):
 def test_geometry_flag_cannot_recover_low_mass_non_directional_pose():
     config = RuntimeConfig()
     gate = TemporalGate(config)
-    row = np.eye(8)[config.class_to_idx['like']]
+    row = np.eye(len(config.class_names))[config.class_to_idx['like']]
     for now in (1.0, 1.1, 1.2, 1.3, 1.4):
         decision = gate.update(row, now=now, known_gesture_mass=.01,
                                pose_valid=True, geometry_supported=True)
@@ -191,7 +238,7 @@ def test_close_finger_palmar_hand_recovers_low_model_mass_after_longer_hold():
     # Mirror the same physical right hand to expose its palmar surface.
     palmar_view = dorsal_view.copy()
     palmar_view[:, 0] = 2 * palmar_view[0, 0] - palmar_view[:, 0]
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['open_palm']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(
@@ -210,7 +257,7 @@ def test_close_finger_palmar_hand_recovers_low_model_mass_after_longer_hold():
         decision = gate.update(
             resolved,
             now=now,
-            known_gesture_mass=.11,
+            known_gesture_mass=.20,
             pose_valid=True,
             geometry_supported=True,
         )
@@ -218,7 +265,7 @@ def test_close_finger_palmar_hand_recovers_low_model_mass_after_longer_hold():
     decision = gate.update(
         resolved,
         now=1.5,
-        known_gesture_mass=.11,
+        known_gesture_mass=.20,
         pose_valid=True,
         geometry_supported=True,
     )
@@ -229,7 +276,7 @@ def test_close_finger_palmar_hand_recovers_low_model_mass_after_longer_hold():
 def test_reverse_side_of_open_hand_is_not_accepted_as_open_palm():
     config = RuntimeConfig()
     dorsal_view = representative_hand()
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['open_palm']] = 0.993
 
     surface = hand_surface_orientation(dorsal_view, 'Right', .99)
@@ -245,6 +292,163 @@ def test_reverse_side_of_open_hand_is_not_accepted_as_open_palm():
     assert details['pose_validation']['gesture'] == 'open_palm'
 
 
+def test_open_palm_is_accepted_only_when_the_palm_axis_points_upward():
+    config = RuntimeConfig()
+    upward = representative_hand()
+    probabilities = np.full(len(config.class_names), 0.001)
+    probabilities[config.class_to_idx['open_palm']] = 0.993
+
+    _, accepted = GeometryResolver(config).resolve(probabilities, upward)
+    assert accepted['hand_shape']['open_palm_upward'] is True
+    assert accepted['pose_validation']['valid'] is True
+
+    for angle in (np.pi / 2, np.pi, -np.pi / 2):
+        rotation = np.asarray([
+            [np.cos(angle), -np.sin(angle)],
+            [np.sin(angle), np.cos(angle)],
+        ], dtype=np.float32)
+        points = (upward - upward[0]) @ rotation.T + upward[0]
+        _, rejected = GeometryResolver(config).resolve(probabilities, points)
+        assert rejected['hand_shape']['open_palm_upward'] is False
+        assert rejected['pose_validation']['valid'] is False
+        assert rejected['pose_validation']['reason'] == 'open_palm must point upward'
+
+
+def test_downward_palmar_open_hand_cannot_fall_through_to_dorsal():
+    config = RuntimeConfig()
+    upward = representative_hand()
+    rotation = np.asarray([[-1.0, 0.0], [0.0, -1.0]], dtype=np.float32)
+    downward = (upward - upward[0]) @ rotation.T + upward[0]
+    handedness = next(
+        hand for hand in ('Right', 'Left')
+        if hand_surface_orientation(downward, hand, .99)['surface'] == 'palmar'
+    )
+    probabilities = np.full(len(config.class_names), 0.001)
+    probabilities[config.class_to_idx['dorsal']] = 0.991
+    probabilities /= probabilities.sum()
+
+    _, details = GeometryResolver(config).resolve(
+        probabilities,
+        downward,
+        handedness=handedness,
+        handedness_confidence=.99,
+    )
+
+    assert details['hand_shape']['hand_surface'] == 'palmar'
+    assert details['hand_shape']['dorsal_geometry_supported'] is False
+    assert details['pose_validation']['valid'] is False
+
+
+@pytest.mark.parametrize('gesture', ['fist', 'thumb_down'])
+@pytest.mark.parametrize('handedness,mirror', [('Right', False), ('Left', True)])
+def test_new_closed_hand_commands_have_strict_geometry_support_for_both_hands(
+    gesture, handedness, mirror
+):
+    config = RuntimeConfig()
+    points = closed_hand_pose(thumb_down=gesture == 'thumb_down')
+    if mirror:
+        points[:, 0] = 1.0 - points[:, 0]
+    probabilities = np.full(len(config.class_names), 0.001)
+    probabilities[config.class_to_idx[gesture]] = 0.991
+    probabilities /= probabilities.sum()
+
+    _, details = GeometryResolver(config).resolve(
+        probabilities,
+        points,
+        handedness=handedness,
+        handedness_confidence=0.99,
+    )
+
+    assert details['pose_validation']['gesture'] == gesture
+    assert details['pose_validation']['valid'] is True
+    assert details['pose_validation']['geometry_supported'] is True
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('rotation', [0.0, 0.45, -0.65])
+def test_camera_facing_fist_resolves_to_mute_for_both_hands(mirror, rotation):
+    config = RuntimeConfig()
+    points = camera_facing_fist_pose()
+    rotation_matrix = np.asarray([
+        [np.cos(rotation), -np.sin(rotation)],
+        [np.sin(rotation), np.cos(rotation)],
+    ], dtype=np.float32)
+    points = (points - points[0]) @ rotation_matrix.T + points[0]
+    if mirror:
+        points[:, 0] = 1.0 - points[:, 0]
+    probabilities = np.full(len(config.class_names), 0.01)
+    probabilities[config.class_to_idx['open_palm']] = 0.48
+    probabilities[config.class_to_idx['fist']] = 0.28
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+    pose = details['pose_validation']
+
+    assert pose['gesture'] == 'fist'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+    assert details['hand_shape']['fist_retracted_finger_count'] == 4
+    assert details['hand_shape']['fist_mean_curlback_ratio'] >= .16
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3, 1.4):
+        decision = gate.update(
+            resolved,
+            now=now,
+            known_gesture_mass=.20,
+            pose_valid=True,
+            geometry_supported=True,
+        )
+        assert decision.execute is False
+    decision = gate.update(
+        resolved,
+        now=1.5,
+        known_gesture_mass=.20,
+        pose_valid=True,
+        geometry_supported=True,
+    )
+    assert decision.execute is True
+    assert decision.predicted_gesture == 'fist'
+    assert config.gesture_to_action[decision.predicted_gesture] == 'Mute'
+
+
+@pytest.mark.parametrize(
+    'points',
+    [representative_hand(), side_view_pointing_hand(), closed_hand_pose(thumb_down=True)],
+)
+def test_camera_facing_fist_recovery_rejects_open_pointing_and_thumb_down(points):
+    assert foreshortened_fist_geometry(points)['strong_geometry'] is False
+
+
+@pytest.mark.parametrize('protected_gesture', ['like', 'thumb_down'])
+def test_camera_facing_fist_relabel_never_overrides_thumb_commands(protected_gesture):
+    config = RuntimeConfig()
+    points = camera_facing_fist_pose()
+    probabilities = np.full(len(config.class_names), 0.001)
+    probabilities[config.class_to_idx[protected_gesture]] = 0.991
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+
+    assert details['hand_shape']['fist_geometry_supported'] is True
+    assert details['hand_shape']['fist_foreshortened_relabel'] is False
+    assert config.class_names[int(np.argmax(resolved))] == protected_gesture
+
+
+def test_thumb_down_geometry_rejects_the_same_thumb_when_it_points_up():
+    config = RuntimeConfig()
+    points = closed_hand_pose(thumb_down=True)
+    points[:, 1] = 2 * points[0, 1] - points[:, 1]
+    probabilities = np.full(len(config.class_names), 0.001)
+    probabilities[config.class_to_idx['thumb_down']] = 0.991
+    probabilities /= probabilities.sum()
+
+    _, details = GeometryResolver(config).resolve(probabilities, points)
+
+    assert details['hand_shape']['thumb_down_score'] < 0
+    assert details['pose_validation']['valid'] is False
+
+
 def test_short_but_straight_index_finger_is_accepted_as_down():
     config = RuntimeConfig()
     # A real MediaPipe observation whose global index line is straight and
@@ -258,7 +462,7 @@ def test_short_but_straight_index_finger_is_accepted_as_down():
         [0.419862, 0.877003], [0.418049, 0.853186], [0.323825, 0.840056],
         [0.333479, 0.881354], [0.385482, 0.841272], [0.389241, 0.819932],
     ], dtype=np.float32)
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['down']] = 0.993
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
     direction = details['directional']
@@ -302,7 +506,7 @@ def test_steep_edge_on_pointing_pose_is_accepted_as_down():
     ], dtype=np.float32)
     # This domain view can be outside the learned feature distribution and may
     # favor another class, so the bounded geometry path must carry the result.
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['ok']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
@@ -347,7 +551,7 @@ def test_curled_edge_on_pointing_pose_is_accepted_as_down():
         [579, 269], [577, 363], [582, 351], [584, 321],
         [629, 269], [633, 355], [637, 410], [638, 449],
     ], dtype=np.float32)
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['ok']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
@@ -407,7 +611,7 @@ def test_curled_edge_on_pointing_pose_is_accepted_as_down():
 ])
 def test_curled_edge_down_camera_variants_are_accepted(points):
     config = RuntimeConfig()
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['ok']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
@@ -453,7 +657,7 @@ def test_curled_edge_down_camera_variants_are_accepted(points):
 ])
 def test_clustered_edge_down_camera_variants_are_accepted(points):
     config = RuntimeConfig()
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['ok']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
@@ -497,7 +701,7 @@ def test_clustered_edge_down_requires_the_lower_outer_tip():
         [292, 251], [292, 284], [303, 281], [309, 282],
         [309, 254], [312, 265], [311, 283], [310, 297],
     ], dtype=np.float32)
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['ok']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
@@ -516,7 +720,7 @@ def test_curled_edge_down_fallback_requires_the_full_fingertip_cascade():
         [629, 269], [633, 355], [637, 410], [638, 449],
     ], dtype=np.float32)
     points[12, 1] = points[8, 1] - 8
-    probabilities = np.full(8, 0.001)
+    probabilities = np.full(len(config.class_names), 0.001)
     probabilities[config.class_to_idx['ok']] = 0.993
 
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
@@ -534,7 +738,7 @@ def test_intended_right_pose_tolerates_moderate_camera_perspective():
         [np.sin(angle), np.cos(angle)],
     ])
     points = (points - points[0]) @ rotation.T + points[0]
-    probabilities = np.full(8, 0.01)
+    probabilities = np.full(len(config.class_names), 0.01)
     probabilities[config.class_to_idx['right']] = 0.93
     resolved, details = GeometryResolver(config).resolve(probabilities, points)
     direction = details['directional']

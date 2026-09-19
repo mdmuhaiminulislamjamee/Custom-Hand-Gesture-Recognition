@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "checks": {
+    "runtime_macro_f1_at_least_0_97": true,
+    "accepted_precision_at_least_0_99": true,
+    "unknown_false_accept_rate_at_most_0_02": true,
+    "fist_f1_at_least_0_95": true,
+    "fist_recall_at_least_0_95": true,
+    "thumb_down_f1_at_least_0_95": true,
+    "thumb_down_recall_at_least_0_95": true,
+    "thumb_down_within_0_02_of_like_f1": true,
+    "thumb_down_like_confusion_at_most_0_02": true,
+    "thumb_down_fist_confusion_at_most_0_02": true,
+    "classifier_p95_below_5_ms": true
+  },
+  "confusion_rates": {
+    "thumb_down_as_like_rate": 0.0,
+    "like_as_thumb_down_rate": 0.0,
+    "thumb_down_as_fist_rate": 0.0,
+    "fist_as_thumb_down_rate": 0.0
+  },
+  "independent_confirmation": {
+    "checks": {
+      "new_subject_present_class_macro_f1_at_least_0_95": true,
+      "new_subject_accepted_precision_at_least_0_99": true,
+      "new_subject_unknown_false_accept_rate_at_most_0_02": true,
+      "new_subject_fist_recall_at_least_0_95": true,
+      "new_subject_thumb_down_recall_at_least_0_95": true,
+      "new_subject_thumb_down_within_0_02_of_like_f1": true,
+      "new_subject_upward_open_palm_recall_at_least_0_98": true
+    },
+    "present_classes": [
+      "left",
+      "right",
+      "up",
+      "down",
+      "open_palm",
+      "like",
+      "ok",
+      "fist",
+      "thumb_down",
+      "no_gesture"
+    ],
+    "present_class_macro_f1": 0.9758672077926012,
+    "confusion_rates": {
+      "thumb_down_as_like_rate": 0.0,
+      "like_as_thumb_down_rate": 0.0,
+      "thumb_down_as_fist_rate": 0.0,
+      "fist_as_thumb_down_rate": 0.0
+    }
+  },
+  "selection": {
+    "known_mass_floor": 0.7,
+    "confidence_floor": 0.7,
+    "probability_margin_floor": 0.08,
+    "source": "participant-disjoint public validation split; test excluded",
+    "model_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
+  },
+  "note": "The public test is participant-disjoint within imported public data. It is evidence, not a guarantee for every person, camera, or angle."
+}

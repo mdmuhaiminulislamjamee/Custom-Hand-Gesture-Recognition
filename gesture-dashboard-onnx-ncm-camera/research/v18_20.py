@@ -1,6 +1,6 @@
-"""Shared training/evaluation code used by v18_20.ipynb and the CLI.
+"""Shared balanced training/evaluation code used by the notebook and CLI.
 
-Eight commands plus an internal no_gesture class; subject-aware public splits;
+Ten commands plus an internal no_gesture class; subject-aware public splits;
 training-only augmentation. No test-set threshold selection or model fitting.
 """
 from __future__ import annotations
@@ -17,6 +17,11 @@ from backend.config import CLASS_NAMES, RuntimeConfig
 from backend.geometry import GeometryResolver, landmarks_to_feature
 
 LABELS = CLASS_NAMES + ['no_gesture']
+COMMAND_COUNT = len(CLASS_NAMES)
+REJECT_INDEX = COMMAND_COUNT
+INTERNAL_COUNT = len(LABELS)
+ARTIFACT_DIRECTORY = 'artifacts/ten_gesture'
+DATA_DIRECTORY = 'data/ten_gesture'
 
 
 def load_npz(path):
@@ -59,8 +64,8 @@ def feature_keys(features):
 def prepare_data(root, per_class=4096, seed=1820):
     import pandas as pd
     root = Path(root)
-    directory = root / 'data/v18_20'
-    output = root / 'artifacts/v18_20'
+    directory = root / DATA_DIRECTORY
+    output = root / ARTIFACT_DIRECTORY
     output.mkdir(parents=True, exist_ok=True)
     public = {s: load_npz(directory / f'hagrid_{s}.npz') for s in ['train', 'val', 'test']}
     dorsal = load_npz(directory / 'dorsal.npz')
@@ -99,7 +104,12 @@ def prepare_data(root, per_class=4096, seed=1820):
     # cached test results cannot establish participant generalization.
     replay = load_npz(root / 'models/gesture_online_replay_cache.npz')
     legacy_points = np.array([reconstruct_landmarks(x) for x in replay['X']])
-    legacy = dict(X=replay['X'], landmarks=legacy_points, y=np.where(replay['y'] < 0, 8, replay['y']),
+    legacy_y = np.where(replay['y'] < 0, REJECT_INDEX, replay['y']).astype(np.int64)
+    if 'source_y' in replay and 'source_class_names' in replay:
+        source_names = list(replay['source_class_names'])
+        if 'fist' in source_names:
+            legacy_y[replay['source_y'] == source_names.index('fist')] = CLASS_NAMES.index('fist')
+    legacy = dict(X=replay['X'], landmarks=legacy_points, y=legacy_y,
                   group=np.array(['legacy_unknown'] * len(replay['X'])),
                   source_id=np.array([f'legacy:{i}' for i in range(len(replay['X']))]),
                   source=np.array(['legacy'] * len(replay['X'])), variant=np.array(['original'] * len(replay['X'])))
@@ -109,7 +119,7 @@ def prepare_data(root, per_class=4096, seed=1820):
     legacy = subset(legacy, keep)
     train = concatenate([public['train'], legacy])
     rows, labels, parents, augmented = [], [], [], []
-    for label in range(9):
+    for label in range(INTERNAL_COUNT):
         available = np.flatnonzero(train['y'] == label)
         if not len(available):
             raise ValueError(f'No training examples for {LABELS[label]}')
@@ -119,12 +129,22 @@ def prepare_data(root, per_class=4096, seed=1820):
             augment = number >= len(available)
             if augment:
                 points -= points[0]
-                angle = rng.uniform(-.20, .20)
+                angle_limit = .35 if label in {
+                    CLASS_NAMES.index('like'), CLASS_NAMES.index('fist'),
+                    CLASS_NAMES.index('thumb_down'),
+                } else .20
+                angle = rng.uniform(-angle_limit, angle_limit)
                 rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
                 points = points @ rotation.T
-                points *= rng.uniform(.92, 1.08, size=(1, 2))
+                scale_range = (.78, 1.12) if label in {
+                    CLASS_NAMES.index('like'), CLASS_NAMES.index('fist'),
+                    CLASS_NAMES.index('thumb_down'),
+                } else (.92, 1.08)
+                points *= rng.uniform(*scale_range, size=(1, 2))
                 scale = np.linalg.norm(points[9])
                 points += rng.normal(0, max(scale, 1e-6) * .006, points.shape)
+            if label in {CLASS_NAMES.index('fist'), CLASS_NAMES.index('thumb_down')} and number % 2:
+                points[:, 0] = 2 * points[0, 0] - points[:, 0]
             rows.append(landmarks_to_feature(points))
             labels.append(label)
             parents.append(str(train['source_id'][index]))
@@ -161,34 +181,74 @@ def evaluate(probabilities, mass, data, config=None, geometry=True):
     resolved = probabilities.copy()
     valid = np.ones(len(raw), bool)
     geometry_supported = np.zeros(len(raw), bool)
+    support_allowed = np.zeros(len(raw), bool)
     if geometry:
         resolver = GeometryResolver(config)
         for i, points in enumerate(data['landmarks']):
-            resolved[i], details = resolver.resolve(probabilities[i], points)
-            valid[i] = details['pose_validation']['valid']
-            geometry_supported[i] = details['pose_validation'].get('geometry_supported', False)
+            handedness = (
+                str(data['handedness'][i])
+                if 'handedness' in data and str(data['handedness'][i])
+                else None
+            )
+            handedness_confidence = (
+                float(data['handedness_confidence'][i])
+                if 'handedness_confidence' in data else None
+            )
+            resolved[i], details = resolver.resolve(
+                probabilities[i], points,
+                handedness=handedness,
+                handedness_confidence=handedness_confidence,
+            )
+            pose = details['pose_validation']
+            direction = details.get('directional') or {}
+            valid[i] = pose['valid']
+            geometry_supported[i] = pose.get('geometry_supported', False)
+            name = config.class_names[int(np.argmax(resolved[i]))]
+            recovery_mass_ok = bool(mass[i] >= config.geometry_recovery_mass_floor)
+            directional_recovery = bool(
+                geometry_supported[i]
+                and direction.get('strong_geometry', False)
+                and direction.get('model_supported_pose', False)
+            )
+            support_allowed[i] = bool(
+                (name == 'dorsal' and geometry_supported[i] and recovery_mass_ok)
+                or (
+                    name in {'left', 'right', 'up', 'down'}
+                    and directional_recovery
+                    and (name == 'down' or recovery_mass_ok)
+                )
+                or (
+                    name in {'open_palm', 'fist', 'thumb_down'}
+                    and geometry_supported[i]
+                    and recovery_mass_ok
+                )
+            )
     ordered = np.sort(resolved, axis=1)
-    support_allowed = geometry_supported & ((resolved.argmax(1) == 6) | (mass >= .50))
     accepted = valid & ((mass >= config.known_mass_floor) | support_allowed) & (ordered[:, -1] >= config.confidence_floor) & ((ordered[:, -1] - ordered[:, -2]) >= config.probability_margin_floor)
-    predicted = np.where(accepted, resolved.argmax(1), 8)
-    truth = np.where(data['y'] < 0, 8, data['y'])
-    known = truth < 8
+    predicted = np.where(accepted, resolved.argmax(1), REJECT_INDEX)
+    data_y = np.asarray(data['y'], dtype=np.int64).copy()
+    if 'source_y' in data and 'source_class_names' in data:
+        source_names = list(data['source_class_names'])
+        if 'fist' in source_names:
+            data_y[data['source_y'] == source_names.index('fist')] = CLASS_NAMES.index('fist')
+    truth = np.where(data_y < 0, REJECT_INDEX, data_y)
+    known = truth < COMMAND_COUNT
     correct_accept = accepted & (predicted == truth)
     metrics = dict(raw_known_accuracy=float(accuracy_score(truth[known], raw[known])),
-                   raw_known_macro_f1=float(f1_score(truth[known], raw[known], labels=np.arange(8), average='macro', zero_division=0)),
-                   runtime_macro_f1=float(f1_score(truth, predicted, labels=np.arange(9), average='macro', zero_division=0)),
+                   raw_known_macro_f1=float(f1_score(truth[known], raw[known], labels=np.arange(COMMAND_COUNT), average='macro', zero_division=0)),
+                   runtime_macro_f1=float(f1_score(truth, predicted, labels=np.arange(INTERNAL_COUNT), average='macro', zero_division=0)),
                    correct_command_rate=float(np.mean(correct_accept[known])),
                    accepted_precision=float(np.mean(predicted[accepted] == truth[accepted])) if accepted.any() else 0.,
                    unknown_false_accept_rate=float(np.mean(accepted[~known])) if (~known).any() else 0.,
                    known_rejection_rate=float(np.mean(~accepted[known])))
     return dict(metrics=metrics, predicted=predicted, accepted=accepted, truth=truth,
-                report=classification_report(truth, predicted, labels=np.arange(9), target_names=LABELS, output_dict=True, zero_division=0),
-                confusion=confusion_matrix(truth, predicted, labels=np.arange(9)), probabilities=resolved, mass=mass)
+                report=classification_report(truth, predicted, labels=np.arange(INTERNAL_COUNT), target_names=LABELS, output_dict=True, zero_division=0),
+                confusion=confusion_matrix(truth, predicted, labels=np.arange(INTERNAL_COUNT)), probabilities=resolved, mass=mass)
 
 
 def conditional(probabilities):
-    mass = probabilities[:, :8].sum(1)
-    known = probabilities[:, :8] / np.maximum(mass[:, None], 1e-30)
+    mass = probabilities[:, :COMMAND_COUNT].sum(1)
+    known = probabilities[:, :COMMAND_COUNT] / np.maximum(mass[:, None], 1e-30)
     return known, mass
 
 
@@ -198,7 +258,7 @@ def train_candidate(root, epochs=80, seed=1820):
     from sklearn.metrics import f1_score, log_loss
     from threadpoolctl import threadpool_limits
     root = Path(root)
-    output = root / 'artifacts/v18_20'
+    output = root / ARTIFACT_DIRECTORY
     train = load_npz(output / 'balanced_train.npz')
     validation = load_npz(output / 'public_val.npz')
     scaler = StandardScaler().fit(train['X'])
@@ -209,10 +269,10 @@ def train_candidate(root, epochs=80, seed=1820):
     best, best_score, stale, history = None, -1., 0, []
     with threadpool_limits(limits=1):
         for epoch in range(epochs):
-            model.partial_fit(x, train['y'], classes=np.arange(9))
+            model.partial_fit(x, train['y'], classes=np.arange(INTERNAL_COUNT))
             probabilities = model.predict_proba(val_x)
-            score = f1_score(validation['y'], probabilities.argmax(1), labels=np.arange(9), average='macro', zero_division=0)
-            history.append(dict(epoch=epoch + 1, train_loss=float(model.loss_), val_log_loss=float(log_loss(validation['y'], probabilities, labels=np.arange(9))), val_macro_f1=float(score)))
+            score = f1_score(validation['y'], probabilities.argmax(1), labels=np.arange(INTERNAL_COUNT), average='macro', zero_division=0)
+            history.append(dict(epoch=epoch + 1, train_loss=float(model.loss_), val_log_loss=float(log_loss(validation['y'], probabilities, labels=np.arange(INTERNAL_COUNT))), val_macro_f1=float(score)))
             if score > best_score + .0001:
                 best, best_score, stale = copy.deepcopy(model), score, 0
             else:
@@ -245,21 +305,21 @@ def export_onnx(root, model, scaler, path):
         if i < len(model.coefs_) - 1:
             nodes.append(helper.make_node('Relu', [current], [f'act{i}'])); current = f'act{i}'
     nodes.append(helper.make_node('Softmax', [current], ['all_probabilities'], axis=1))
-    constant('known_indices', np.arange(8, dtype=np.int64)); constant('axis', np.array([1], np.int64)); constant('epsilon', np.array([1e-30], np.float32))
+    constant('known_indices', np.arange(COMMAND_COUNT, dtype=np.int64)); constant('axis', np.array([1], np.int64)); constant('epsilon', np.array([1e-30], np.float32))
     nodes += [helper.make_node('Gather', ['all_probabilities', 'known_indices'], ['known'], axis=1),
               helper.make_node('ReduceSum', ['known', 'axis'], ['known_gesture_mass'], keepdims=1),
               helper.make_node('Add', ['known', 'epsilon'], ['safe_known']),
               helper.make_node('ReduceSum', ['safe_known', 'axis'], ['denominator'], keepdims=1),
               helper.make_node('Div', ['safe_known', 'denominator'], ['probabilities']),
               helper.make_node('ArgMax', ['probabilities'], ['label'], axis=1, keepdims=0)]
-    graph = helper.make_graph(nodes, 'v18_20_balanced_mlp', [helper.make_tensor_value_info('landmark_features', TensorProto.FLOAT, [None, 76])],
+    graph = helper.make_graph(nodes, 'ten_gesture_balanced_mlp', [helper.make_tensor_value_info('landmark_features', TensorProto.FLOAT, [None, 76])],
                               [helper.make_tensor_value_info('label', TensorProto.INT64, [None]),
-                               helper.make_tensor_value_info('probabilities', TensorProto.FLOAT, [None, 8]),
+                               helper.make_tensor_value_info('probabilities', TensorProto.FLOAT, [None, COMMAND_COUNT]),
                                helper.make_tensor_value_info('known_gesture_mass', TensorProto.FLOAT, [None, 1])], initializers)
     exported = helper.make_model(graph, opset_imports=[helper.make_opsetid('', 16)], ir_version=8)
     onnx.checker.check_model(exported)
     onnx.save(exported, path)
-    validation = load_npz(Path(root) / 'artifacts/v18_20/public_val.npz')['X']
+    validation = load_npz(Path(root) / ARTIFACT_DIRECTORY / 'public_val.npz')['X']
     expected, expected_mass = conditional(model.predict_proba(scaler.transform(validation).astype(np.float32)))
     actual, actual_mass = predict_onnx(path, validation)
     parity = dict(prediction_agreement=float(np.mean(expected.argmax(1) == actual.argmax(1))),

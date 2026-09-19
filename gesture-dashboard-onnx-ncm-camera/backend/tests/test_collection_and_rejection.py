@@ -41,9 +41,51 @@ def test_save_raw_detector_failure_preserves_frozen_pair_and_restarts(tmp_path):
         store.save(token=frozen['token'], participant_id='person-001', session_id='session-1', step_id='up/casual')
 
 
-def test_collection_plan_keeps_54_sections_with_12_images_and_balanced_hand_angles():
+def test_collection_can_freeze_and_save_a_webcam_frame(tmp_path):
+    from pathlib import Path
+
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-webcam')
+    frozen = store.freeze_bytes(
+        99,
+        jpeg_bytes(),
+        {'runtime_prediction': 'fist', 'action_reason': 'stable command emitted'},
+        source='webcam',
+    )
+    saved = store.save(
+        token=frozen['token'],
+        participant_id='person-webcam',
+        session_id='webcam-session',
+        step_id='left/front',
+    )
+    record = json.loads(Path(saved['image_path']).with_suffix('.json').read_text())
+    assert frozen['source'] == 'webcam'
+    assert record['source'] == 'webcam'
+    assert record['frame_id'] == 99
+
+
+def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp_path):
+    old_classes = RuntimeConfig().class_names[:8] + ['no_gesture']
+    descriptor_path = tmp_path / 'dataset.json'
+    descriptor_path.write_text(json.dumps({
+        'schema_version': 2,
+        'type': 'gesture_image_collection',
+        'class_names': old_classes,
+        'raw_images': 'Original NCM JPEGs',
+        'operator_note': 'keep this custom value',
+    }), encoding='utf-8')
+
+    CollectionStore(tmp_path).initialize()
+
+    migrated = json.loads(descriptor_path.read_text(encoding='utf-8'))
+    assert migrated['class_names'] == [*RuntimeConfig().class_names, 'no_gesture']
+    assert migrated['raw_images'] == 'Original NCM or webcam JPEGs, no overlays or augmentation'
+    assert migrated['operator_note'] == 'keep this custom value'
+
+
+def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_angles():
     plan = collection_plan()
-    assert len(plan) == 54
+    assert len(plan) == 62
     assert all(step['target'] == 12 for step in plan)
     assert all(step['per_hand_target'] == 6 for step in plan if step['view'] not in {'background', 'face_ear'})
     assert all(step['per_orientation_target'] == 3 for step in plan if step['view'] not in {'background', 'face_ear'})
@@ -157,8 +199,9 @@ def test_other_fingers_cannot_be_directional_even_with_confident_model(raised, d
     points[5:9] = [[1, -.3], [1.1, -.3], [1.04, -.26], [.98, -.25]]  # Index folded.
     rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     points = points @ rotation.T
-    probabilities = np.eye(8)[RuntimeConfig().class_to_idx[direction]]
-    _, details = GeometryResolver(RuntimeConfig()).resolve(probabilities, points)
+    config = RuntimeConfig()
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx[direction]]
+    _, details = GeometryResolver(config).resolve(probabilities, points)
     assert not details['pose_validation']['valid']
     assert not details['directional']['index_only']
 
@@ -166,7 +209,10 @@ def test_other_fingers_cannot_be_directional_even_with_confident_model(raised, d
 @pytest.mark.parametrize('direction', ['left', 'right', 'up', 'down'])
 def test_real_index_has_strong_evidence_but_low_mass_still_rejected(direction):
     config = RuntimeConfig(known_mass_floor=.95)
-    p, details = GeometryResolver(config).resolve(np.eye(8)[config.class_to_idx[direction]], directional_points(direction))
+    p, details = GeometryResolver(config).resolve(
+        np.eye(len(config.class_names))[config.class_to_idx[direction]],
+        directional_points(direction),
+    )
     assert details['pose_validation']['valid']
     gate = TemporalGate(config)
     for t in (1., 1.1, 1.2, 1.3, 1.4, 1.5):
@@ -177,7 +223,7 @@ def test_real_index_has_strong_evidence_but_low_mass_still_rejected(direction):
 def test_open_palm_with_strong_shape_and_partial_mass_needs_longer_hold():
     config = RuntimeConfig(known_mass_floor=.95)
     p, details = GeometryResolver(config).resolve(
-        np.eye(8)[4],
+        np.eye(len(config.class_names))[config.class_to_idx['open_palm']],
         representative_hand(),
         handedness='Left',
         handedness_confidence=.99,
@@ -290,3 +336,48 @@ def test_collection_api_lifecycle_validation_and_storage_failure(tmp_path, monke
         raise OSError('disk unavailable')
     monkeypatch.setattr(store, 'add_participant', unavailable)
     assert client.post('/api/collection/participants', json={'participant_id': 'person-002'}).status_code == 503
+
+
+def test_collection_webcam_preview_processes_and_freezes_the_exact_uploaded_jpeg(
+    tmp_path, monkeypatch
+):
+    from fastapi.testclient import TestClient
+    import backend.app as module
+
+    store = CollectionStore(tmp_path)
+    monkeypatch.setattr(module, 'collection_store', store)
+    observed = {}
+
+    async def process_uploaded_frame(content, session, timestamp):
+        observed['content'] = content
+        observed['session'] = session
+        observed['timestamp'] = timestamp
+        return {
+            'runtime_prediction': 'thumb_down',
+            'action_reason': 'waiting for temporal confirmation',
+            'landmarks': representative_hand().tolist(),
+            'world_landmarks': [],
+            'plane_angles': None,
+            'feature_vector': [0.0] * 76,
+            'quality': {'issues': []},
+        }
+
+    monkeypatch.setattr(module, '_process_frame_with_limit', process_uploaded_frame)
+    client = TestClient(module.app)
+    jpeg = jpeg_bytes()
+
+    missing = client.post('/api/collection/preview?source=webcam')
+    assert missing.status_code == 400
+    response = client.post(
+        '/api/collection/preview?source=webcam',
+        files={'image': ('frame.jpg', jpeg, 'image/jpeg')},
+    )
+
+    assert response.status_code == 200
+    frozen = response.json()
+    assert observed['content'] == jpeg
+    assert observed['timestamp'] is None
+    assert frozen['source'] == 'webcam'
+    assert frozen['prediction'] == 'thumb_down'
+    assert frozen['has_features'] is True
+    assert frozen['image_url'].startswith('data:image/jpeg;base64,')

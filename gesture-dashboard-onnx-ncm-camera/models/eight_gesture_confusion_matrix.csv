@@ -1,9 +1,0 @@
-actual,left,right,up,down,open_palm,like,dorsal,ok
-left,226,0,0,0,0,3,0,0
-right,0,225,0,0,0,4,0,0
-up,0,0,226,0,0,3,0,0
-down,1,0,0,224,0,4,0,0
-open_palm,0,0,1,0,139,0,0,2
-like,0,0,0,0,1,136,0,0
-dorsal,0,0,0,0,0,0,427,0
-ok,0,0,0,0,3,0,0,144

@@ -1,4 +1,4 @@
-# Eight-Gesture ONNX + USB-NCM Camera Handover Checklist
+# Ten-Gesture ONNX + Webcam/USB-NCM Camera Handover Checklist
 
 ## Release package
 
@@ -6,12 +6,12 @@
   MediaPipe task, online-learning evaluation caches, and artifact manifest are
   present.
 - Confirm the runtime output order is exactly `left`, `right`, `up`, `down`,
-  `open_palm`, `like`, `dorsal`, `ok`.
+  `open_palm`, `like`, `dorsal`, `ok`, `fist`, `thumb_down`.
 - Confirm `no_gesture` appears only as the rejection/feedback sentinel, never as
-  a ninth probability or command action.
+  an eleventh probability or command action.
 - Confirm the mapped actions are Move Left, Move Right, Move Up, Move Down,
   Enable / Disable Object Tracking, Play / Pause, Return to Default Position,
-  and Start / Stop Recording, in that class order.
+  Start / Stop Recording, Mute, and Volume Down, in that class order.
 - Run `verify_ncm_onnx_release.bat` and retain its output.
 - Start the app and verify HTTP 200 on ports 3200 and 8200.
 - Stop the application before creating the ZIP.
@@ -22,10 +22,13 @@
 ## Automated software qualification
 
 - Confirm artifact integrity and the release fingerprint pass.
-- Confirm the ONNX session exposes one `[N, 76]` float32 input, eight
+- Confirm the ONNX session exposes one `[N, 76]` float32 input, ten
   probabilities in the canonical order, and one `[N, 1]` known-mass output.
 - Confirm the runtime target is 10 FPS with a 100 ms frame budget, even when the
   board camera delivers frames faster.
+- Confirm the matching runtime JSON uses `0.70` known mass, `0.70` confidence,
+  `0.08` probability margin, and `0.15` only for explicitly geometry-supported
+  recovery; do not copy thresholds from a historical package.
 - Run the exact-class/open-set accuracy test and record its result.
 - Run camera-stability tests covering unmirrored pixels, low-light enhancement,
   near-blank rejection, VIDEO timestamps, landmark EMA, jump rejection, and
@@ -35,11 +38,23 @@
   unreviewed updates.
 - Run TypeScript, ESLint, and the production frontend build.
 
-Current preserved offline evidence is 99.15% known-class accuracy, 98.93% macro
-F1, 97.47% minimum per-class F1, and 1.83% unknown false acceptance on 1,769
-known plus 1,146 unknown samples. ONNX parity is 100% on 256 preserved samples,
-with maximum absolute probability error about `1.05e-7`. These are offline
-software results only—not live NCM-camera recognition accuracy.
+Record the exact ten-command metrics from the qualified production metadata and
+untouched-test exports. Do not reuse figures from the historical eight-command
+release. Offline software results are not live webcam, NCM-camera, or iOS
+recognition accuracy.
+
+## iOS package
+
+- Run `scripts/create_ios_handover.ps1 -Version v2026.09.17_ios_onnx_05` only
+  after the ten-command artifacts qualify. The script must reject stale
+  eight-output or hash-mismatched files.
+- Confirm `_05` is the current immutable package under `handover_03/`; retain
+  `_02`, `_03`, Handover 01, and Handover 02 as historical snapshots.
+- Confirm the package contains the matching ONNX, metadata, runtime JSON,
+  MediaPipe and BlazeFace assets, Swift extractor, reference runtime files,
+  mobile manifest, and checksums.
+- On a physical iOS device, verify both hands for Fist and Thumbs Down, verify
+  Open Palm is upward-only, and verify unmirrored Left/Right semantics.
 
 ## Required physical NCM acceptance
 
@@ -56,12 +71,13 @@ Hardware acceptance is separate and mandatory:
    pointing toward decreasing image x must produce Right; increasing image x
    must produce Left. Confirm those semantic labels still dispatch Move Right
    and Move Left, respectively.
-5. Collect a labeled live test for all eight gestures in normal and low light,
+5. Collect a labeled live test for all ten gestures in normal and low light,
    across varied backgrounds, distances, skin tones, hand sizes, and finger
-   thicknesses. Use both hands if both are within product scope.
+   thicknesses. Use both hands for Fist and Thumbs Down.
 6. Explicitly challenge Left versus Right, Dorsal versus Down, Down versus
-   non-command hand shapes, OK versus Open Palm, partial hands, motion blur, and
-   empty scenes.
+   non-command hand shapes, Like versus Thumbs Down, Fist versus folded unknown
+   shapes, OK versus Open Palm, Open Palm pointing left/right/down, partial
+   hands, motion blur, and empty scenes.
 7. Record the live confusion matrix, per-class precision/recall/F1, false
    actions per minute with no command shown, action latency, landmark jitter,
    observed FPS, and frame-budget pass rate. Do not substitute offline metrics.

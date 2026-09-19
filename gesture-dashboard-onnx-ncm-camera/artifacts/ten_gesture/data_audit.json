@@ -1,0 +1,26 @@
+{
+  "seed": 1820,
+  "per_class": 4096,
+  "excluded_overlap": {
+    "test": 0,
+    "val": 0,
+    "train": 3
+  },
+  "subjects": {
+    "train": 8330,
+    "val": 814,
+    "test": 848
+  },
+  "dorsal_subjects": 136,
+  "dorsal_metadata_matched": 2000,
+  "subject_overlap": {
+    "train_val": 0,
+    "train_test": 0,
+    "val_test": 0
+  },
+  "limitations": [
+    "Directional public examples are rotations of one, not new horizontal camera captures.",
+    "Legacy replay has no participant IDs; cross-source subject overlap cannot be proved absent.",
+    "No claim of universal demographic, child, disability, or lighting coverage."
+  ]
+}

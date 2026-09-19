@@ -1,0 +1,19 @@
+{
+  "hagrid": {
+    "url": "https://github.com/hukenovs/hagrid",
+    "download": "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid_v2/annotations_with_landmarks/annotations.zip",
+    "license": "HaGRID custom CC BY-SA 4.0; see https://github.com/hukenovs/hagrid/blob/master/license/en_us.pdf",
+    "landmarks": "Publisher's automatic MediaPipe annotations",
+    "subjects": "Published user_id and train/val/test partitions"
+  },
+  "dorsal": {
+    "url": "https://www.kaggle.com/datasets/mdmuhaiminulislam/dorsal-hands-dataset",
+    "download": "https://www.kaggle.com/api/v1/datasets/download/mdmuhaiminulislam/dorsal-hands-dataset",
+    "version": 1,
+    "license": "CC BY-NC-SA 4.0",
+    "landmarks": "Locally extracted using the bundled MediaPipe hand landmarker",
+    "subjects": "Unknown unless original 11K HandInfo.csv is available",
+    "participant_metadata": "11K Hands / HandInfo.csv; https://github.com/mahmoudnafifi/11K-Hands",
+    "metadata_mirror": "https://www.kaggle.com/datasets/shyambhu/hands-and-palm-images-dataset"
+  }
+}

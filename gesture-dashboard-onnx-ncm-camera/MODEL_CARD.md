@@ -1,149 +1,121 @@
-# Model Card — Eight-Gesture MLP ONNX + NCM Camera Release
+# Model Card — Ten-Gesture ONNX Release
 
-Current release: **v18_20**. See [V18_20_README.md](V18_20_README.md) for current training data, notebook, metrics, and limitations. Prior-release statistics below are historical.
+Release: **TenGestureBalancedMLP, 2026-09-16**
 
-## Purpose
+## Purpose and scope
 
-Local static-hand command recognition from a USB-NCM development-board camera.
-The release exposes exactly eight command probabilities, uses an open-set
-rejection sentinel for unsafe frames, and enforces a backend-wide ceiling of 10
-inference starts per second with a 100 ms frame budget.
+This local model recognizes ten static hand commands from MediaPipe hand
+landmarks for the Windows dashboard, standalone Webcam/NCM viewer, and iOS
+integration package. It is not a biometric system or a safety-critical control.
+Physical controls and product-level fail-safe behavior remain necessary.
 
-This model is intended for local interactive control after installation-specific
-live validation. It is not a safety-critical controller, identity/biometric
-system, or a substitute for physical controls and fail-safe behavior.
+## Contract
 
-## Runtime architecture
+- Input: `landmark_features`, float32 `[N, 76]`.
+- Outputs: `probabilities` float32 `[N, 10]`, `known_gesture_mass` float32
+  `[N, 1]`, and an internal argmax label.
+- Order: `left`, `right`, `up`, `down`, `open_palm`, `like`, `dorsal`, `ok`,
+  `fist`, `thumb_down`.
+- Actions: Move Left, Move Right, Move Up, Move Down, tracking toggle,
+  Play/Pause, default position, recording toggle, Mute, and Volume Down.
+- `no_gesture` is an internal negative/rejection class and is not exposed as a
+  command probability.
+- ONNX opset: 16; CPU provider; one intra-op and one inter-op thread.
 
-`board JPEG → USB-NCM → JLIP/TCP validation → adaptive image-quality preprocessing → MediaPipe VIDEO Hand Landmarker → filtered 21-point landmarks → 76 float32 features → eight-output ONNX MLP + known-mass score → pose/open-set/EMA gates → mapped action`
+The image is never horizontally mirrored. Under the target NCM calibration,
+positive index-direction x resolves to Left and negative x resolves to Right.
 
-The input image and landmarks are not horizontally flipped. NCM horizontal
-calibration swaps the legacy source-coordinate interpretation: decreasing x is
-reported as Right and increasing x is reported as Left. This matches the
-front-facing operator's intended direction while preserving the original camera
-pixels. Once resolved, semantic `left` and `right` labels map normally to Move
-Left and Move Right.
+## Data and training
 
-## Model contract
+The internal training taxonomy has ten commands plus `no_gesture`. Every
+internal class is balanced to 4,096 feature rows. Public landmark sources use
+HaGRID v2 annotations, including `fist` and `dislike` (mapped to
+`thumb_down`), plus the existing participant-labelled dorsal-hand source.
+Training includes both natural handednesses, bounded training-only rotation,
+scale/noise augmentation, expanded Rock/Call/Peace/neutral negatives, and
+explicit left/right/down Open-Palm negatives.
 
-- File: `models/gesture_mlp_production.onnx`
-- Execution provider: ONNX Runtime `CPUExecutionProvider`
-- Input: `landmark_features`, float32, shape `[N, 76]`
-- Probability output: float, shape `[N, 8]`
-- Auxiliary output: known-gesture mass, shape `[N, 1]`
-- Output order: `left`, `right`, `up`, `down`, `open_palm`, `like`, `dorsal`, `ok`
-- Rejection/feedback sentinel: `no_gesture` (not an ONNX output class)
-- ONNX opset: `ai.onnx` 16
-- Source family: balanced (128, 64) MLP with eight exposed commands and an internal unknown class
+Participant IDs are disjoint across the public training, validation, and test
+splits. Exact feature duplicates are removed with evaluation precedence. The
+legacy replay cache is training-only and has incomplete participant provenance;
+this limitation is recorded in model metadata.
 
-| Runtime label | Action |
-|---|---|
-| `left` | Move Left |
-| `right` | Move Right |
-| `up` | Move Up |
-| `down` | Move Down |
-| `open_palm` | Enable / Disable Object Tracking |
-| `like` | Play / Pause |
-| `dorsal` | Return to Default Position |
-| `ok` | Start / Stop Recording |
+The final confirmation set contains 4,000 rows from 2,600 additional HaGRID
+participants with zero overlap against training, validation, or test. It was
+not used for model fitting or scalar threshold selection. It was, however, a
+fail-closed development/release gate: an earlier candidate's failure on this
+cohort informed subsequent training and geometry revisions. Treat the final
+numbers as regression evidence, not as an untouched statistical estimate.
 
-## Rejection and temporal policy
+HaGRID carries its publisher's custom CC BY-SA terms. The dorsal source is
+CC BY-NC-SA; review dataset licensing before commercial redistribution.
 
-`no_gesture` is returned when no usable hand is detected or a candidate fails
-known-mass, confidence, probability-margin, geometry, or temporal checks. It
-does not map to an action. The configured runtime uses:
+## Pose and rejection policy
 
-- probability EMA alpha `0.45`;
-- confidence floor `0.80`;
-- top-class margin floor `0.18`;
-- known-gesture mass floor `0.95`;
-- three stable frames before execution;
-- three release frames and a `0.80 s` action cooldown.
+An ONNX argmax does not directly dispatch an action. The runtime applies pose
+validation, known-mass/confidence/margin checks, temporal EMA, stable-frame and
+hold requirements, release frames, and cooldown.
 
-Directional and pose-specific hard geometry vetoes reduce confusion between
-similar shapes. Dorsal versus Down is checked using visible 2-D finger direction
-and extension. The feature contract contains no depth channel, so this separation
-must be challenged during live acceptance rather than assumed from offline data.
+- Open Palm requires an upward wrist-to-MCP palm axis. Sideways/downward Open
+  Palm is rejected and cannot fall through to Dorsal when the live surface gate
+  identifies a palmar hand.
+- Fist and Thumbs Down work for either hand.
+- A compact curl-back resolver recovers raised, camera-facing Fists when
+  perspective hides the finger bend; it cannot override Like or Thumbs Down.
+- Thumbs Down accepts foreshortened camera views while still requiring a
+  downward thumb relationship and model evidence.
+- Geometry recovery normally requires at least `0.15` known mass. Only the
+  tightly bounded Down silhouettes retained from real NCM regressions can use
+  the special lower-mass path.
 
-## Camera quality and landmark stability
+Selected gates: known mass `0.70`, confidence `0.70`, probability margin
+`0.08`, three stable frames, minimum hold `0.18 s`, and cooldown `0.80 s`.
 
-- MediaPipe runs in VIDEO mode with strictly increasing monotonic timestamps.
-- Underexposed frames receive graded luminance-based CLAHE/gamma enhancement;
-  normally exposed frames are left unchanged.
-- Near-blank frames are rejected before MediaPipe and reset the temporal gate.
-- Invalid, tiny, clipped, or implausible landmark sets cannot reach the
-  classifier.
-- Accepted landmarks use per-session velocity-adaptive EMA smoothing. Isolated
-  large jumps are rejected; a persistent jump is reacquired to permit genuine
-  hand motion.
-- Processing preserves source orientation throughout; neither the NCM preview
-  nor feature path performs horizontal mirroring.
+## Measured offline performance
 
-These filters mitigate dark frames, jitter, and false activation. They do not
-guarantee performance for every lens, exposure, motion blur, background, hand
-shape, or mounting geometry.
+On the participant-disjoint public test split, used as a release-regression
+gate after candidate iteration:
 
-## Safe reviewed online learning
+| Metric | Value |
+|---|---:|
+| Raw known accuracy | 0.99618 |
+| Raw known macro F1 | 0.99626 |
+| Runtime macro F1 including rejection | 0.99035 |
+| Accepted precision | 0.99769 |
+| Unknown false acceptance | 0.01000 |
+| Minimum command F1 | 0.98485 |
+| Fist precision / recall / F1 | 1.00000 / 0.98250 / 0.99117 |
+| Thumbs Down precision / recall / F1 | 0.99490 / 0.97500 / 0.98485 |
+| Like F1 | 0.98737 |
 
-The base ONNX graph is immutable. Safe Learn applies a bounded local NumPy
-residual adapter after base inference. It accepts exactly one explicitly reviewed
-76-D sample at a time, tries bounded influence levels, and rejects the candidate
-if validation/replay metrics or unknown-class behavior regress beyond configured
-limits. Accepted adapter state is written atomically and backed up for rollback.
-Unsafe/forced learning is unsupported.
+On the additional new-participant confirmation cohort:
 
-A reviewed `no_gesture` sample creates a local rejection prototype that reduces
-known-gesture acceptance near that feature vector; it does not add a ninth
-classifier output. Save-only feedback remains available for offline dataset
-review. A materially new base model still requires offline training, evaluation,
-ONNX export, parity checks, and a new signed artifact manifest.
+| Metric | Value |
+|---|---:|
+| Present-class macro F1 | 0.97587 |
+| Accepted precision | 0.99630 |
+| Unknown/non-up-palm false acceptance | 0.00250 |
+| Fist recall / F1 | 0.98250 / 0.98992 |
+| Thumbs Down recall / F1 | 0.96000 / 0.97710 |
+| Like recall / F1 | 0.95250 / 0.97567 |
+| Upward Open Palm recall | 1.00000 |
 
-## Offline qualification evidence
+ONNX/source prediction agreement is `1.0`; maximum absolute probability error
+is below `1e-6`. Classifier-only p95 latency was below `0.05 ms` on the
+qualification machine. Full image decoding, MediaPipe, transport, and UI time
+are not included in that latency number.
 
-The current metadata records:
+## Limitations and required acceptance
 
-- 1,769 known-class test samples;
-- known-class accuracy `0.99152`;
-- macro F1 `0.98928`;
-- minimum per-class F1 `0.97473`;
-- known acceptance rate `0.97230` at known-mass floor `0.80`;
-- 1,146 held-out unknown samples;
-- unknown false-acceptance rate `0.01832`;
-- accepted-known accuracy `0.99593`;
-- ONNX/source prediction agreement `1.0` on 256 parity samples;
-- maximum absolute ONNX probability error about `1.05e-7`.
+Offline landmark evaluation cannot guarantee performance for every hand,
+disability, demographic, lens, background, occlusion, blur, lighting level, or
+camera angle. Direction variants include rotations of source landmarks rather
+than independent horizontal captures. Dorsal/palmar separation depends on
+MediaPipe handedness at runtime because 2-D landmarks alone are ambiguous.
 
-These measurements validate the preserved offline arrays and ONNX conversion.
-They are not measurements from the physical NCM camera and must not be presented
-as live-device accuracy.
-
-## Required live NCM validation
-
-Before acceptance, collect per-class attempts for all eight commands using the
-actual board, lens, firmware, placement, and 10 FPS inference path. The camera
-transport may deliver faster than 10 FPS, but inference must remain capped at
-10 FPS with its 100 ms frame budget. Cover
-normal and low light, varied backgrounds and distances, both hands where
-supported, skin tones, hand sizes, and finger thicknesses. Include explicit
-confusion challenges for Left/Right, Dorsal/Down, Down/non-command poses, and
-OK/Open Palm, plus empty scenes and partial hands.
-
-Record the confusion matrix, per-class precision/recall/F1, false activations per
-minute with no command shown, landmark jitter, action latency, observed camera
-FPS, frame-budget pass rate, and JLIP/CRC/sequence errors. Offline qualification
-is complete only as a software gate; live NCM acceptance remains a separate
-hardware test.
-
-## Limitations and operational controls
-
-- Live use depends on correct board ARP, USB-NCM NTB parsing, UDP discovery, TCP
-  service, JLIP framing, and JPEG delivery; these are outside the ONNX model.
-- Low light can be enhanced, but severe blur, saturation, occlusion, or a nearly
-  black frame may still require rejection rather than recognition.
-- Dorsal classification has no true depth input.
-- Product integration must independently enforce safe action semantics, stop
-  behavior, rate limits, and recovery controls.
-- Artifact hashes and the exact feature/class order are checked before trusted
-  production inference.
-- The localhost deployment is intended for a trusted PC; do not expose its ports
-  directly to an untrusted network.
+Before product acceptance, test both hands for Fist and Thumbs Down and all
+angles expected in use on both Webcam and NCM. Explicitly test Open Palm upward
+versus left/right/down, empty scenes, partial hands, low light, Like versus
+Thumbs Down, Down versus Dorsal, and action debounce. Record a live confusion
+matrix, false actions per minute, latency, landmark jitter, FPS/budget results,
+and NCM transport errors. Repeat equivalent tests on physical iOS hardware.

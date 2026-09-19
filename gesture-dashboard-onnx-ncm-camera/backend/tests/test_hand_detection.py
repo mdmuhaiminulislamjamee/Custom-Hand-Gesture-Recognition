@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from backend.hand_detection import HandDetector, hand_pixel_metrics, normalized_hand_shape, restore_points
-from backend.model_runtime import RuntimeSession
+from backend.hand_detection import HandDetector, hand_pixel_metrics, normalized_hand_shape, restore_points, restore_world_points
+from backend.model_runtime import RuntimeSession, hand_plane_angles
 from backend.config import RuntimeConfig
 from backend.tests.test_camera_stability import representative_hand
 
@@ -15,6 +15,27 @@ def test_rotated_crop_returns_original_camera_axes(turns):
         rotated = np.column_stack([rotated[:, 1], 1 - rotated[:, 0]])
     restored = restore_points(rotated, (100, 50, 200, 150, turns, 0), (480, 640, 3))
     np.testing.assert_allclose(restored * [640, 480], original * [200, 150] + [100, 50], atol=1e-4)
+
+
+@pytest.mark.parametrize("turns", range(4))
+def test_rotated_world_landmarks_return_to_original_camera_axes(turns):
+    original = np.zeros((21, 3), dtype=np.float32)
+    original[:, 0] = np.linspace(-.2, .2, 21)
+    original[:, 1] = np.linspace(.3, -.3, 21)
+    original[:, 2] = np.linspace(-.1, .1, 21)
+    rotated = original.copy()
+    for _ in range(turns):
+        x = rotated[:, 0].copy()
+        rotated[:, 0] = rotated[:, 1]
+        rotated[:, 1] = -x
+    np.testing.assert_allclose(restore_world_points(rotated, turns), original, atol=1e-6)
+
+
+def test_live_plane_angles_use_real_three_dimensional_palm_axis():
+    points = np.zeros((21, 3), dtype=np.float32)
+    points[[5, 9, 13, 17]] = [1.0, 1.0, 1.0]
+    angles = hand_plane_angles(points)
+    assert angles == pytest.approx({"xy": 45.0, "yz": 45.0, "xz": 45.0})
 
 
 def test_hand_pixel_measurement_is_not_crop_magnification():

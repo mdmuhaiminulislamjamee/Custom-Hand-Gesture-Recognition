@@ -2,14 +2,19 @@
 
 Open **05 Data Collection** at http://127.0.0.1:3200.
 
-1. Connect the board camera. Create an ID such as `person-001`; reuse that ID for the same person on later visits.
-2. Follow **Collect now**. Directions come first: index finger only, with eight viewing variations including casual placement. Palm and other commands follow, then no-gesture examples (face/ear, other fingers, background and relaxed hands).
+1. Choose **Webcam** or **NCM camera**. Authorize the browser webcam when prompted, or connect the board for NCM. Create an ID such as `person-001`; reuse that ID for the same person on later visits.
+2. Follow **Collect now**. Directions come first: index finger only, with eight viewing variations including casual placement. Palm, Fist, Thumbs Down, and the other commands follow, then no-gesture examples (face/ear, other fingers, background and relaxed hands).
 3. Choose one of four balanced groups: right hand with fingers toward the camera, right hand with fingers away, left hand with fingers toward, or left hand with fingers away. Then set lighting and distance. Press **Capture image** or press **Space**; a three-second timer gives you time to pose. The live camera and detected hand landmarks are shown side by side.
 4. Review the frozen photo and its matching landmark view, then select **Confirm label & save image** or press **Space** again. Choose Retake if needed. The prompt is the human label; a wrong model prediction does not prevent saving.
 5. Collect three images in each hand/angle group (12 per prompt). The collector then advances to the next unfinished prompt. You can skip or jump to any prompt. Counts survive server restarts.
 6. Saved images for the current prompt appear as thumbnails. Select one or more and use **Delete selected**, or use **Delete last image** in Recent saves. Both ask for confirmation and remove the matching JPEG and JSON label together.
 
-There are 54 prompts and 648 photos for one complete pass per person. Hand-based prompts use the 3 + 3 + 3 + 3 balance above; face/ear and empty-background prompts simply require 12 varied images. This is a starting target, not a guarantee of sufficient training coverage. Vary people, both hands, sessions, backgrounds and conditions. Move naturally between photos; near-identical frames do not replace genuine variation. Keep directions clear while changing the wrist/camera angle. Here “one” means the index-up pose, not an additional command.
+There are 62 prompts and 744 photos for one complete pass per person. Hand-based prompts use the 3 + 3 + 3 + 3 balance above; face/ear and empty-background prompts simply require 12 varied images. This is a starting target, not a guarantee of sufficient training coverage. Vary people, both hands, sessions, backgrounds and conditions. Move naturally between photos; near-identical frames do not replace genuine variation. Keep directions clear while changing the wrist/camera angle. Here “one” means the index-up pose, not an additional command.
+
+Collect Fist and Thumbs Down with both hands and genuine camera/wrist-angle
+variation. Positive Open Palm examples must point upward. Open palms pointing
+left, right, or down belong in reviewed `no_gesture` hard-negative coverage so
+they cannot enable object tracking.
 
 The unmirrored board camera retains its calibration: image-right is **Left**, image-left is **Right**, image-up is **Up**. Follow the written instructions; do not reverse labels to match an incorrect prediction.
 
@@ -31,7 +36,7 @@ D:\Data-Collection\
     person-002\...
 ```
 
-JPEGs are original board frames without skeletons or overlays. Each matching JSON contains the confirmed label, participant/session/view, hand, finger angle, lighting, distance, timestamp, checksum and frame ID. Available landmarks/features and model output are diagnostics, never automatic labels. The frozen photo and diagnostics come from the same processed frame.
+JPEGs are original selected-camera frames without skeletons or overlays. Each matching JSON contains the confirmed label, source, participant/session/view, hand, finger angle, lighting, distance, timestamp, checksum and frame ID. Available landmarks/features and model output are diagnostics, never automatic labels. The frozen photo and diagnostics come from the same processed frame.
 
 Collect with participants' permission. Use anonymous IDs; images can still contain faces. This collector does not upload images. Back up the entire folder including JSON files. To change storage, set `GESTURE_COLLECTION_DIR` before starting the backend. Missing or unwritable storage produces an error, not a silent save elsewhere.
 
@@ -45,7 +50,7 @@ Audit without training:
 .venv\Scripts\python.exe -m scripts.train_multiview_model --dataset D:\Data-Collection --audit-only
 ```
 
-The reader supports all eight commands and `no_gesture`, verifies checksums, deduplicates images, and keeps every participant wholly in one train/validation/test split. Audit output lists coverage and cases needing landmark re-extraction or label review. Raw images without usable landmarks are retained: the current 76-feature classifier cannot learn directly from pixels. Such cases require detector evaluation/re-extraction during later training. Backgrounds without a detected hand are valuable detector-negative tests.
+The reader supports all ten commands and `no_gesture`, verifies checksums, deduplicates images, and keeps every participant wholly in one train/validation/test split. Audit output lists coverage and cases needing landmark re-extraction or label review. Raw images without usable landmarks are retained: the current 76-feature classifier cannot learn directly from pixels. Such cases require detector evaluation/re-extraction during later training. Backgrounds without a detected hand are valuable detector-negative tests.
 
 Candidate training writes to `artifacts/multiview`, never production. See [MULTIVIEW_TRAINING.md](MULTIVIEW_TRAINING.md) for qualification. More participants may be needed to fill independent splits; never put one person's images in multiple splits to satisfy coverage.
 

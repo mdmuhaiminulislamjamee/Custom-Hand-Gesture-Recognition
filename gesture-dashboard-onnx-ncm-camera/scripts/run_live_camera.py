@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Standalone Real-Time Gesture Recognition with ONNX
+Standalone ten-command real-time gesture recognition with ONNX
 Runs directly in an OpenCV window on your PC without starting the web server.
 
 Usage:
@@ -32,7 +32,9 @@ from backend.ncm_camera import NcmCameraClient, NcmCameraConfig
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Live ONNX Gesture Recognition")
+    parser = argparse.ArgumentParser(
+        description="Live ten-command ONNX gesture recognition"
+    )
     parser.add_argument(
         "--source",
         choices=["webcam", "ncm"],
@@ -51,6 +53,11 @@ def main() -> None:
     config = load_runtime_config()
     engine = InferenceEngine(config)
     session = RuntimeSession(config)
+
+    print(f"Commands ({len(config.class_names)}):")
+    for gesture in config.class_names:
+        print(f"  {gesture:<12} -> {config.gesture_to_action[gesture]}")
+    print("Open Palm is action-eligible only while its palm axis points upward.\n")
 
     status = engine.status()
     if not status.get("ready"):
@@ -326,4 +333,3 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
 
 if __name__ == "__main__":
     main()
-

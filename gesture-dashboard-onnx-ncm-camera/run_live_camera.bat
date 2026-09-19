@@ -4,7 +4,7 @@ cd /d "%~dp0"
 set OPENBLAS_NUM_THREADS=1
 
 echo ========================================================
-echo   Starting Standalone ONNX Gesture Recognition...
+echo   Starting 10-Command ONNX Gesture Recognition...
 echo ========================================================
 echo.
 echo   [1] Run with PC Webcam (Default)
@@ -23,4 +23,3 @@ if "%choice%"=="2" (
 )
 
 pause
-

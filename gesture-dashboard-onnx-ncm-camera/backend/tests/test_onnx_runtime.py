@@ -5,8 +5,9 @@ import json
 import numpy as np
 
 from backend.artifact_integrity import ArtifactRegistry
-from backend.config import MODELS_DIRECTORY, load_runtime_config
+from backend.config import CLASS_NAMES, MODELS_DIRECTORY, load_runtime_config
 from backend.model_runtime import ModelManager
+from backend.app import _onnx_qualification
 
 
 def test_artifact_manifest_and_onnx_metadata_are_current():
@@ -18,10 +19,20 @@ def test_artifact_manifest_and_onnx_metadata_are_current():
     assert metadata["format"] == "ONNX"
     assert metadata["parity"]["passed"] is True
     assert metadata["parity"]["prediction_agreement"] >= 0.99
-    assert metadata["output_class_order"] == [
-        "left", "right", "up", "down", "open_palm", "like", "dorsal", "ok"
-    ]
+    assert metadata["output_class_order"] == CLASS_NAMES
     assert metadata["known_mass_output"] == "known_gesture_mass"
+
+
+def test_health_qualification_uses_the_current_ten_gesture_gate_schema():
+    qualification = _onnx_qualification()
+
+    assert qualification["status"] == "passed", qualification["failing_gates"]
+    assert qualification["current"] is True
+    assert qualification["pc_release_ready"] is True
+    assert qualification["failing_gates"] == []
+    assert qualification["gates"]["complete_release_checks"] is True
+    assert qualification["gates"]["complete_confirmation_checks"] is True
+    assert qualification["gates"]["selected_thresholds_match_runtime"] is True
 
 
 def test_model_manager_loads_only_qualified_onnx_runtime():

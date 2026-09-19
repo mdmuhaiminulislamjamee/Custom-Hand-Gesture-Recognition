@@ -1,0 +1,6 @@
+{
+  "prediction_agreement": 1.0,
+  "maximum_absolute_probability_error": 7.748603820800781e-07,
+  "maximum_absolute_mass_error": 6.556510925292969e-07,
+  "passed": true
+}

@@ -25,9 +25,11 @@ from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
+from .config import CLASS_NAMES
+
 
 FEATURE_COUNT = 76
-CLASS_COUNT = 8
+CLASS_COUNT = len(CLASS_NAMES)
 SCHEMA_VERSION = 2
 DIRECTION_SEMANTIC_VERSION = "ncm_unmirrored_horizontal_swap_v1"
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -167,7 +169,7 @@ class OnlineLearningAdapter:
     """Validation-gated, persisted local probability adapter.
 
     ``config`` may be a ``RuntimeConfig``-like object (with ``class_names`` and
-    ``feature_names``), or it may be the sequence of eight class names itself.
+    ``feature_names``), or it may be the configured ten-class sequence itself.
     ``model_manager`` is optional and is used only to obtain raw ONNX
     probabilities for caches that contain ``X``/``y`` but no probability rows.
 
@@ -216,8 +218,10 @@ class OnlineLearningAdapter:
             class_names = tuple(str(value) for value in config)
             feature_names = tuple(f"feature_{index}" for index in range(FEATURE_COUNT))
             reject_label = "no_gesture"
-        if len(class_names) != CLASS_COUNT or len(set(class_names)) != CLASS_COUNT:
-            raise ValueError("Online learning requires exactly eight unique configured classes.")
+        if tuple(class_names) != tuple(CLASS_NAMES):
+            raise ValueError(
+                "Online learning requires the exact configured ten-command class order."
+            )
         if len(feature_names) != FEATURE_COUNT or len(set(feature_names)) != FEATURE_COUNT:
             raise ValueError("Online learning requires the exact unique 76-D feature contract.")
         if not 0.0 < float(adaptation_strength) < 1.0:
@@ -227,7 +231,7 @@ class OnlineLearningAdapter:
         if not 0.0 <= float(minimum_similarity) < 1.0:
             raise ValueError("minimum_similarity must be in [0, 1).")
         if reject_label in class_names:
-            raise ValueError("The reject label must not be one of the eight output classes.")
+            raise ValueError("The reject label must not be one of the ten output classes.")
         if not 0.0 < float(rejection_strength) <= 1.0:
             raise ValueError("rejection_strength must be in (0, 1].")
         if not 0.0 < float(adapter_acceptance_floor) < 1.0:
@@ -424,7 +428,7 @@ class OnlineLearningAdapter:
         if was_vector:
             values = values.reshape(1, -1)
         if values.ndim != 2 or values.shape[1] != CLASS_COUNT:
-            raise ValueError("Expected one eight-class probability row per feature row.")
+            raise ValueError("Expected one ten-class probability row per feature row.")
         return _soft_normalize(values), was_vector
 
     @staticmethod
@@ -520,7 +524,7 @@ class OnlineLearningAdapter:
         """Apply the live adapter to raw ONNX probabilities.
 
         Both inputs may be a single row or matching batches.  A single row
-        returns shape ``(8,)``; batches return ``(N, 8)``.  If persisted state
+        returns shape ``(10,)``; batches return ``(N, 10)``.  If persisted state
         failed validation, this method deliberately returns normalized base
         probabilities so camera inference remains available.
         """
@@ -550,7 +554,7 @@ class OnlineLearningAdapter:
         mass multiplied by the adapter's acceptance scale.  The runtime should
         pass this adjusted mass to its existing open-set/temporal gate.  This is
         how a reviewed ``no_gesture`` sample suppresses a false command without
-        adding a ninth classifier output.
+        exposing it as an eleventh public command output.
         """
 
         rows, probability_was_vector = self._coerce_public_probabilities(probabilities)
@@ -606,7 +610,8 @@ class OnlineLearningAdapter:
         predicted = np.asarray(self._base_predictor(features.astype(np.float32)), dtype=np.float64)
         if predicted.shape != (len(features), CLASS_COUNT):
             raise ValueError(
-                f"Base predictor returned {predicted.shape}; expected ({len(features)}, 8)."
+                f"Base predictor returned {predicted.shape}; expected "
+                f"({len(features)}, {CLASS_COUNT})."
             )
         return _soft_normalize(predicted)
 
@@ -681,7 +686,7 @@ class OnlineLearningAdapter:
             raise ValueError(f"{path.name} has no rows for the configured feedback labels.")
         if (labels < -1).any() or (labels >= CLASS_COUNT).any():
             raise ValueError(
-                f"{path.name} labels are outside -1 plus the configured eight-class order; "
+                f"{path.name} labels are outside -1 plus the configured ten-class order; "
                 "include class_names when reducing an older cache."
             )
 
@@ -691,7 +696,7 @@ class OnlineLearningAdapter:
             probabilities = probabilities[keep]
             if probabilities.shape[1] != CLASS_COUNT:
                 if source_names is None or probabilities.shape[1] != len(source_names):
-                    raise ValueError(f"{path.name} probabilities do not follow an eight-class order.")
+                    raise ValueError(f"{path.name} probabilities do not follow the ten-class order.")
                 try:
                     columns = [source_names.index(name) for name in self.class_names]
                 except ValueError as error:
@@ -753,7 +758,7 @@ class OnlineLearningAdapter:
             covered = set(static_labels[static_labels >= 0].tolist())
             if covered != set(range(CLASS_COUNT)) or not np.any(static_labels == -1):
                 raise RuntimeError(
-                    "Safe learning requires holdout coverage for all eight classes "
+                    "Safe learning requires holdout coverage for all ten classes "
                     "and the -1 reject rows."
                 )
 
@@ -1248,7 +1253,7 @@ class OnlineLearningAdapter:
             raise _IncompatibleAdapterState("unsupported schema version")
         if tuple(metadata.get("class_names", ())) != self.class_names:
             raise _IncompatibleAdapterState(
-                "class order differs from the configured eight-class contract"
+                "class order differs from the configured ten-class contract"
             )
         if metadata.get("reject_label", "no_gesture") != self.reject_label:
             raise _IncompatibleAdapterState(

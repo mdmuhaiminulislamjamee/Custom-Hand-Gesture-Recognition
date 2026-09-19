@@ -1,76 +1,91 @@
-# Eight-Gesture Runtime Artifacts
+# Ten-Gesture Runtime Artifacts
 
-Current release: **v18_20**. See [V18_20_README.md](../V18_20_README.md) for current training data, notebook, metrics, and limitations. Prior-release statistics below are historical.
+Current qualified release: **TenGestureBalancedMLP (2026-09-16)**.
 
-This directory is an atomic ONNX deployment unit. The trusted base release uses:
+This directory is the atomic runtime bundle:
 
-- `gesture_mlp_production.onnx` — immutable eight-output classifier plus
-  known-gesture-mass output;
-- `gesture_mlp_onnx_metadata.json` — hash, exact 76-D input order, canonical
-  output order, parity, and offline qualification evidence;
-- `gesture_mobile_runtime_config.json` — 10 FPS runtime with a 100 ms frame
-  budget, action mapping, unmirrored pixels with calibrated Left/Right semantics,
-  open-set/temporal gates, low-light policy, landmark smoothing, and Safe Learn
-  configuration;
-- `hand_landmarker.task` — MediaPipe hand detector/tracker;
-- `gesture_online_replay_cache.npz` and
-  `gesture_online_validation_cache.npz` — guarded-update evaluation data;
-- `gesture_online_untouched_test_cache.npz` — preserved offline release test
-  data; never use it to tune a candidate update;
-- `eight_gesture_test_metrics.csv`, `eight_gesture_classification_report.csv`,
-  `eight_gesture_confusion_matrix.csv`, and
-  `eight_gesture_hard_case_metrics.csv` — human-readable exports from the
-  preserved eight-class offline evaluation and the reported Rock/Down/Dorsal
-  hard cases;
-- `gesture_artifact_manifest.json` — exact trusted file sizes and hashes.
+- `gesture_mlp_production.onnx` — 76-feature, ten-output classifier plus
+  `known_gesture_mass`;
+- `gesture_mlp_onnx_metadata.json` — hash, tensor/class contract, data audit,
+  qualification, per-class evidence, and independent confirmation evidence;
+- `gesture_mobile_runtime_config.json` — action mapping, pose policy, rejection
+  thresholds, 10 FPS controls, and Safe Learn settings;
+- `gesture_online_*_cache.npz` — ten-command replay/validation/test anchors;
+- `hand_landmarker.task` and `blaze_face_short_range.tflite` — detector assets;
+- `ten_gesture_*` CSV files — readable release metrics and confusion matrix;
+- `gesture_artifact_manifest.json` — sizes and SHA-256 hashes for every trusted
+  runtime artifact.
 
-The canonical classifier order is:
+Canonical probability order:
 
 ```text
-left, right, up, down, open_palm, like, dorsal, ok
+left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down
 ```
 
-Their actions are Move Left, Move Right, Move Up, Move Down, Enable / Disable
-Object Tracking, Play / Pause, Return to Default Position, and Start / Stop
-Recording. `no_gesture` is the feedback/rejection sentinel; it is not a ninth
-classifier probability.
+`fist` maps to **Mute** and `thumb_down` maps to **Volume Down**.
+`no_gesture` is the internal rejection/feedback label, not an eleventh output.
+Open Palm is eligible only when the palm axis points upward; left-, right-, and
+downward Open Palm poses are intentionally rejected. Fist and Thumbs Down are
+handedness-neutral.
+Raised, camera-facing Fists also use a compact curl-back resolver for angles
+where perspective hides the finger bend. That resolver cannot override an
+existing Like or Thumbs Down prediction.
 
-Do not add a Joblib or TFLite fallback. The application fails closed when the
-signed ONNX contract is incomplete, reordered, or changed. Camera pixels and
-landmarks remain unmirrored. NCM calibration swaps the legacy horizontal source
-interpretation so decreasing image x resolves to Right and increasing image x
-resolves to Left, without changing the canonical output order or action names.
+## Qualification summary
 
-## Safe Learn state
+Training is balanced at 4,096 rows for each of 11 internal classes (45,056
+rows total). HaGRID participant groups are disjoint across training,
+validation, and test. The release also passed a 4,000-row confirmation
+cohort from 2,600 additional HaGRID participants with zero participant overlap.
 
-Safe Learn keeps the ONNX graph unchanged and stores a bounded local NumPy
-adapter separately. Its state and backup directory are runtime/user data, not
-automatically trusted base artifacts. A clean handover should omit local adapter
-state and feedback unless they have been explicitly reviewed and qualified.
-Forced or unreviewed learning is unsupported. A reviewed `no_gesture` correction
-creates a local rejection prototype rather than changing the eight-output class
-order.
+Key public-test measurements:
 
-## Releasing a replacement base model
+- raw known-class accuracy: `0.99618`;
+- raw known-class macro F1: `0.99626`;
+- runtime macro F1 including rejection: `0.99035`;
+- accepted precision: `0.99769`;
+- unknown false-acceptance rate: `0.01000`;
+- Fist F1 / recall: `0.99117` / `0.98250`;
+- Thumbs Down F1 / recall: `0.98485` / `0.97500`;
+- Like F1: `0.98737`;
+- classifier-only p95 latency: below `0.05 ms` on the qualification machine.
 
-Build, evaluate, and inspect the model before rebuilding the manifest. Then run:
+On the independent new-participant confirmation cohort, present-class macro F1
+was `0.97587`, accepted precision was `0.99630`, unknown/non-up-palm false
+acceptance was `0.00250`, Fist recall was `0.98250`, and Thumbs Down recall was
+`0.96000`. Thumbs Down F1 (`0.97710`) slightly exceeded Like F1 (`0.97567`).
+
+The confirmation cohort was excluded from fitting and scalar-threshold
+selection, but an earlier failure on it informed later training and geometry
+revisions. It is therefore release-regression evidence, not an untouched
+statistical estimate. These are landmark-level offline measurements, not a
+promise for every person, camera, angle, or lighting condition. Webcam, NCM
+hardware, and physical iOS acceptance remain required.
+
+## Runtime policy
+
+The selected scalar gates are confidence `0.70`, probability margin `0.08`,
+known mass `0.70`, and geometry-recovery mass `0.15`. The special, tightly
+bounded Down camera-angle fallback remains available below that recovery floor;
+other geometry paths cannot override essentially zero model evidence.
+
+Pixels and landmarks stay unmirrored. Positive index-finger screen x maps to
+Left and negative x maps to Right under the NCM calibration.
+
+## Releasing another model
+
+Train and qualify without touching production, then deploy only if every gate
+passes:
 
 ```powershell
-.\.venv\Scripts\python.exe .\scripts\build_artifact_manifest.py
-.\.venv\Scripts\python.exe .\scripts\onnx_preflight.py
+.\.venv\Scripts\python.exe -m scripts.train_ten_gesture
+.\.venv\Scripts\python.exe -m scripts.qualify_ten_gesture
+.\.venv\Scripts\python.exe -m scripts.qualify_ten_gesture --deploy
+.\.venv\Scripts\python.exe -m scripts.onnx_preflight
 ```
 
-The manifest is an integrity mechanism, not an accuracy test. The preflight
-checks the exact eight-class/76-D/10 FPS contract and loads ONNX Runtime, but it
-does not exercise the physical board camera.
-
-The current metadata reports preserved offline accuracy and open-set results.
-Treat that JSON and the `eight_gesture_*` exports as release evidence sources;
-unrelated historical CSV files are not substitutes for the current metadata and
-untouched test cache.
-
-After automated checks pass, separately test the actual NCM stream in normal and
-low light with inference capped at 10 FPS and a 100 ms budget. Verify unmirrored
-pixels, corrected Left/Right labels and actions, landmark stability, all eight
-per-class results, Dorsal/Down confusion, empty-frame false activations, action
-debounce, and transport counters before hardware acceptance.
+The artifact manifest is an integrity check, not an accuracy test. For a future
+release, create and reserve a new participant-disjoint final cohort before
+qualification; do not reuse this release's test caches as fresh evidence.
+Historical eight-command CSVs are preserved under
+`artifacts/v18_20/baseline/release_evidence/`, outside this runtime bundle.

@@ -1,17 +1,32 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { validPlaneAngles, type PlaneAngles } from './landmark-angles';
 
 type Handedness = 'left' | 'right';
 type FingerOrientation = 'toward_camera' | 'away_from_camera';
+export type CameraSource = 'ncm' | 'webcam';
 type Step = { id: string; label: string; title: string; view: string; instruction: string; variation: string; target: number; per_hand_target: number | null; per_orientation_target: number | null };
 type HandCounts = { left?: number; right?: number; none?: number; unspecified?: number };
 type OrientationCounts = { toward_camera?: number; away_from_camera?: number; none?: number; unspecified?: number };
 type RecentSample = { sample_id: string; label: string; view: string; handedness: string; finger_orientation?: string; image_path: string };
 type CollectedSample = RecentSample & { sample_ref: string; step_id: string; created_at_utc: string };
 type Summary = { root: string; available: boolean; participants: string[]; participant_id: string | null; counts: Record<string, number>; counts_by_hand?: Record<string, HandCounts>; counts_by_hand_orientation?: Record<string, Partial<Record<Handedness | 'none' | 'unspecified', OrientationCounts>>>; total: number; plan: Step[]; recent: RecentSample[] };
-type Snapshot = { token: string; image_url: string; frame_id: number; prediction: string; reason: string; landmarks: number[][]; has_features: boolean; issues: string[] };
-type Props = { api: string; active: boolean; connected: boolean; ready: boolean; streamRevision: number; liveLandmarks?: number[][]; toggleCamera: () => void };
+type Snapshot = { token: string; image_url: string; frame_id: number; source?: CameraSource; prediction: string; reason: string; landmarks: number[][]; plane_angles?: Partial<PlaneAngles>; has_features: boolean; issues: string[] };
+type Props = {
+  api: string;
+  active: boolean;
+  connected: boolean;
+  ready: boolean;
+  streamRevision: number;
+  liveLandmarks?: number[][];
+  livePlaneAngles: PlaneAngles | null;
+  cameraSource: CameraSource;
+  webcamStream: MediaStream | null;
+  captureWebcamFrame: () => Promise<Blob>;
+  setCameraSource: (source: CameraSource) => void;
+  toggleCamera: () => void;
+};
 const HAND_CONNECTIONS = [
   [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
   [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15],
@@ -69,18 +84,21 @@ const preferredCombination = (summary: Summary, step: Step | undefined): { hand:
   }
   return { hand: 'right', orientation: 'toward_camera' };
 };
-const arrows: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', open_palm: '✋', like: '👍', ok: '👌', dorsal: '↩', no_gesture: '○' };
-const gestureGuides: Record<string, { src: string; alt: string }> = {
+const arrows: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', open_palm: '✋', like: '👍', ok: '👌', dorsal: '↩', fist: '✊', thumb_down: '👎', no_gesture: '○' };
+type GestureGuide = { src?: string; symbol?: string; alt: string };
+const gestureGuides: Record<string, GestureGuide> = {
   left: { src: '/gesture-guides/index-only.png', alt: 'Index finger pointing toward your left' },
   right: { src: '/gesture-guides/index-only.png', alt: 'Index finger pointing toward your right' },
   up: { src: '/gesture-guides/index-only.png', alt: 'Index finger pointing upward with all other fingers folded' },
   down: { src: '/gesture-guides/index-only.png', alt: 'Index finger pointing downward with all other fingers folded' },
-  open_palm: { src: '/gesture-guides/open-palm.png', alt: 'Open palm with all five fingers visible' },
+  open_palm: { src: '/gesture-guides/open-palm.png', alt: 'Open palm with all five fingers visible and pointing upward only' },
   like: { src: '/gesture-guides/thumbs-up.png', alt: 'Thumbs-up with the other four fingers folded' },
   dorsal: { src: '/gesture-guides/dorsal.png', alt: 'Back of the hand with four fingers together and pointing down' },
   ok: { src: '/gesture-guides/ok.png', alt: 'OK sign with thumb and index finger forming a circle' },
+  fist: { symbol: '✊', alt: 'Closed fist with all four fingers folded into the palm' },
+  thumb_down: { src: '/gesture-guides/thumbs-up.png', alt: 'Thumb pointing downward with the other four fingers folded' },
 };
-const negativeGuides: Record<string, { src: string; alt: string }> = {
+const negativeGuides: Record<string, GestureGuide> = {
   background: { src: '/gesture-guides/empty-background-negative.png', alt: 'Empty camera view with no person or hand' },
   face_ear: { src: '/gesture-guides/face-ear-negative.png', alt: 'Face and ear visible while both hands stay out of view' },
   middle_finger: { src: '/gesture-guides/middle-finger-negative.png', alt: 'Only the middle finger raised; this is not a command' },
@@ -99,7 +117,7 @@ const validLandmarks = (landmarks?: number[][]): landmarks is number[][] =>
 const isFormControl = (target: EventTarget | null) =>
   target instanceof Element && Boolean(target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"]'));
 
-function HandLandmarkPreview({ landmarks, expectHand }: { landmarks?: number[][]; expectHand: boolean }) {
+function HandLandmarkPreview({ landmarks, angles, expectHand }: { landmarks?: number[][]; angles: PlaneAngles | null; expectHand: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hasLandmarks = validLandmarks(landmarks);
 
@@ -145,11 +163,27 @@ function HandLandmarkPreview({ landmarks, expectHand }: { landmarks?: number[][]
   return <div className="collection-preview-pane collection-landmark-preview" aria-label="Detected hand landmarks">
     <span className="collection-preview-label">HAND LANDMARKS</span>
     <canvas ref={canvasRef} className="collection-landmark-canvas" />
+    <div className="collection-angle-readout" aria-label="Live palm-axis angles">{(['xy', 'yz', 'xz'] as const).map(plane => <span key={plane}><b>{plane.toUpperCase()}</b>{angles ? `${angles[plane].toFixed(1)}°` : '—'}</span>)}</div>
     {!hasLandmarks && <div className="collection-landmark-empty"><span aria-hidden="true">◇</span><strong>No hand landmarks detected</strong><small>{expectHand ? 'Keep the complete hand and wrist inside the camera view.' : 'This is expected for the current no-hand prompt.'}</small></div>}
   </div>;
 }
 
-export default function DataCollection({ api, active, connected, ready, streamRevision, liveLandmarks, toggleCamera }: Props) {
+function WebcamPreview({ stream }: { stream: MediaStream | null }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = stream;
+    if (stream) void video.play().catch(() => undefined);
+    return () => { video.srcObject = null; };
+  }, [stream]);
+  return <video ref={videoRef} autoPlay muted playsInline aria-label="Live unmirrored PC webcam for data collection" />;
+}
+
+export default function DataCollection({
+  api, active, connected, ready, streamRevision, liveLandmarks, livePlaneAngles, cameraSource,
+  webcamStream, captureWebcamFrame, setCameraSource, toggleCamera,
+}: Props) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [participant, setParticipant] = useState('');
   const [newParticipant, setNewParticipant] = useState('');
@@ -179,6 +213,7 @@ export default function DataCollection({ api, active, connected, ready, streamRe
   const guide = step ? (step.label === 'no_gesture' ? negativeGuides[step.view] : gestureGuides[step.label]) : undefined;
   const showGuide = !!guide && countdown === null && snapshot === null;
   const displayedLandmarks = snapshot ? snapshot.landmarks : connected && active ? liveLandmarks : undefined;
+  const displayedAngles = snapshot && validPlaneAngles(snapshot.plane_angles) ? snapshot.plane_angles : connected && active ? livePlaneAngles : null;
 
   const request = useCallback(async (path: string, body?: object) => {
     const response = await fetch(`${api}/api/collection${path}`, body === undefined ? {} : {
@@ -236,11 +271,22 @@ export default function DataCollection({ api, active, connected, ready, streamRe
         if (generation !== captureGeneration.current) return;
       }
       setCountdown(null);
-      const result: Snapshot = await request('/preview', {});
+      let result: Snapshot;
+      if (cameraSource === 'webcam') {
+        const image = await captureWebcamFrame();
+        const form = new FormData();
+        form.append('image', image, `webcam-${Date.now()}.jpg`);
+        const response = await fetch(`${api}/api/collection/preview?source=webcam`, { method: 'POST', body: form });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(typeof payload.detail === 'string' ? payload.detail : 'The webcam image could not be prepared for review.');
+        result = payload as Snapshot;
+      } else {
+        result = await request('/preview', {});
+      }
       if (generation === captureGeneration.current) setSnapshot(result);
     } catch (e) { setError(e instanceof Error ? e.message : 'Capture failed.'); }
     finally { setBusy(false); setCountdown(null); }
-  }, [request]);
+  }, [api, cameraSource, captureWebcamFrame, request]);
 
   const save = useCallback(async () => {
     if (!snapshot || !step) return;
@@ -336,7 +382,10 @@ export default function DataCollection({ api, active, connected, ready, streamRe
 
   return <div hidden={!active} className="collection-page">
     <div className="section-heading"><div><p className="eyebrow">05 · TRAINING IMAGES</p><h2>Data Collection</h2><p className="collection-intro">A few natural poses from each person. Guided prompts keep the dataset organized.</p></div>
-      <button type="button" className="primary-button" disabled={!ready || busy} onClick={toggleCamera}>{connected ? 'Disconnect camera' : 'Connect board camera'}</button></div>
+      <div className="heading-actions">
+        <label className="camera-source-control">Camera source<select aria-label="Data collection camera source" value={cameraSource} disabled={connected || busy} onChange={event => setCameraSource(event.target.value as CameraSource)}><option value="ncm">NCM board camera</option><option value="webcam">PC webcam</option></select></label>
+        <button type="button" className="primary-button" disabled={!ready || busy} onClick={toggleCamera}>{connected ? `Disconnect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}` : `Connect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}`}</button>
+      </div></div>
     <div className="collection-storage"><span>LOCAL STORAGE</span><strong>{summary?.root ?? 'D:\\Data-Collection'}</strong><small>{summary?.participants.length ?? 0} participants · {summary?.total ?? 0} images for this person</small></div>
     <div className="collection-layout">
       <aside className="panel collection-controls">
@@ -367,7 +416,7 @@ export default function DataCollection({ api, active, connected, ready, streamRe
           {showGuide && <figure key={step.id} className={`collection-gesture-guide ${step.label === 'no_gesture' ? 'is-negative' : ''}`} data-gesture-guide={step.id}>
             <figcaption><span>VISUAL EXAMPLE</span><strong>{step.label === 'no_gesture' ? 'Not a command' : requiresHands ? `${handedness} hand · ${fingerOrientation === 'toward_camera' ? 'toward camera' : 'away from camera'}` : 'Copy this pose'}</strong></figcaption>
             <div className={`collection-guide-pose collection-guide-view-${step.view}`}>
-              <img className={`collection-guide-image collection-guide-direction-${step.label} ${requiresHands ? `collection-guide-hand-${handedness} collection-guide-angle-${fingerOrientation}` : ''}`} src={guide.src} alt={`${guide.alt}${requiresHands ? ` using the ${handedness} hand with ${orientationLabel(fingerOrientation).toLowerCase()}` : ''}`} />
+              {guide.src ? <img className={`collection-guide-image collection-guide-direction-${step.label} ${requiresHands ? `collection-guide-hand-${handedness} collection-guide-angle-${fingerOrientation}` : ''}`} src={guide.src} alt={`${guide.alt}${requiresHands ? ` using the ${handedness} hand with ${orientationLabel(fingerOrientation).toLowerCase()}` : ''}`} /> : <span className={`collection-guide-symbol ${requiresHands ? `collection-guide-hand-${handedness}` : ''}`} role="img" aria-label={`${guide.alt}${requiresHands ? ` using the ${handedness} hand` : ''}`}>{guide.symbol}</span>}
               {['left', 'right', 'up', 'down'].includes(step.label) && <span className="collection-guide-direction-arrow" aria-hidden="true">{arrows[step.label]}</span>}
               {step.label === 'no_gesture' && <span className="collection-guide-no-command" aria-hidden="true">×</span>}
               <span className="collection-guide-view-symbol" aria-hidden="true">{viewSymbols[step.view] ?? '◎'}</span>
@@ -377,13 +426,13 @@ export default function DataCollection({ api, active, connected, ready, streamRe
           <div className="collection-count"><strong>{count}<span> / {step.target}</span></strong><small>images saved</small></div>
         </article>}
         <article className="panel">
-          <div className="panel-header"><div>{snapshot ? 'REVIEW THIS IMAGE' : 'BOARD CAMERA'}</div><span>{snapshot ? `FRAME ${snapshot.frame_id} · RAW IMAGE KEPT CLEAN` : 'RAW IMAGE + LIVE HAND LANDMARKS'}</span></div>
+          <div className="panel-header"><div>{snapshot ? 'REVIEW THIS IMAGE' : cameraSource === 'webcam' ? 'PC WEBCAM' : 'BOARD CAMERA'}</div><span>{snapshot ? `${snapshot.source === 'webcam' ? 'WEBCAM' : 'NCM'} FRAME ${snapshot.frame_id} · RAW IMAGE KEPT CLEAN` : 'RAW IMAGE + LIVE HAND LANDMARKS'}</span></div>
           <div className="collection-preview">
             <div className="collection-preview-pane collection-image-preview">
               <span className="collection-preview-label">{snapshot ? 'CAPTURED IMAGE' : connected && active ? 'LIVE CAMERA' : 'CAMERA'}</span>
-              {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect the camera to begin</strong><p>Select a participant, follow the prompt, and capture an image.</p></div>}
+              {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? cameraSource === 'webcam' ? <WebcamPreview stream={webcamStream} /> : <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live NCM board camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect the camera to begin</strong><p>Select a participant, follow the prompt, and capture an image.</p></div>}
             </div>
-            <HandLandmarkPreview landmarks={displayedLandmarks} expectHand={requiresHands} />
+            <HandLandmarkPreview landmarks={displayedLandmarks} angles={displayedAngles} expectHand={requiresHands} />
             {countdown !== null && <div className="collection-countdown" role="status">{countdown}</div>}
           </div>
           <div className="collection-review">

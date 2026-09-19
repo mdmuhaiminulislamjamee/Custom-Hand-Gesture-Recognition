@@ -232,32 +232,78 @@ def _onnx_qualification() -> dict[str, Any]:
         }
     parity = metadata.get("parity") or {}
     quality = metadata.get("quality") or {}
-    open_set = metadata.get("open_set_rejection") or {}
-    hard_cases = metadata.get("hard_case_metrics") or {}
-    exact_contract = metadata.get("output_class_order") == runtime_config.class_names
+    qualification = metadata.get("qualification") or {}
+    release_checks = qualification.get("checks") or {}
+    confirmation = qualification.get("independent_confirmation") or {}
+    confirmation_checks = confirmation.get("checks") or {}
+    selection = qualification.get("selection") or {}
+
+    required_release_checks = {
+        "runtime_macro_f1_at_least_0_97",
+        "accepted_precision_at_least_0_99",
+        "unknown_false_accept_rate_at_most_0_02",
+        "fist_f1_at_least_0_95",
+        "fist_recall_at_least_0_95",
+        "thumb_down_f1_at_least_0_95",
+        "thumb_down_recall_at_least_0_95",
+        "thumb_down_within_0_02_of_like_f1",
+        "thumb_down_like_confusion_at_most_0_02",
+        "thumb_down_fist_confusion_at_most_0_02",
+        "classifier_p95_below_5_ms",
+    }
+    required_confirmation_checks = {
+        "new_subject_present_class_macro_f1_at_least_0_95",
+        "new_subject_accepted_precision_at_least_0_99",
+        "new_subject_unknown_false_accept_rate_at_most_0_02",
+        "new_subject_fist_recall_at_least_0_95",
+        "new_subject_thumb_down_recall_at_least_0_95",
+        "new_subject_thumb_down_within_0_02_of_like_f1",
+        "new_subject_upward_open_palm_recall_at_least_0_98",
+    }
+
+    def threshold_matches(name: str, expected: float) -> bool:
+        try:
+            return abs(float(selection[name]) - float(expected)) <= 1e-9
+        except (KeyError, TypeError, ValueError):
+            return False
+
     gates = {
-        "exact_eight_class_contract": exact_contract,
+        "schema_version_is_current": metadata.get("schema_version") == 3,
+        "exact_ten_class_contract": (
+            metadata.get("output_class_order") == runtime_config.class_names
+        ),
         "onnx_parity": bool(parity.get("passed")),
-        "accuracy_at_least_0_985": float(quality.get("accuracy", 0.0)) >= 0.985,
-        "macro_f1_at_least_0_98": float(quality.get("macro_f1", 0.0)) >= 0.98,
-        "minimum_class_f1_at_least_0_97": (
-            float(quality.get("minimum_per_class_f1", 0.0)) >= 0.97
+        "qualification_passed": qualification.get("passed") is True,
+        "complete_release_checks": required_release_checks <= set(release_checks),
+        "complete_confirmation_checks": (
+            required_confirmation_checks <= set(confirmation_checks)
         ),
-        "known_acceptance_at_least_0_96": (
-            float(open_set.get("known_acceptance_rate", 0.0)) >= 0.96
+        "selected_thresholds_match_runtime": (
+            threshold_matches("known_mass_floor", runtime_config.known_mass_floor)
+            and threshold_matches("confidence_floor", runtime_config.confidence_floor)
+            and threshold_matches(
+                "probability_margin_floor",
+                runtime_config.probability_margin_floor,
+            )
         ),
-        "unknown_false_acceptance_at_most_0_03": (
-            float(open_set.get("unknown_false_acceptance_rate", 1.0)) <= 0.03
+        "selection_matches_model": (
+            selection.get("model_sha256") == metadata.get("onnx_sha256")
         ),
-        "rock_false_acceptance_at_most_0_01": (
-            float(hard_cases.get("rock_false_acceptance_rate", 1.0)) <= 0.01
+        **{name: release_checks.get(name) is True for name in sorted(required_release_checks)},
+        **{
+            name: confirmation_checks.get(name) is True
+            for name in sorted(required_confirmation_checks)
+        },
+    }
+    open_set = {
+        "known_acceptance_rate": quality.get("known_acceptance_rate"),
+        "unknown_false_acceptance_rate": quality.get(
+            "unknown_false_acceptance_rate"
         ),
-        "dorsal_as_down_at_most_0_01": (
-            float(hard_cases.get("dorsal_as_down_rate", 1.0)) <= 0.01
-        ),
-        "down_as_dorsal_at_most_0_01": (
-            float(hard_cases.get("down_as_dorsal_rate", 1.0)) <= 0.01
-        ),
+    }
+    hard_cases = {
+        "public_confusion_rates": qualification.get("confusion_rates") or {},
+        "confirmation_confusion_rates": confirmation.get("confusion_rates") or {},
     }
     passed = all(gates.values())
     return {
@@ -284,8 +330,8 @@ def _onnx_qualification() -> dict[str, Any]:
             "maximum_absolute_probability_error"
         ),
         "message": (
-            "The exact eight-command ONNX graph passed parity, accuracy, and "
-            "open-set rejection gates."
+            "The exact ten-command ONNX graph passed parity, public-test, "
+            "new-participant confirmation, threshold, and new-command gates."
             if passed
             else "One or more ONNX release qualification gates did not pass."
         ),
@@ -512,10 +558,38 @@ def collection_participant(request: Request, payload: CollectionParticipantPaylo
 
 
 @app.post("/api/collection/preview")
-def collection_preview(request: Request):
-    if not ncm_camera.status()["connected"]:
-        raise HTTPException(status_code=409, detail="Connect the board camera before capturing.")
-    return _collection_call(request, collection_store.freeze)
+async def collection_preview(
+    request: Request,
+    source: Literal["ncm", "webcam"] = "ncm",
+    image: UploadFile | None = File(default=None),
+):
+    if source == "ncm":
+        if not ncm_camera.status()["connected"]:
+            raise HTTPException(status_code=409, detail="Connect the board camera before capturing.")
+        return _collection_call(request, collection_store.freeze)
+    if image is None:
+        raise HTTPException(status_code=400, detail="A webcam JPEG frame is required.")
+    if image.content_type and not (
+        image.content_type.startswith("image/")
+        or image.content_type == "application/octet-stream"
+    ):
+        raise HTTPException(status_code=415, detail="Only image uploads are accepted.")
+    content = await image.read(production_settings.max_image_bytes + 1)
+    if not content:
+        raise HTTPException(status_code=400, detail="The uploaded webcam frame is empty.")
+    if len(content) > production_settings.max_image_bytes:
+        raise HTTPException(status_code=413, detail="Webcam frame exceeds the configured size limit.")
+    session = RuntimeSession(runtime_config)
+    result = await _process_frame_with_limit(content, session, None)
+    runtime_metrics.record_frame(result)
+    return _collection_call(
+        request,
+        collection_store.freeze_bytes,
+        frame_id=time.time_ns(),
+        jpeg=content,
+        result=result,
+        source="webcam",
+    )
 
 
 @app.post("/api/collection/samples")

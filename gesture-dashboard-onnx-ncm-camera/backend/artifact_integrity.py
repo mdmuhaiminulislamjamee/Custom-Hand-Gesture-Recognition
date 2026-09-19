@@ -106,7 +106,7 @@ class ArtifactRegistry:
             if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
                 errors.append("Unsupported artifact manifest schema version.")
             if manifest.get("class_names") != CLASS_NAMES:
-                errors.append("Manifest class order does not match the eight-command contract.")
+                errors.append("Manifest class order does not match the ten-command contract.")
             if manifest.get("feature_count") != len(FEATURE_NAMES):
                 errors.append("Manifest feature count does not match the 76-D contract.")
             entries = manifest.get("artifacts")
@@ -152,7 +152,7 @@ class ArtifactRegistry:
                     if metadata.get("format") != "ONNX":
                         errors.append("Classifier metadata does not declare ONNX format.")
                     if metadata.get("output_class_order") != CLASS_NAMES:
-                        errors.append("ONNX class order differs from the eight-command contract.")
+                        errors.append("ONNX class order differs from the ten-command contract.")
                     if metadata.get("feature_names") != FEATURE_NAMES:
                         errors.append("ONNX feature order differs from the 76-D contract.")
                     if metadata.get("onnx_file") != model_path.name:

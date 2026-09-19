@@ -86,7 +86,7 @@ Write-Host "Gesture Control Lab ONNX + NCM is running." -ForegroundColor Green
 Write-Host "Dashboard: http://127.0.0.1:3200"
 Write-Host "API docs:  http://127.0.0.1:8200/docs"
 Write-Host "Board link: $env:NCM_HOST_IP -> $env:NCM_DEVICE_IP`:$env:NCM_TCP_PORT"
-Write-Host "The Joblib and browser-camera ONNX dashboards can run independently."
+Write-Host "This dashboard supports both the PC webcam and USB-NCM board camera."
 if (-not $NoBrowser) {
     Start-Process "http://127.0.0.1:3200"
 }

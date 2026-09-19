@@ -1,0 +1,270 @@
+{
+  "selection": {
+    "known_mass_floor": 0.7,
+    "confidence_floor": 0.7,
+    "probability_margin_floor": 0.08,
+    "source": "participant-disjoint public validation split; test excluded",
+    "model_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
+  },
+  "validation": {
+    "raw_known_accuracy": 0.9971524721718872,
+    "raw_known_macro_f1": 0.997252470310009,
+    "runtime_macro_f1": 0.991637301711501,
+    "correct_command_rate": 0.9914574165156614,
+    "accepted_precision": 0.9963579604578564,
+    "unknown_false_accept_rate": 0.01,
+    "known_rejection_rate": 0.00595392182241781
+  },
+  "test": {
+    "raw_known_accuracy": 0.9961841770541847,
+    "raw_known_macro_f1": 0.9962552420929562,
+    "runtime_macro_f1": 0.990349501918541,
+    "correct_command_rate": 0.9900788603408802,
+    "accepted_precision": 0.9976928992566009,
+    "unknown_false_accept_rate": 0.01,
+    "known_rejection_rate": 0.008649198677181379
+  },
+  "test_per_class": {
+    "left": {
+      "precision": 0.9900497512437811,
+      "recall": 0.995,
+      "f1-score": 0.9925187032418953,
+      "support": 400.0
+    },
+    "right": {
+      "precision": 0.9974937343358395,
+      "recall": 0.995,
+      "f1-score": 0.9962453066332916,
+      "support": 400.0
+    },
+    "up": {
+      "precision": 0.9974937343358395,
+      "recall": 0.995,
+      "f1-score": 0.9962453066332916,
+      "support": 400.0
+    },
+    "down": {
+      "precision": 1.0,
+      "recall": 0.995,
+      "f1-score": 0.9974937343358395,
+      "support": 400.0
+    },
+    "open_palm": {
+      "precision": 1.0,
+      "recall": 0.995,
+      "f1-score": 0.9974937343358395,
+      "support": 400.0
+    },
+    "like": {
+      "precision": 0.9974489795918368,
+      "recall": 0.9775,
+      "f1-score": 0.9873737373737373,
+      "support": 400.0
+    },
+    "dorsal": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 331.0
+    },
+    "ok": {
+      "precision": 1.0,
+      "recall": 0.9925,
+      "f1-score": 0.9962358845671268,
+      "support": 400.0
+    },
+    "fist": {
+      "precision": 1.0,
+      "recall": 0.9825,
+      "f1-score": 0.9911727616645649,
+      "support": 400.0
+    },
+    "thumb_down": {
+      "precision": 0.9948979591836735,
+      "recall": 0.975,
+      "f1-score": 0.9848484848484849,
+      "support": 400.0
+    },
+    "no_gesture": {
+      "precision": 0.9209302325581395,
+      "recall": 0.99,
+      "f1-score": 0.9542168674698795,
+      "support": 400.0
+    }
+  },
+  "independent_confirmation": {
+    "metrics": {
+      "raw_known_accuracy": 0.9919444444444444,
+      "raw_known_macro_f1": 0.8927534246088518,
+      "runtime_macro_f1": 0.8871520070841828,
+      "correct_command_rate": 0.9725,
+      "accepted_precision": 0.9963005122367672,
+      "unknown_false_accept_rate": 0.0025,
+      "known_rejection_rate": 0.024166666666666666
+    },
+    "per_class": {
+      "left": {
+        "precision": 0.9823232323232324,
+        "recall": 0.9725,
+        "f1-score": 0.9773869346733668,
+        "support": 400.0
+      },
+      "right": {
+        "precision": 0.9948717948717949,
+        "recall": 0.97,
+        "f1-score": 0.9822784810126582,
+        "support": 400.0
+      },
+      "up": {
+        "precision": 0.9974226804123711,
+        "recall": 0.9675,
+        "f1-score": 0.9822335025380711,
+        "support": 400.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.975,
+        "f1-score": 0.9873417721518988,
+        "support": 400.0
+      },
+      "open_palm": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 400.0
+      },
+      "like": {
+        "precision": 1.0,
+        "recall": 0.9525,
+        "f1-score": 0.9756722151088348,
+        "support": 400.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.9725,
+        "f1-score": 0.9860583016476553,
+        "support": 400.0
+      },
+      "fist": {
+        "precision": 0.9974619289340102,
+        "recall": 0.9825,
+        "f1-score": 0.9899244332493703,
+        "support": 400.0
+      },
+      "thumb_down": {
+        "precision": 0.9948186528497409,
+        "recall": 0.96,
+        "f1-score": 0.9770992366412213,
+        "support": 400.0
+      },
+      "no_gesture": {
+        "precision": 0.8209876543209876,
+        "recall": 0.9975,
+        "f1-score": 0.9006772009029346,
+        "support": 400.0
+      }
+    },
+    "gate": {
+      "checks": {
+        "new_subject_present_class_macro_f1_at_least_0_95": true,
+        "new_subject_accepted_precision_at_least_0_99": true,
+        "new_subject_unknown_false_accept_rate_at_most_0_02": true,
+        "new_subject_fist_recall_at_least_0_95": true,
+        "new_subject_thumb_down_recall_at_least_0_95": true,
+        "new_subject_thumb_down_within_0_02_of_like_f1": true,
+        "new_subject_upward_open_palm_recall_at_least_0_98": true
+      },
+      "present_classes": [
+        "left",
+        "right",
+        "up",
+        "down",
+        "open_palm",
+        "like",
+        "ok",
+        "fist",
+        "thumb_down",
+        "no_gesture"
+      ],
+      "present_class_macro_f1": 0.9758672077926012,
+      "confusion_rates": {
+        "thumb_down_as_like_rate": 0.0,
+        "like_as_thumb_down_rate": 0.0,
+        "thumb_down_as_fist_rate": 0.0,
+        "fist_as_thumb_down_rate": 0.0
+      }
+    }
+  },
+  "latency": {
+    "p50_ms": 0.028899998142151162,
+    "p95_ms": 0.03020000076503493,
+    "p99_ms": 0.032008999914978624,
+    "note": "ONNX classifier only; full camera pipeline is benchmarked separately."
+  },
+  "qualification": {
+    "passed": true,
+    "checks": {
+      "runtime_macro_f1_at_least_0_97": true,
+      "accepted_precision_at_least_0_99": true,
+      "unknown_false_accept_rate_at_most_0_02": true,
+      "fist_f1_at_least_0_95": true,
+      "fist_recall_at_least_0_95": true,
+      "thumb_down_f1_at_least_0_95": true,
+      "thumb_down_recall_at_least_0_95": true,
+      "thumb_down_within_0_02_of_like_f1": true,
+      "thumb_down_like_confusion_at_most_0_02": true,
+      "thumb_down_fist_confusion_at_most_0_02": true,
+      "classifier_p95_below_5_ms": true
+    },
+    "confusion_rates": {
+      "thumb_down_as_like_rate": 0.0,
+      "like_as_thumb_down_rate": 0.0,
+      "thumb_down_as_fist_rate": 0.0,
+      "fist_as_thumb_down_rate": 0.0
+    },
+    "independent_confirmation": {
+      "checks": {
+        "new_subject_present_class_macro_f1_at_least_0_95": true,
+        "new_subject_accepted_precision_at_least_0_99": true,
+        "new_subject_unknown_false_accept_rate_at_most_0_02": true,
+        "new_subject_fist_recall_at_least_0_95": true,
+        "new_subject_thumb_down_recall_at_least_0_95": true,
+        "new_subject_thumb_down_within_0_02_of_like_f1": true,
+        "new_subject_upward_open_palm_recall_at_least_0_98": true
+      },
+      "present_classes": [
+        "left",
+        "right",
+        "up",
+        "down",
+        "open_palm",
+        "like",
+        "ok",
+        "fist",
+        "thumb_down",
+        "no_gesture"
+      ],
+      "present_class_macro_f1": 0.9758672077926012,
+      "confusion_rates": {
+        "thumb_down_as_like_rate": 0.0,
+        "like_as_thumb_down_rate": 0.0,
+        "thumb_down_as_fist_rate": 0.0,
+        "fist_as_thumb_down_rate": 0.0
+      }
+    },
+    "selection": {
+      "known_mass_floor": 0.7,
+      "confidence_floor": 0.7,
+      "probability_margin_floor": 0.08,
+      "source": "participant-disjoint public validation split; test excluded",
+      "model_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
+    },
+    "note": "The public test is participant-disjoint within imported public data. It is evidence, not a guarantee for every person, camera, or angle."
+  }
+}

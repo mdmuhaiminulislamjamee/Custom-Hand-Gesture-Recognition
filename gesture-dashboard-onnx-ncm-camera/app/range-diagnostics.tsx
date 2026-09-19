@@ -13,7 +13,7 @@ export type RangePrediction = {
 type Sample = { at: number; measured_m: number; expected: string; hand_found: boolean; command_correct: boolean;
   predicted: string; estimated_m: number | null; palm_px: number | null; processing_ms: number | null; reason: string };
 type Trial = { distance: number; expected: string; samples: Sample[] };
-const COMMANDS = ['left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'no_gesture'];
+const COMMANDS = ['left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down', 'no_gesture'];
 
 export default function RangeDiagnostics({ prediction, connected }: { prediction: RangePrediction; connected: boolean }) {
   const [calibration, setCalibration] = useState<RangeCalibration | null>(null);
@@ -34,7 +34,7 @@ export default function RangeDiagnostics({ prediction, connected }: { prediction
   useEffect(() => { latestCalibration.current = calibration; }, [calibration]);
   useEffect(() => { connectedRef.current = connected; }, [connected]);
   useEffect(() => {
-    if (!['predicted', 'no_hand'].includes(prediction.status ?? '') || prediction.ncm_frame_id == null) return;
+    if (!['predicted', 'no_hand'].includes(prediction.status ?? '')) return;
     const now = Date.now();
     lastFrame.current = { prediction, at: now };
     const observation = prediction.quality?.detector;
@@ -105,7 +105,7 @@ export default function RangeDiagnostics({ prediction, connected }: { prediction
       <div><span>Palm / hand size in analysis pixels</span><strong>{observation?.palm_scale_px != null ? `${observation.palm_scale_px.toFixed(0)} / ${observation.hand_span_px?.toFixed(0)} px` : '—'}</strong>
         <small>{observation?.small_hand ? 'Small palm: tracking is more vulnerable to blur and occlusion.' : 'Fewer pixels means less detail for separating fingers.'}</small></div>
       <div><span>Detection status</span><strong>{handFound ? prediction.runtime_prediction === 'no_gesture' ? 'Gesture rejected' : 'Hand tracked' : 'Hand not tracked'}</strong>
-        <small>{fresh ? (handFound ? prediction.action_reason ?? prediction.message ?? 'Waiting for confirmation' : prediction.message ?? 'Hand tracking unavailable') : 'Connect the board camera to inspect live tracking.'}</small></div>
+        <small>{fresh ? (handFound ? prediction.action_reason ?? prediction.message ?? 'Waiting for confirmation' : prediction.message ?? 'Hand tracking unavailable') : 'Connect the selected camera to inspect live tracking.'}</small></div>
     </div>
     <div className="range-controls">
       <label>Known calibration distance (m)<input type="number" min="0.1" max="10" step="0.05" value={reference} onChange={event => setReference(event.target.value)} disabled={running}/></label>

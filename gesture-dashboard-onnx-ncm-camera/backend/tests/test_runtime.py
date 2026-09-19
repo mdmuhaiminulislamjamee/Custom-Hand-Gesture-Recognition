@@ -136,14 +136,15 @@ def test_open_set_rejection_never_executes():
     decision = gate.update(row, now=1.0, known_gesture_mass=0.1)
     assert decision.execute is False
     assert decision.predicted_gesture == "no_gesture"
-    assert decision.reason == "outside the eight-gesture vocabulary"
+    assert decision.reason == "outside the ten-gesture vocabulary"
 
 
 @pytest.mark.parametrize("fps", [5, 8, 10, 15, 20, 30, 60])
 def test_fast_frames_cannot_skip_hold_duration(fps):
-    gate = TemporalGate(RuntimeConfig())
-    row = np.zeros(8)
-    row[6] = 1.0
+    config = RuntimeConfig()
+    gate = TemporalGate(config)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx["dorsal"]] = 1.0
     executed = []
     for frame in range(fps + 1):
         decision = gate.update(row, now=frame / fps)
@@ -154,9 +155,10 @@ def test_fast_frames_cannot_skip_hold_duration(fps):
 
 
 def test_confident_pose_transition_does_not_execute_stale_action():
-    gate = TemporalGate(RuntimeConfig())
-    left = np.eye(8)[0]
-    dorsal = np.eye(8)[6]
+    config = RuntimeConfig()
+    gate = TemporalGate(config)
+    left = np.eye(len(config.class_names))[config.class_to_idx["left"]]
+    dorsal = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
     for now in (1.0, 1.1, 1.2):
         decision = gate.update(left, now=now)
     assert decision.execute
@@ -169,12 +171,43 @@ def test_confident_pose_transition_does_not_execute_stale_action():
 
 
 def test_capture_outage_requires_new_confirmation():
-    gate = TemporalGate(RuntimeConfig())
+    config = RuntimeConfig()
+    gate = TemporalGate(config)
+    dorsal = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
     for now in (1.0, 1.1, 1.2):
-        gate.update(np.eye(8)[6], now=now)
-    decision = gate.update(np.eye(8)[6], now=2.0)
+        gate.update(dorsal, now=now)
+    decision = gate.update(dorsal, now=2.0)
     assert not decision.execute
     assert decision.stable_frames == 1
+
+
+@pytest.mark.parametrize("gesture", ["open_palm", "fist", "thumb_down"])
+def test_geometry_supported_hand_commands_can_recover_from_low_known_mass(gesture):
+    config = RuntimeConfig(known_mass_floor=0.95)
+    gate = TemporalGate(config)
+    row = np.eye(len(config.class_names))[config.class_to_idx[gesture]]
+
+    rejected = gate.update(
+        row, now=0.0, known_gesture_mass=0.1, geometry_supported=True
+    )
+    assert rejected.predicted_gesture == config.reject_label
+
+    for now in (1.0, 1.1, 1.2, 1.3, 1.4):
+        decision = gate.update(
+            row,
+            now=now,
+            known_gesture_mass=0.2,
+            geometry_supported=True,
+        )
+        assert decision.execute is False
+    decision = gate.update(
+        row,
+        now=1.5,
+        known_gesture_mass=0.2,
+        geometry_supported=True,
+    )
+    assert decision.execute is True
+    assert decision.predicted_gesture == gesture
 
 
 def test_nonfinite_classifier_evidence_fails_closed():

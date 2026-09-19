@@ -2,14 +2,14 @@
 
 For everyday collection, use **05 Data Collection** and follow
 [DATA_COLLECTION.md](DATA_COLLECTION.md). The dashboard saves portable JPEG/JSON
-records under `D:\Data-Collection`, including all eight commands and hard negatives.
+records under `D:\Data-Collection`, including all ten commands and hard negatives.
 The training command below also accepts `--dataset D:\Data-Collection` directly.
 Raw-only cases are retained and reported for later landmark re-extraction.
 The CSV capture instructions below remain an alternative for technical users.
 
 This workflow addresses the main v18_20 data limitation: Left, Right, Up, and
 Down were created primarily by rotating landmarks from HaGRID `one` examples.
-The new workflow keeps the eight-command runtime contract unchanged and adds
+The new workflow keeps the ten-command runtime contract unchanged and adds
 reviewed, real-camera observations of the four existing directions.
 
 It does **not** treat four rotated copies of one observation as four new people.

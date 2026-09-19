@@ -15,7 +15,7 @@ controls are collapsed.
    camera, or a changed zoom/crop. Rotating the palm can bias all four estimates.
 4. At each test position, measure the distance independently, enter it under
    **Measured test distance**, select the gesture, and run the 10-second test.
-   Keep the tab visible and hold the pose throughout. Repeat all eight gestures,
+   Keep the tab visible and hold the pose throughout. Repeat all ten gestures,
    neutral poses, transitions, both hands, and representative lighting conditions.
 5. **Export CSV** saves the observations. Copy `gesture-distance-tests.csv` into
    the project directory to review distance-grouped results in `v18_20.ipynb`.
@@ -34,6 +34,11 @@ interval. MediaPipe's world landmarks are relative to the hand, so their Z value
 must not be presented as camera-to-hand distance. See the
 [MediaPipe hand landmark guide](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/python)
 and [OpenCV camera model](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html).
+
+The dashboard's live **XY**, **YZ**, and **XZ** values are signed projection
+angles of the wrist-to-palm axis derived from MediaPipe world landmarks. They
+help compare pose orientation across captures; they are not absolute Euler
+angles, camera distance, or a calibrated measurement of the user's arm.
 
 ## Detection changes and evidence
 

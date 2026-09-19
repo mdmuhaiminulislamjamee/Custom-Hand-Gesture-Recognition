@@ -5,22 +5,25 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RangeDiagnostics, { type RangePrediction } from './range-diagnostics';
-import DataCollection from './data-collection';
+import DataCollection, { type CameraSource } from './data-collection';
+import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './landmark-angles';
 
 const API_URL = process.env.NEXT_PUBLIC_GESTURE_API_URL ?? 'http://127.0.0.1:8200';
 const WS_URL = API_URL.replace(/^http/, 'ws');
 const DEFAULT_CLASSES = [
-  'left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok',
+  'left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down',
 ];
 const DEFAULT_ACTIONS: Record<string, string> = {
   left: 'Move Left',
   right: 'Move Right',
   up: 'Move Up',
   down: 'Move Down',
-  open_palm: 'Enable / Disable Object Tracking',
+  open_palm: 'Enable / Disable Object Tracking · Upward Only',
   like: 'Play / Pause',
   dorsal: 'Return to Default Position',
   ok: 'Start / Stop Recording',
+  fist: 'Mute',
+  thumb_down: 'Volume Down',
 };
 const DEMO_COMMANDS: Record<string, string> = {
   left: 'MOVE_LEFT',
@@ -31,6 +34,8 @@ const DEMO_COMMANDS: Record<string, string> = {
   like: 'TOGGLE_PLAYBACK',
   dorsal: 'RETURN_HOME',
   ok: 'TOGGLE_RECORDING',
+  fist: 'MUTE_AUDIO',
+  thumb_down: 'VOLUME_DOWN',
 };
 const CANONICAL_CLASS_SET = new Set(DEFAULT_CLASSES);
 const HAND_CONNECTIONS = [
@@ -200,6 +205,9 @@ type Prediction = RangePrediction & {
   feature_vector?: number[];
   landmarks?: number[][];
   display_landmarks?: number[][];
+  world_landmarks?: number[][];
+  landmarks_3d?: number[][];
+  plane_angles?: Partial<PlaneAngles>;
   actual_fps?: number;
   camera_fps?: number;
   ncm_camera?: NcmStatus;
@@ -241,6 +249,18 @@ function percent(value?: number) { return `${((value ?? 0) * 100).toFixed(1)}%`;
 function milliseconds(value?: number) { return value == null ? '—' : `${value.toFixed(1)} ms`; }
 function fps(value?: number | null) { return value == null || !Number.isFinite(value) ? '—' : value.toFixed(2); }
 
+function WebcamVideo({ stream, className }: { stream: MediaStream | null; className: string }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = stream;
+    if (stream) void video.play().catch(() => undefined);
+    return () => { video.srcObject = null; };
+  }, [stream]);
+  return <video ref={videoRef} className={className} autoPlay muted playsInline aria-label="Live unmirrored PC webcam" />;
+}
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'live' | 'analytics' | 'feedback' | 'setup' | 'data_collection'>('live');
   const [health, setHealth] = useState<Health | null>(null);
@@ -249,6 +269,10 @@ export default function Dashboard() {
   const [prediction, setPrediction] = useState<Prediction>({ status: 'idle' });
   const [connection, setConnection] = useState<'offline' | 'connecting' | 'online'>('offline');
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraSource, setCameraSource] = useState<CameraSource>('ncm');
+  const [activeCameraSource, setActiveCameraSource] = useState<CameraSource | null>(null);
+  const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
+  const [webcamDetails, setWebcamDetails] = useState('Browser webcam has not been started yet.');
   const [cameraFps, setCameraFps] = useState<number | null>(null);
   const [ncmStatus, setNcmStatus] = useState<NcmStatus | null>(null);
   const [ncmMessage, setNcmMessage] = useState('Development-board link has not been tested yet.');
@@ -270,6 +294,8 @@ export default function Dashboard() {
   const [objectTrackingEnabled, setObjectTrackingEnabled] = useState(false);
   const [actionToast, setActionToast] = useState<ActionToast | null>(null);
   const [imagePreviewActive, setImagePreviewActive] = useState(true);
+  const [demoMuted, setDemoMuted] = useState(false);
+  const [demoVolume, setDemoVolume] = useState(1);
 
   const demoVideoRef = useRef<HTMLVideoElement | null>(null);
   const demoImageRef = useRef<HTMLImageElement | null>(null);
@@ -277,6 +303,13 @@ export default function Dashboard() {
   const landmarkCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const feedbackLandmarkCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const webcamVideoRef = useRef<HTMLVideoElement | null>(null);
+  const webcamCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const webcamStreamRef = useRef<MediaStream | null>(null);
+  const cameraSourceRef = useRef<CameraSource>('ncm');
+  const activeCameraSourceRef = useRef<CameraSource | null>(null);
+  const webcamFrameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const webcamFramePendingRef = useRef(false);
   const lastSnapshotRef = useRef<string | null>(null);
   const stopCameraRef = useRef<(preservePrediction?: boolean) => void>(() => undefined);
   const executeDemoPredictionRef = useRef<(message: Prediction) => void>(() => undefined);
@@ -336,7 +369,7 @@ export default function Dashboard() {
       const healthData = await healthResponse.json() as Health;
       setHealth(healthData);
       setNcmStatus(healthData.ncm_camera ?? null);
-      setCameraFps(healthData.ncm_camera?.camera_fps ?? null);
+      if (cameraSourceRef.current === 'ncm' && activeCameraSourceRef.current !== 'webcam') setCameraFps(healthData.ncm_camera?.camera_fps ?? null);
       const choices = healthData.engine.model.selectable_models ?? healthData.engine.model.available_models;
       setSelectedModel((current) => current && choices.includes(current)
         ? current
@@ -370,6 +403,8 @@ export default function Dashboard() {
     if (recordingFrameTimerRef.current) clearInterval(recordingFrameTimerRef.current);
     if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
     recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    if (webcamFrameTimerRef.current) clearInterval(webcamFrameTimerRef.current);
+    webcamStreamRef.current?.getTracks().forEach((track) => track.stop());
     socketRef.current?.close();
     if (demoVideoAssetRef.current) URL.revokeObjectURL(demoVideoAssetRef.current.url);
   }, []);
@@ -391,6 +426,11 @@ export default function Dashboard() {
     () => Object.entries(prediction.diagnostics ?? {}),
     [prediction.diagnostics],
   );
+
+  const livePlaneAngles = useMemo(() => {
+    if (validPlaneAngles(prediction.plane_angles)) return prediction.plane_angles;
+    return planeAnglesFromLandmarks(prediction.world_landmarks ?? prediction.landmarks_3d);
+  }, [prediction.landmarks_3d, prediction.plane_angles, prediction.world_landmarks]);
 
   const drawLandmarksOnCanvas = useCallback((canvas: HTMLCanvasElement | null, landmarks?: number[][]) => {
     if (!canvas) return;
@@ -424,23 +464,76 @@ export default function Dashboard() {
 
   useEffect(() => { drawLandmarks(prediction.display_landmarks ?? prediction.landmarks); }, [prediction.display_landmarks, prediction.landmarks, activeTab, drawLandmarks]);
 
+  const captureWebcamFrame = useCallback(async () => {
+    const video = webcamVideoRef.current;
+    const canvas = webcamCanvasRef.current;
+    if (!video || !canvas || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth || !video.videoHeight) {
+      throw new Error('The webcam is still warming up. Wait for the live preview and try again.');
+    }
+    const maximumWidth = 960;
+    const scale = Math.min(1, maximumWidth / video.videoWidth);
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('The browser could not prepare a webcam frame.');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('The browser could not encode a webcam frame.')),
+      'image/jpeg',
+      .88,
+    ));
+  }, []);
+
   const stopCamera = (preservePrediction = false) => {
     cameraStartPendingRef.current = false;
+    if (webcamFrameTimerRef.current) clearInterval(webcamFrameTimerRef.current);
+    webcamFrameTimerRef.current = null;
+    webcamFramePendingRef.current = false;
     socketRef.current?.close();
     socketRef.current = null;
-    void fetch(`${API_URL}/api/ncm/disconnect`, { method: 'POST' }).finally(refreshServerData);
+    webcamStreamRef.current?.getTracks().forEach(track => track.stop());
+    webcamStreamRef.current = null;
+    setWebcamStream(null);
+    if (activeCameraSourceRef.current === 'ncm') {
+      void fetch(`${API_URL}/api/ncm/disconnect`, { method: 'POST' }).finally(refreshServerData);
+    }
+    activeCameraSourceRef.current = null;
+    setActiveCameraSource(null);
     setCameraActive(false);
+    setCameraFps(null);
     setConnection('offline');
-    if (!preservePrediction) drawLandmarks();
+    if (!preservePrediction) {
+      setPrediction({ status: 'idle', message: 'Camera disconnected.' });
+      setSnapshotReady(false);
+      drawLandmarks();
+    }
   };
 
   useEffect(() => {
     stopCameraRef.current = stopCamera;
   });
 
-  const startCamera = async () => {
+  const handlePrediction = (message: Prediction) => {
+    setPrediction(message);
+    setSnapshotReady(true);
+    executeDemoPredictionRef.current(message);
+    if (message.runtime_action && message.runtime_action !== 'Wait / No Action') {
+      const canonicalPrediction = canonicalGesture(message.runtime_prediction);
+      if (canonicalPrediction) {
+        setActions((current) => [{
+          action: DEFAULT_ACTIONS[canonicalPrediction],
+          prediction: canonicalPrediction,
+          confidence: message.confidence ?? 0,
+        }, ...current].slice(0, 30));
+      }
+    }
+  };
+
+  const startNcmCamera = async () => {
     if (cameraActive || cameraStartPendingRef.current || socketRef.current) return;
     cameraStartPendingRef.current = true;
+    activeCameraSourceRef.current = 'ncm';
+    setActiveCameraSource('ncm');
     setConnection('connecting');
     setPrediction({
       status: 'starting',
@@ -459,26 +552,16 @@ export default function Dashboard() {
         cameraStartPendingRef.current = false;
         setConnection('online');
         setCameraActive(true);
+        activeCameraSourceRef.current = 'ncm';
+        setActiveCameraSource('ncm');
         if (selectedModel) socket.send(JSON.stringify({ type: 'select_model', model: selectedModel }));
       };
       socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         if (message.type === 'prediction') {
-          setPrediction(message);
+          handlePrediction(message);
           setCameraFps(message.camera_fps ?? null);
           if (message.ncm_camera) setNcmStatus(message.ncm_camera);
-          setSnapshotReady(true);
-          executeDemoPredictionRef.current(message);
-          if (message.runtime_action && message.runtime_action !== 'Wait / No Action') {
-            const canonicalPrediction = canonicalGesture(message.runtime_prediction);
-            if (canonicalPrediction) {
-              setActions((current) => [{
-                action: DEFAULT_ACTIONS[canonicalPrediction],
-                prediction: canonicalPrediction,
-                confidence: message.confidence,
-              }, ...current].slice(0, 30));
-            }
-          }
         } else if (message.type === 'ncm_status' && message.camera) {
           setNcmStatus(message.camera);
           setCameraFps(message.camera.camera_fps ?? null);
@@ -495,7 +578,10 @@ export default function Dashboard() {
         socket.close();
       };
       socket.onclose = () => {
-        if (socketRef.current === socket) socketRef.current = null;
+        if (socketRef.current !== socket) return;
+        socketRef.current = null;
+        activeCameraSourceRef.current = null;
+        setActiveCameraSource(null);
         cameraStartPendingRef.current = false;
         setConnection('offline');
         setCameraActive(false);
@@ -510,10 +596,116 @@ export default function Dashboard() {
     }
   };
 
+  const startWebcam = async () => {
+    if (cameraActive || cameraStartPendingRef.current || socketRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPrediction({ status: 'camera_error', message: 'This browser does not provide webcam access.' });
+      return;
+    }
+    cameraStartPendingRef.current = true;
+    activeCameraSourceRef.current = 'webcam';
+    setActiveCameraSource('webcam');
+    setConnection('connecting');
+    setPrediction({ status: 'starting', message: 'Requesting access to the PC webcam...' });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: targetFps, max: 30 } },
+      });
+      webcamStreamRef.current = stream;
+      setWebcamStream(stream);
+      const video = webcamVideoRef.current;
+      if (!video) throw new Error('The webcam preview is not available.');
+      video.srcObject = stream;
+      await video.play();
+      const track = stream.getVideoTracks()[0];
+      const settings = track?.getSettings();
+      const label = track?.label || 'PC webcam';
+      setWebcamDetails(`${label} · ${settings?.width ?? video.videoWidth} × ${settings?.height ?? video.videoHeight} · unmirrored`);
+      setCameraFps(settings?.frameRate ?? targetFps);
+
+      const socket = new WebSocket(`${WS_URL}/ws/live`);
+      socket.binaryType = 'arraybuffer';
+      socketRef.current = socket;
+      const sendFrame = async () => {
+        if (webcamFramePendingRef.current || socket.readyState !== WebSocket.OPEN || socket.bufferedAmount > 1_000_000) return;
+        webcamFramePendingRef.current = true;
+        try {
+          const frame = await captureWebcamFrame();
+          if (socket.readyState === WebSocket.OPEN) socket.send(await frame.arrayBuffer());
+        } catch (error) {
+          setPrediction({ status: 'camera_error', message: error instanceof Error ? error.message : 'Webcam capture failed.' });
+        } finally {
+          webcamFramePendingRef.current = false;
+        }
+      };
+      socket.onopen = () => {
+        cameraStartPendingRef.current = false;
+        setConnection('online');
+        setCameraActive(true);
+        activeCameraSourceRef.current = 'webcam';
+        setActiveCameraSource('webcam');
+        if (selectedModel) socket.send(JSON.stringify({ type: 'select_model', model: selectedModel }));
+        void sendFrame();
+        webcamFrameTimerRef.current = setInterval(() => void sendFrame(), Math.max(50, Math.round(1000 / targetFps)));
+      };
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === 'prediction') {
+          handlePrediction(message);
+          setCameraFps(message.actual_fps ?? settings?.frameRate ?? targetFps);
+        } else if (message.type === 'error') {
+          setPrediction({ status: 'error', message: message.message });
+        }
+      };
+      socket.onerror = () => {
+        cameraStartPendingRef.current = false;
+        setPrediction({ status: 'error', message: 'The webcam inference WebSocket could not be reached.' });
+        socket.close();
+      };
+      socket.onclose = () => {
+        if (socketRef.current !== socket) return;
+        socketRef.current = null;
+        if (webcamFrameTimerRef.current) clearInterval(webcamFrameTimerRef.current);
+        webcamFrameTimerRef.current = null;
+        webcamStreamRef.current?.getTracks().forEach(item => item.stop());
+        webcamStreamRef.current = null;
+        setWebcamStream(null);
+        activeCameraSourceRef.current = null;
+        setActiveCameraSource(null);
+        cameraStartPendingRef.current = false;
+        setConnection('offline');
+        setCameraActive(false);
+      };
+    } catch (error) {
+      cameraStartPendingRef.current = false;
+      stopCameraRef.current();
+      setPrediction({
+        status: 'camera_error',
+        message: error instanceof Error ? error.message : 'Webcam connection failed.',
+      });
+    }
+  };
+
+  const startCamera = async () => {
+    if (cameraSource === 'webcam') await startWebcam();
+    else await startNcmCamera();
+  };
+
   const toggleCamera = () => {
     if (cameraStartPendingRef.current || connection === 'connecting') return;
     if (cameraActive) stopCameraRef.current();
     else void startCamera();
+  };
+
+  const changeCameraSource = (source: CameraSource) => {
+    if (cameraActive || cameraStartPendingRef.current) return;
+    cameraSourceRef.current = source;
+    setCameraSource(source);
+    setCameraFps(null);
+    setSnapshotReady(false);
+    setPrediction({ status: 'idle', message: source === 'webcam' ? 'PC webcam selected.' : 'NCM board camera selected.' });
+    drawLandmarks();
   };
 
   const discoverNcmCamera = async () => {
@@ -713,6 +905,29 @@ export default function Dashboard() {
             toastLabel = detail.startsWith('Recording is') ? 'RECORDING ALREADY ACTIVE' : 'RECORDING STARTED';
           }
           break;
+        case 'MUTE_AUDIO':
+          if (asset.kind === 'image') {
+            detail = 'Mute recognized. The uploaded image has no audio track.';
+            toastLabel = 'MUTE · NO AUDIO TRACK';
+          } else {
+            if (targetVideo) targetVideo.muted = true;
+            setDemoMuted(true);
+            detail = 'Uploaded video muted.';
+            toastLabel = 'AUDIO MUTED';
+          }
+          break;
+        case 'VOLUME_DOWN':
+          if (asset.kind === 'image') {
+            detail = 'Volume Down recognized. The uploaded image has no audio track.';
+            toastLabel = 'VOLUME DOWN · NO AUDIO TRACK';
+          } else if (targetVideo) {
+            const nextVolume = Math.max(0, Math.round((targetVideo.volume - .15) * 100) / 100);
+            targetVideo.volume = nextVolume;
+            setDemoVolume(nextVolume);
+            detail = `Uploaded video volume reduced to ${Math.round(nextVolume * 100)}%.`;
+            toastLabel = `VOLUME ${Math.round(nextVolume * 100)}%`;
+          }
+          break;
         case 'MOVE_UP':
           updateDemoTransform((current) => ({ ...current, y: Math.max(-24, current.y - 8) }));
           detail = 'Video target moved up.';
@@ -836,12 +1051,14 @@ export default function Dashboard() {
       setActionToast(null);
       setObjectTrackingEnabled(false);
       setImagePreviewActive(true);
+      setDemoMuted(false);
+      setDemoVolume(1);
       setRecordingDownloadUrl((current) => {
         if (current) URL.revokeObjectURL(current);
         return null;
       });
       lastExecutedGestureRef.current = null;
-      setDemoVideoMessage(`${kind === 'video' ? 'Video' : 'Image'} ready. Connect the NCM board camera and hold a gesture until the stable action fires.`);
+      setDemoVideoMessage(`${kind === 'video' ? 'Video' : 'Image'} ready. Connect the selected camera and hold a gesture until the stable action fires.`);
       if (kind === 'video') setTimeout(() => { void demoVideoRef.current?.play().catch(() => undefined); }, 0);
     } catch (error) {
       URL.revokeObjectURL(url);
@@ -858,6 +1075,8 @@ export default function Dashboard() {
     setActionToast(null);
     setObjectTrackingEnabled(false);
     setImagePreviewActive(true);
+    setDemoMuted(false);
+    setDemoVolume(1);
     setRecordingDownloadUrl((current) => {
       if (current) URL.revokeObjectURL(current);
       return null;
@@ -907,6 +1126,14 @@ export default function Dashboard() {
           });
           setSnapshotReady(true);
         }
+      } else if (activeCameraSource === 'webcam' && webcamStream) {
+        const snapshot = await captureWebcamFrame();
+        lastSnapshotRef.current = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.readAsDataURL(snapshot);
+        });
+        setSnapshotReady(true);
       }
       const response = await fetch(`${API_URL}/api/feedback`, {
         method: 'POST',
@@ -951,7 +1178,7 @@ export default function Dashboard() {
       <header className="topbar">
         <div className="brand-lockup">
           <span className="brand-mark">G</span>
-          <div><p className="eyebrow">WINDOWS · ONNX · USB-NCM</p><h1>Gesture Control Lab NCM Board</h1></div>
+          <div><p className="eyebrow">WINDOWS · ONNX · DUAL CAMERA</p><h1>Gesture Control Lab</h1></div>
         </div>
         <div className="topbar-status">
           <span className={`status-dot ${connection === 'online' ? 'is-online' : ''}`} />
@@ -974,11 +1201,26 @@ export default function Dashboard() {
       </nav>
 
       <section className="workspace">
-        <DataCollection api={API_URL} active={activeTab === 'data_collection'} connected={cameraActive && Boolean(ncmStatus?.connected)} ready={serverReady} streamRevision={streamRevision} liveLandmarks={prediction.landmarks} toggleCamera={toggleCamera} />
+        <video ref={webcamVideoRef} className="webcam-capture-source" autoPlay muted playsInline aria-hidden="true" />
+        <canvas ref={webcamCanvasRef} className="webcam-capture-source" aria-hidden="true" />
+        <DataCollection
+          api={API_URL}
+          active={activeTab === 'data_collection'}
+          connected={cameraActive && activeCameraSource === cameraSource}
+          ready={serverReady}
+          streamRevision={streamRevision}
+          liveLandmarks={prediction.landmarks}
+          livePlaneAngles={livePlaneAngles}
+          cameraSource={cameraSource}
+          webcamStream={webcamStream}
+          captureWebcamFrame={captureWebcamFrame}
+          setCameraSource={changeCameraSource}
+          toggleCamera={toggleCamera}
+        />
         <div hidden={activeTab !== 'live' && activeTab !== 'feedback'}><RangeDiagnostics prediction={prediction} connected={cameraActive} /></div>
         {activeTab === 'live' && <>
           <div className="section-heading">
-            <div><p className="eyebrow">EIGHT-GESTURE RECOGNITION</p><h2>{targetFps.toFixed(0)} FPS JLIP camera qualification</h2></div>
+            <div><p className="eyebrow">LIVE GESTURE RECOGNITION</p><h2>{targetFps.toFixed(0)} FPS {cameraSource === 'webcam' ? 'webcam' : 'JLIP camera'} qualification</h2></div>
             <div className="heading-actions">
               <label className="primary-button file-button demo-upload-button">
                 {demoVideo ? 'Replace demo media' : 'Upload video / image'}
@@ -990,8 +1232,9 @@ export default function Dashboard() {
                 <input type="file" accept="image/*" onChange={predictUploadedImage} disabled={uploading || !serverReady} />
               </label>
               <button className="secondary-button" type="button" onClick={resetSession}>Reset</button>
+              <label className="camera-source-control">Camera source<select aria-label="Live testing camera source" value={cameraSource} disabled={cameraActive || connection === 'connecting'} onChange={event => changeCameraSource(event.target.value as CameraSource)}><option value="ncm">NCM board camera</option><option value="webcam">PC webcam</option></select></label>
               <button className="primary-button" type="button" onClick={toggleCamera} disabled={!serverReady || connection === 'connecting'}>
-                {connection === 'connecting' ? 'Connecting…' : cameraActive ? 'Disconnect board camera' : 'Connect board camera'}
+                {connection === 'connecting' ? 'Connecting…' : cameraActive ? `Disconnect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}` : `Connect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}`}
               </button>
             </div>
           </div>
@@ -1005,20 +1248,33 @@ export default function Dashboard() {
             <p>{demoVideoMessage}</p>
           </div>
 
-          <div className={`ncm-link-panel ${ncmStatus?.connected ? 'connected' : ''}`}>
-            <div className="ncm-link-title">
-              <span className={`status-dot ${ncmStatus?.connected ? 'is-online' : ''}`} />
-              <div><strong>USB-NCM / JLIP CAMERA LINK</strong><p>{ncmMessage}</p></div>
-            </div>
-            <dl>
-              <div><dt>Windows host</dt><dd>{ncmStatus?.config.host_ip ?? '192.168.50.1'}/30</dd></div>
-              <div><dt>Board</dt><dd>{ncmStatus?.config.device_ip ?? '192.168.50.2'}:{ncmStatus?.config.tcp_port ?? 5000}</dd></div>
-              <div><dt>State</dt><dd>{humanize(ncmStatus?.state)}</dd></div>
-              <div><dt>Frames / FPS</dt><dd>{ncmStatus?.frames_received ?? 0} / {fps(ncmStatus?.camera_fps)}</dd></div>
-              <div><dt>CRC / sequence gaps</dt><dd>{ncmStatus?.crc_errors ?? 0} / {ncmStatus?.sequence_gaps ?? 0}</dd></div>
-            </dl>
-            <button className="secondary-button" type="button" onClick={discoverNcmCamera}>Run UDP discovery</button>
-          </div>
+          {cameraSource === 'ncm' ? <div className={`ncm-link-panel ${ncmStatus?.connected ? 'connected' : ''}`}>
+              <div className="ncm-link-title">
+                <span className={`status-dot ${ncmStatus?.connected ? 'is-online' : ''}`} />
+                <div><strong>USB-NCM / JLIP CAMERA LINK</strong><p>{ncmMessage}</p></div>
+              </div>
+              <dl>
+                <div><dt>Windows host</dt><dd>{ncmStatus?.config.host_ip ?? '192.168.50.1'}/30</dd></div>
+                <div><dt>Board</dt><dd>{ncmStatus?.config.device_ip ?? '192.168.50.2'}:{ncmStatus?.config.tcp_port ?? 5000}</dd></div>
+                <div><dt>State</dt><dd>{humanize(ncmStatus?.state)}</dd></div>
+                <div><dt>Frames / FPS</dt><dd>{ncmStatus?.frames_received ?? 0} / {fps(ncmStatus?.camera_fps)}</dd></div>
+                <div><dt>CRC / sequence gaps</dt><dd>{ncmStatus?.crc_errors ?? 0} / {ncmStatus?.sequence_gaps ?? 0}</dd></div>
+              </dl>
+              <button className="secondary-button" type="button" onClick={discoverNcmCamera}>Run UDP discovery</button>
+            </div> : <div className={`ncm-link-panel webcam-link-panel ${cameraActive ? 'connected' : ''}`}>
+              <div className="ncm-link-title">
+                <span className={`status-dot ${cameraActive ? 'is-online' : ''}`} />
+                <div><strong>PC WEBCAM / BROWSER LINK</strong><p>{webcamDetails}</p></div>
+              </div>
+              <dl>
+                <div><dt>Source</dt><dd>Browser MediaStream</dd></div>
+                <div><dt>Transport</dt><dd>JPEG / WebSocket</dd></div>
+                <div><dt>State</dt><dd>{cameraActive ? 'Connected' : 'Ready'}</dd></div>
+                <div><dt>Inference FPS</dt><dd>{cameraActive ? fps(cameraFps) : '—'}</dd></div>
+                <div><dt>Preview</dt><dd>Unmirrored</dd></div>
+              </dl>
+              <span className="camera-source-note">Permission stays local to this browser session.</span>
+            </div>}
 
           {!serverReady && <div className="setup-banner">
             <strong>Model setup required.</strong>
@@ -1039,7 +1295,7 @@ export default function Dashboard() {
             <article className="camera-card panel">
               <div className="panel-header">
                 <div><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> {demoVideo ? 'UPLOADED MEDIA ACTION STAGE' : 'LIVE CAMERA PREVIEW'}</div>
-                <span>{demoVideo ? 'NCM camera + landmarks in upper-right' : 'JLIP JPEG stream · central 92% ROI'}</span>
+                <span>{demoVideo ? `${cameraSource === 'webcam' ? 'Webcam' : 'NCM camera'} + landmarks in upper-right` : cameraSource === 'webcam' ? 'Browser webcam · unmirrored JPEG frames' : 'JLIP JPEG stream · central 92% ROI'}</span>
               </div>
               <div className={`camera-stage live-stage ${demoVideo ? 'has-demo-video' : ''}`}>
                 {demoVideo && <div className="demo-video-viewport">
@@ -1048,8 +1304,9 @@ export default function Dashboard() {
                       src={demoVideo.url}
                       className="demo-target-media demo-target-video"
                       controls
-                      muted
+                      muted={demoMuted}
                       playsInline
+                      onVolumeChange={event => { setDemoMuted(event.currentTarget.muted); setDemoVolume(event.currentTarget.volume); }}
                       onEnded={() => {
                         if (mediaRecorderRef.current?.state === 'recording') stopDemoRecording();
                         setDemoVideoMessage('The uploaded video reached the end. Replay it or upload another clip.');
@@ -1063,12 +1320,13 @@ export default function Dashboard() {
                       style={{ transform: `translate(${demoTransform.x}%, ${demoTransform.y}%) scale(${demoTransform.scale})` }}
                     />}
                 </div>}
-                {cameraActive && <img
+                {cameraActive && cameraSource === 'ncm' && <img
                   key={streamRevision}
                   src={`${API_URL}/api/ncm/stream.mjpg?revision=${streamRevision}`}
                   alt="Live JPEG stream from the USB-NCM development-board camera"
                   className="camera-video active ncm-camera-video"
                 />}
+                {cameraActive && cameraSource === 'webcam' && <WebcamVideo stream={webcamStream} className="camera-video active webcam-camera-video" />}
                 {demoVideo && <div className="demo-live-action" aria-live="polite">
                   <span>CONFIRMED LIVE ACTION</span>
                   <strong>{prediction.runtime_action && prediction.runtime_action !== 'Wait / No Action' ? mappedLabel : 'Wait / No Action'}</strong>
@@ -1077,6 +1335,7 @@ export default function Dashboard() {
                 {demoVideo && <div className="demo-state-badges">
                   {demoRecording && <span className="recording-badge"><i /> REC</span>}
                   {objectTrackingEnabled && <span className="tracking-badge">OBJECT TRACKING ON</span>}
+                  {demoVideo.kind === 'video' && <span className="audio-badge">{demoMuted ? 'AUDIO MUTED' : `VOLUME ${Math.round(demoVolume * 100)}%`}</span>}
                 </div>}
                 {demoVideo && actionToast && <div className={`action-toast ${actionToast.status}`} role="status" aria-live="assertive">
                   <span>{humanize(actionToast.gesture)} gesture</span>
@@ -1086,24 +1345,29 @@ export default function Dashboard() {
                   <span className="corner top-left" /><span className="corner top-right" />
                   <span className="corner bottom-left" /><span className="corner bottom-right" />
                   <canvas ref={landmarkCanvasRef} className="landmark-canvas" />
-                  {demoVideo && <div className="webcam-pip-label"><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> NCM BOARD CAMERA + LANDMARKS</div>}
+                  {demoVideo && <div className="webcam-pip-label"><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> {cameraSource === 'webcam' ? 'PC WEBCAM' : 'NCM BOARD CAMERA'} + LANDMARKS</div>}
                   {!cameraActive && <div className="camera-empty">
                     <span className="hand-orbit" /><strong>Camera is ready</strong>
-                    <p>{demoVideo ? 'Connect the board camera to control the uploaded media.' : 'Connect USB-NCM and keep one complete hand and wrist inside the large guide.'}</p>
+                    <p>{demoVideo ? `Connect the ${cameraSource === 'webcam' ? 'webcam' : 'board camera'} to control the uploaded media.` : `Connect the ${cameraSource === 'webcam' ? 'PC webcam' : 'USB-NCM camera'} and keep one complete hand and wrist inside the large guide.`}</p>
                   </div>}
                 </div>
                 <canvas ref={demoRecordingCanvasRef} className="capture-canvas" />
               </div>
               <div className="camera-footer">
                 <span>{demoVideo ? `Target ${demoTransform.scale.toFixed(1)}x · X ${demoTransform.x} · Y ${demoTransform.y}` : prediction.status === 'predicted' ? 'ONNX Runtime · CPU' : humanize(prediction.status)}</span>
-                <span>Unmirrored NCM camera · calibrated Left/Right · {fps(cameraFps)} FPS · inference capped at {targetFps.toFixed(0)} FPS</span>
+                <span>Unmirrored {cameraSource === 'webcam' ? 'PC webcam' : 'NCM camera'} · calibrated Left/Right · {fps(cameraFps)} FPS · inference capped at {targetFps.toFixed(0)} FPS</span>
+              </div>
+              <div className="live-angle-panel" aria-label="Live three-dimensional palm-axis angles">
+                <div><span>LIVE 3-D PALM AXIS</span><small>Signed wrist → palm angle in each coordinate plane</small></div>
+                {(['xy', 'yz', 'xz'] as const).map(plane => <div key={plane}><span>{plane.toUpperCase()}</span><strong>{livePlaneAngles ? `${livePlaneAngles[plane].toFixed(1)}°` : '—'}</strong></div>)}
+                {!livePlaneAngles && <p>Waiting for a complete hand and depth landmarks.</p>}
               </div>
               {demoVideo && <div className="demo-action-console">
                 <div className="demo-console-summary">
                   <div><span>ACTION DISPATCH</span><strong>{demoEvents[0]?.command.replaceAll('_', ' ') ?? 'WAITING'}</strong></div>
                   <div className="demo-console-buttons">
                     {recordingDownloadUrl && <a href={recordingDownloadUrl} download="gesture-action-demo.webm">Download recording</a>}
-                    <button type="button" onClick={() => { updateDemoTransform(() => ({ x: 0, y: 0, scale: 1 })); setObjectTrackingEnabled(false); setImagePreviewActive(true); }}>Reset media position</button>
+                    <button type="button" onClick={() => { updateDemoTransform(() => ({ x: 0, y: 0, scale: 1 })); setObjectTrackingEnabled(false); setImagePreviewActive(true); if (demoVideoRef.current) { demoVideoRef.current.muted = false; demoVideoRef.current.volume = 1; } setDemoMuted(false); setDemoVolume(1); }}>Reset media</button>
                   </div>
                 </div>
                 <div className="demo-event-list">
@@ -1215,8 +1479,9 @@ export default function Dashboard() {
             <div><p className="eyebrow">GUARDED ONLINE LEARNING</p><h2>Correct, capture, and safely learn</h2></div>
             <div className="feedback-heading-actions">
               <span className="count-pill">{feedbackCount} reviewed samples</span>
+              <label className="camera-source-control">Camera source<select aria-label="Feedback camera source" value={cameraSource} disabled={cameraActive || connection === 'connecting'} onChange={event => changeCameraSource(event.target.value as CameraSource)}><option value="ncm">NCM board camera</option><option value="webcam">PC webcam</option></select></label>
               <button className="primary-button" type="button" onClick={toggleCamera} disabled={!serverReady || connection === 'connecting'}>
-                {connection === 'connecting' ? 'Connecting…' : cameraActive ? 'Disconnect board camera' : 'Connect board camera'}
+                {connection === 'connecting' ? 'Connecting…' : cameraActive ? `Disconnect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}` : `Connect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}`}
               </button>
             </div>
           </div>
@@ -1224,23 +1489,24 @@ export default function Dashboard() {
             <article className="panel feedback-preview">
               <div className="panel-header"><div><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> LIVE FEEDBACK CAMERA</div><span>{cameraActive ? `${fps(cameraFps)} FPS` : 'OFFLINE'}</span></div>
               <div className="camera-stage live-stage feedback-camera-stage">
-                {cameraActive && <img
+                {cameraActive && cameraSource === 'ncm' && <img
                   key={`feedback-${streamRevision}`}
                   src={`${API_URL}/api/ncm/stream.mjpg?revision=${streamRevision}`}
                   alt="Unmirrored live JPEG stream from the USB-NCM development-board camera"
                   className="camera-video active ncm-camera-video feedback-camera-video"
                 />}
+                {cameraActive && cameraSource === 'webcam' && <WebcamVideo stream={webcamStream} className="camera-video active webcam-camera-video feedback-camera-video" />}
                 <div className="guide-box live-guide feedback-live-guide">
                   <span className="corner top-left" /><span className="corner top-right" />
                   <span className="corner bottom-left" /><span className="corner bottom-right" />
                   <canvas ref={feedbackLandmarkCanvasRef} className="landmark-canvas" />
                   {!cameraActive && <div className="camera-empty">
                     <span className="hand-orbit" /><strong>Camera stays available here</strong>
-                    <p>Connect the NCM camera, show a gesture, then confirm or correct the result beside the preview.</p>
+                    <p>Connect the selected camera, show a gesture, then confirm or correct the result beside the preview.</p>
                   </div>}
                 </div>
               </div>
-              <div className="camera-footer"><span>Unmirrored preview + calibrated Left/Right + live landmarks</span><span>{connection === 'online' ? 'Feedback capture ready' : 'Connect to capture'}</span></div>
+              <div className="camera-footer"><span>Unmirrored {cameraSource === 'webcam' ? 'webcam' : 'NCM'} preview + calibrated Left/Right + live landmarks</span><span>{connection === 'online' ? 'Feedback capture ready' : 'Connect to capture'}</span></div>
               <div className="feedback-prediction"><p>The system predicted</p><strong>{humanize(feedbackPrediction)}</strong><span>{percent(prediction.confidence)} confidence · {prediction.stable_frames ?? 0}/{stableRequired} stable</span></div>
               <div className="feedback-note"><strong>Safe Learn is guarded</strong><p>Each confirmed sample includes the current snapshot, landmarks, and feature vector. The server validates an online candidate before accepting it and keeps the deployed model when validation fails.</p></div>
               <div className="online-status-grid">
@@ -1314,12 +1580,12 @@ export default function Dashboard() {
             </article>
 
             <article className="panel setup-steps">
-              <div className="panel-header"><div>FIRST-TIME ONNX + NCM SETUP</div><span>4 STEPS</span></div>
+              <div className="panel-header"><div>FIRST-TIME ONNX + CAMERA SETUP</div><span>4 STEPS</span></div>
               <ol>
                 <li><span>01</span><div><strong>Install the Microsoft runtime</strong><p>Install the Microsoft Visual C++ 2015–2022 x64 Redistributable required by ONNX Runtime on Windows.</p></div></li>
-                <li><span>02</span><div><strong>Configure the NCM link</strong><p>The Windows NCM adapter must own 192.168.50.1/30 and the board must answer as 192.168.50.2.</p></div></li>
+                <li><span>02</span><div><strong>Choose a camera source</strong><p>Allow browser camera permission for the PC webcam, or configure the NCM adapter at 192.168.50.1/30 for the board camera.</p></div></li>
                 <li><span>03</span><div><strong>Run the separate application</strong><p>Double-click start_ncm_onnx_dashboard.bat. Services use ports 3200 and 8200.</p></div></li>
-                <li><span>04</span><div><strong>Discover, connect, and test</strong><p>Run UDP discovery, connect the board camera, then verify the {targetFps.toFixed(0)} FPS frame budget.</p></div></li>
+                <li><span>04</span><div><strong>Connect and test</strong><p>Select PC Webcam or NCM Board Camera in Live Testing, connect it, then verify the {targetFps.toFixed(0)} FPS frame budget.</p></div></li>
               </ol>
             </article>
 
@@ -1344,13 +1610,13 @@ export default function Dashboard() {
                 <div><dt>Execution provider</dt><dd>CPUExecutionProvider</dd></div>
                 <div><dt>Temporal filter</dt><dd>EMA α {health?.config.ema_alpha ?? 0.65}</dd></div>
                 <div><dt>Confidence floor</dt><dd>{percent(health?.config.confidence_floor ?? 0.70)}</dd></div>
-                <div><dt>Object tracking</dt><dd>Toggled by Open Palm</dd></div>
+                <div><dt>Object tracking</dt><dd>Toggled only by an upward Open Palm</dd></div>
               </dl>
             </article>
 
             <article className="panel server-card">
               <div className="panel-header"><div>LOCAL ENDPOINTS</div><span>PRIVATE TO THIS PC</span></div>
-              <div className="endpoint-list"><code>Dashboard  http://127.0.0.1:3200</code><code>API        http://127.0.0.1:8200</code><code>API docs   http://127.0.0.1:8200/docs</code><code>WebSocket  ws://127.0.0.1:8200/ws/ncm-live</code></div>
+              <div className="endpoint-list"><code>Dashboard   http://127.0.0.1:3200</code><code>API         http://127.0.0.1:8200</code><code>API docs    http://127.0.0.1:8200/docs</code><code>NCM socket  ws://127.0.0.1:8200/ws/ncm-live</code><code>Webcam      ws://127.0.0.1:8200/ws/live</code></div>
             </article>
           </div>
         </>}

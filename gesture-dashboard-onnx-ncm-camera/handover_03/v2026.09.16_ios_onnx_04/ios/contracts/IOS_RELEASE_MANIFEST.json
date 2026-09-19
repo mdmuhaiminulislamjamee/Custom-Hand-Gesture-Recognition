@@ -1,0 +1,132 @@
+﻿{
+    "schema_version":  1,
+    "release_version":  "v2026.09.16_ios_onnx_04",
+    "created_utc":  "2026-09-16T06:10:50.1130345Z",
+    "platform":  "iOS",
+    "input":  {
+                  "name":  "landmark_features",
+                  "dtype":  "float32",
+                  "shape":  [
+                                1,
+                                76
+                            ]
+              },
+    "outputs":  {
+                    "probabilities":  [
+                                          1,
+                                          10
+                                      ],
+                    "known_gesture_mass":  [
+                                               1,
+                                               1
+                                           ]
+                },
+    "output_class_order":  [
+                               "left",
+                               "right",
+                               "up",
+                               "down",
+                               "open_palm",
+                               "like",
+                               "dorsal",
+                               "ok",
+                               "fist",
+                               "thumb_down"
+                           ],
+    "rejection_sentinel":  "no_gesture",
+    "gesture_to_action":  {
+                              "left":  "Move Left",
+                              "right":  "Move Right",
+                              "up":  "Move Up",
+                              "down":  "Move Down",
+                              "open_palm":  "Enable / Disable Object Tracking",
+                              "like":  "Play / Pause",
+                              "dorsal":  "Return to Default Position",
+                              "ok":  "Start / Stop Recording",
+                              "fist":  "Mute",
+                              "thumb_down":  "Volume Down"
+                          },
+    "cross_platform_pose_rules":  {
+                                      "open_palm":  "wrist-to-palm axis must point upward",
+                                      "fist":  "supported for either hand",
+                                      "thumb_down":  "supported for either hand"
+                                  },
+    "onnx_sha256":  "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd",
+    "files":  [
+                  {
+                      "path":  "README.md",
+                      "bytes":  3372,
+                      "sha256":  "bf568c1a0bb754d21b6f49006fc01f861658e6b38f11c7e1464e80367f0f6780"
+                  },
+                  {
+                      "path":  "models/blaze_face_short_range.tflite",
+                      "bytes":  229746,
+                      "sha256":  "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+                  },
+                  {
+                      "path":  "models/gesture_mlp_onnx_metadata.json",
+                      "bytes":  11122,
+                      "sha256":  "ec0ffb5f26e579f8e2d775d29196cc2dc2c0c79b3d75447f9ae35ec764e34cc2"
+                  },
+                  {
+                      "path":  "models/gesture_mlp_production.onnx",
+                      "bytes":  76993,
+                      "sha256":  "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
+                  },
+                  {
+                      "path":  "models/gesture_mobile_runtime_config.json",
+                      "bytes":  14457,
+                      "sha256":  "1cd4007499d8573044c086f33df93426f023e28e57033767f764e387a2db7921"
+                  },
+                  {
+                      "path":  "models/hand_landmarker.task",
+                      "bytes":  7819105,
+                      "sha256":  "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+                  },
+                  {
+                      "path":  "reference/config.py",
+                      "bytes":  12407,
+                      "sha256":  "e92069ae37e1ff5bc6d5d80faddd770ba6f352d521e75a3087aba31c8ee34dc1"
+                  },
+                  {
+                      "path":  "reference/face_guard.py",
+                      "bytes":  2128,
+                      "sha256":  "c7a577fe110258dcaa136280936eb9f78f013e234ba07f2475ce70e9f9fd2252"
+                  },
+                  {
+                      "path":  "reference/follow_object.py",
+                      "bytes":  5766,
+                      "sha256":  "fb60d3f6ed9f0b24cbf488774b66d3e01b9e4d650ee234359c3550293b1aa95d"
+                  },
+                  {
+                      "path":  "reference/geometry.py",
+                      "bytes":  37051,
+                      "sha256":  "d213e93d589d89f1edb9c741cb4c257ab74ad578c42d3bcf7e11069cde443620"
+                  },
+                  {
+                      "path":  "reference/hand_detection.py",
+                      "bytes":  17697,
+                      "sha256":  "87c171582346218e14b6fa3017a8e63eeac4733c051933ac76e1218041857612"
+                  },
+                  {
+                      "path":  "reference/model_runtime.py",
+                      "bytes":  54806,
+                      "sha256":  "d6191ced371b8feed902e257266316bdd8914a96adbc147a7ea46b2fc6d06c6c"
+                  },
+                  {
+                      "path":  "reference/ncm_camera.py",
+                      "bytes":  17623,
+                      "sha256":  "dcd89e14c78f11e69c8afdc47db64f00db91928a1a0ef59e02573104c78bf249"
+                  },
+                  {
+                      "path":  "reference/runtime.py",
+                      "bytes":  12015,
+                      "sha256":  "115b39cbd96729fee856b09a53840f6fc640fd4a28fc5dad1bda4225150e2207"
+                  },
+                  {
+                      "path":  "swift/GestureFeatureExtractor.swift",
+                      "bytes":  14797,
+                      "sha256":  "584095bd5ddd78fb72d7250e31a86ffc0c070bf359104c716c6813d7a4d24923"
+                  }
+              ]
+}

@@ -1,8 +1,10 @@
 # Gesture Dashboard: ONNX + USB-NCM Camera
 
-This repository is the complete Windows reference implementation for an eight-command, static hand-gesture system. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS.
+This repository is the complete Windows reference implementation for a ten-command, static hand-gesture system. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS.
 
-Current model release: **v18_20**.
+Current production model: **TenGestureBalancedMLP**, qualified and deployed on
+2026-09-16. The `v18_20` material remains available only as historical research
+evidence.
 
 > Important: the Windows application is runnable as delivered. The iOS material is an **integration package**, not a finished Xcode project. An iOS developer must still create the app shell, camera or NCM receiver, ONNX Runtime wrapper, decision state machine, and UI. See [Implementing the pipeline on iOS](#implementing-the-pipeline-on-ios).
 
@@ -69,7 +71,7 @@ The start script rebuilds the frontend on every launch, starts both processes in
 
 ## What the system does
 
-The application recognizes eight approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
+The application recognizes ten approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
 
 ```text
 Development-board camera
@@ -86,7 +88,7 @@ JLIP stream parser and validated latest-JPEG buffer
 low-light checks -> MediaPipe 21-point hand landmarks -> landmark stabilization
         |
         v
-76-D feature extraction -> eight-output ONNX MLP + known-gesture-mass score
+76-D feature extraction -> ten-output ONNX MLP + known-gesture-mass score
         |
         v
 pose geometry + open-set rejection + probability EMA + hold/release/cooldown
@@ -95,7 +97,10 @@ pose geometry + open-set rejection + probability EMA + hold/release/cooldown
 prediction/action JSON -> FastAPI WebSocket -> React dashboard
 ```
 
-The browser never asks for webcam permission in the NCM dashboard. The Python backend owns the board connection and sends predictions to the browser. The separate OpenCV viewer can use either a PC webcam or the NCM camera.
+The Python backend owns the NCM board connection and sends predictions to the
+browser. Selecting Webcam for browser-based collection asks for camera
+permission; selecting NCM does not. The separate OpenCV viewer can also use
+either a PC webcam or the NCM camera.
 
 The application is intentionally local-only by default:
 
@@ -164,12 +169,17 @@ The graph contract is:
 |---|---|---|
 | Input `landmark_features` | `float32 [N, 76]` | Exact feature rows |
 | Output `label` | `int64 [N]` | Internal argmax output; the runtime does not depend on it |
-| Output `probabilities` | `float32 [N, 8]` | Canonical command probabilities |
+| Output `probabilities` | `float32 [N, 10]` | Canonical command probabilities |
 | Output `known_gesture_mass` | `float32 [N, 1]` | Evidence that the input belongs to the known vocabulary |
 
 ### 5. Rejection, stabilization, and actions
 
-`backend/geometry.py::GeometryResolver` rejects incompatible directional, Dorsal, Like, OK, and Open Palm shapes. `backend/runtime.py::TemporalGate` then applies known-mass, confidence, probability-margin, EMA, stable-frame, and minimum-hold checks. `RuntimeSession` also handles release frames, action latching, and cooldown.
+`backend/geometry.py::GeometryResolver` rejects incompatible directional,
+Dorsal, Like, OK, Fist, Thumbs Down, and Open Palm shapes. Open Palm is eligible
+only while its wrist-to-palm axis points upward. `backend/runtime.py::TemporalGate`
+then applies known-mass, confidence, probability-margin, EMA, stable-frame, and
+minimum-hold checks. `RuntimeSession` also handles release frames, action
+latching, and cooldown.
 
 This layered decision path is why the top ONNX class is not automatically an action. A hand can be detected and scored while the final result remains `no_gesture` / `Wait / No Action`.
 
@@ -181,7 +191,10 @@ This layered decision path is why the top ONNX class is not automatically an act
 
 The Feedback tab writes reviewed correction records through `backend/storage.py`. **Save only** records evidence. **Safe Learn** may update a separate, bounded NumPy residual adapter only after holdout/replay safety checks in `backend/online_learning.py`; it never rewrites the base ONNX graph.
 
-The Data Collection tab uses `backend/data_collection.py` to freeze the exact NCM frame being reviewed, then stores the raw JPEG and an authoritative JSON sidecar. The human prompt/confirmation is the label; the current prediction is diagnostic only.
+The Data Collection tab uses `backend/data_collection.py` to freeze the exact
+NCM or browser-webcam frame being reviewed, then stores the raw JPEG and an
+authoritative JSON sidecar. The human prompt/confirmation is the label; the
+current prediction is diagnostic only.
 
 ## Gesture and model contract
 
@@ -197,8 +210,10 @@ The class order is fixed and must be identical on Windows, iOS, and any replacem
 | 5 | `like` | Like | Play / Pause |
 | 6 | `dorsal` | Dorsal | Return to Default Position |
 | 7 | `ok` | OK | Start / Stop Recording |
+| 8 | `fist` | Fist | Mute |
+| 9 | `thumb_down` | Thumbs Down | Volume Down |
 
-`no_gesture` is a rejection/feedback label, not output index 8. It means no hand, an invalid hand, an unknown shape, an incompatible pose, or a candidate that has not passed temporal gates.
+`no_gesture` is a rejection/feedback label, not output index 10. It means no hand, an invalid hand, an unknown shape, an incompatible pose, or a candidate that has not passed temporal gates.
 
 ### Direction and mirroring contract
 
@@ -223,9 +238,10 @@ The current production settings in `models/gesture_mobile_runtime_config.json` a
 | Minimum interval between admitted inference starts | 100 ms |
 | Frame processing budget | 100 ms |
 | Probability EMA alpha | 0.45 |
-| Confidence floor | 0.80 |
-| Probability-margin floor | 0.18 |
-| Known-gesture-mass floor | **0.95** |
+| Confidence floor | **0.70** |
+| Probability-margin floor | **0.08** |
+| Known-gesture-mass floor | **0.70** |
+| Geometry-recovery mass floor | 0.15 |
 | Stable frames | 3 |
 | Minimum stable hold | 0.18 s |
 | Release frames | 3 |
@@ -240,7 +256,12 @@ Camera FPS and application FPS are different:
 - the dashboard's 100 ms **capacity pass** means a measured frame finished inside the budget; it is not an accuracy result;
 - sustained physical-camera validation is still required.
 
-Historical qualification sections in metadata may show an evaluation threshold of `0.80`. That describes a recorded offline experiment. The live deployment gate is `temporal_smoothing.known_mass_floor` in the current runtime JSON, which is `0.95`.
+The three ordinary live acceptance thresholds were selected on the validation
+split and are recorded in both metadata and runtime JSON as `0.70` known mass,
+`0.70` confidence, and `0.08` probability margin. Geometry-supported recovery
+has its own `0.15` mass floor and does not bypass the pose validators. Always
+read `temporal_smoothing` from the matching runtime JSON; thresholds copied from
+an older handover are not part of this release.
 
 The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame()` for every captured frame and does **not** use the backend-wide limiter or the dashboard's 0.92 crop. It also does not attach the Safe Learn adapter or perform the full production manifest check. Use it as a convenient same-model viewer, not as proof that the qualified dashboard path is reproduced.
 
@@ -254,15 +275,16 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `backend/` | FastAPI API, camera transport, image/landmark/model runtime, gates, feedback, collection, tests |
 | `models/` | Production ONNX, MediaPipe/BlazeFace assets, runtime JSON, metadata, integrity manifest, evaluation caches/CSVs |
 | `scripts/` | Setup/start/stop/verify utilities, standalone viewer, collection, training, qualification, packaging |
-| `research/` | Reusable v18_20 and multiview data/training/evaluation code |
-| `data/v18_20/` | Preserved source-derived dataset artifacts and provenance used by v18_20 |
-| `artifacts/v18_20/` | Candidate, baselines, metrics, plots, audits, and qualification evidence |
+| `research/` | Reusable ten-command, historical v18_20, and multiview training/evaluation code |
+| `data/ten_gesture/` | Current source-derived ten-command dataset artifacts and provenance |
+| `artifacts/ten_gesture/` | Current candidate, threshold-selection, audit, and qualification evidence |
+| `data/v18_20/`, `artifacts/v18_20/` | Preserved historical eight-command research material; not production |
 | `artifacts/multiview/` | Generated multiview audit/candidate outputs; not the active production model |
 | `public/gesture-guides/` | Images used by the guided collection UI |
 | `reference/` | Supplied C++ NCM/JLIP receiver used as the transport contract |
 | `swift/` | Corrected 76-D Swift feature extractor and partial parity smoke test |
-| `handover_02/` | Latest committed split and all-in-one iOS handover snapshot |
-| `handover/` | Older iOS handover 01 kept for history; do not start a new integration from it |
+| `handover_03/` | Current immutable ten-command iOS integration packages |
+| `handover_02/`, `handover/` | Historical iOS handovers; do not start a new integration from them |
 | `examples/` | Minimal ONNX inference example for an already prepared 76-D feature row |
 | `feedback/` | Local reviewed feedback generated at runtime; normally empty in a clean handover |
 | `.runtime/` | Generated PIDs, logs, local diagnostics, and temporary runtime data |
@@ -305,14 +327,14 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 
 | File | Responsibility |
 |---|---|
-| `models/gesture_mlp_production.onnx` | Immutable eight-command base classifier plus known-mass output |
+| `models/gesture_mlp_production.onnx` | Immutable ten-command base classifier plus known-mass output |
 | `models/gesture_mlp_onnx_metadata.json` | Exact tensor/class/feature contract, model SHA-256, parity and qualification evidence |
 | `models/gesture_mobile_runtime_config.json` | Live thresholds, 10-FPS target, actions, detector/geometry/temporal settings |
 | `models/gesture_artifact_manifest.json` | Trusted sizes/hashes for the complete runtime artifact set |
 | `models/hand_landmarker.task` | MediaPipe 21-point hand detector/tracker model |
 | `models/blaze_face_short_range.tflite` | Pinned face-guard model |
 | `models/gesture_online_*_cache.npz` | Replay, validation, and untouched-test evidence for guarded updates/regression |
-| `models/eight_gesture_*.csv` | Human-readable release metrics and confusion/hard-case reports |
+| `models/ten_gesture_*.csv` | Human-readable current-release metrics and confusion/hard-case reports |
 
 ### Operational and research scripts
 
@@ -331,13 +353,15 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `scripts/download_face_detector.py` | Install/verify the pinned face-guard asset |
 | `scripts/capture_multiview_data.py` | Technical directional capture alternative to the dashboard collector |
 | `scripts/train_multiview_model.py` | Audit a collection or train/qualify a non-production multiview candidate |
+| `scripts/train_ten_gesture.py` | Rebuild the balanced ten-command candidate without changing production |
+| `scripts/qualify_ten_gesture.py` | Select validation thresholds, test, and only with `--deploy`, promote a qualified ten-command candidate |
 | `scripts/collect_v18_20_data.py` | Re-download/rebuild public-source inputs with provenance |
-| `scripts/qualify_v18_20.py` | Evaluate, and only with `--deploy`, promote the v18_20 candidate |
+| `scripts/qualify_v18_20.py` | Historical eight-command evaluator; never use it to replace current production |
 | `scripts/build_eight_gesture_model.py` | Convert a legacy sibling 15-class release to the eight-output wrapper; requires external source/cache paths |
 | `scripts/create_v18_20_notebook.py` | Regenerate the experiment notebook source |
 | `scripts/package_v18_20.py` | Rebuild the portable notebook/model evidence ZIP |
 | `scripts/create_handover_zip.ps1` | Build a clean timestamped full-project handover ZIP |
-| `v18_20.ipynb` | Executed, reviewable model training/evaluation workflow |
+| `v18_20.ipynb` | Historical executed eight-command training/evaluation workflow |
 
 ### Root configuration files
 
@@ -530,6 +554,8 @@ Interactive launcher:
 ```
 
 Choose `1` for a PC webcam or `2` for the USB-NCM board.
+Both sources run the same ten-command contract; Fist maps to Mute, Thumbs Down
+maps to Volume Down, and Open Palm is accepted only while pointing upward.
 
 Direct PC-webcam commands:
 
@@ -727,9 +753,33 @@ At least seven participants are needed by the current minimum split rules, and d
 
 There is no automatic production-promotion command for the multiview candidate. Copying only `candidate.onnx` will fail the metadata/manifest contract. A maintainer must create a complete versioned release after offline qualification and live NCM acceptance.
 
-### Reproduce the v18_20 model work
+### Rebuild and qualify the current ten-command model
 
-The executed `v18_20.ipynb` is the main reproducible narrative. It uses `research/v18_20.py`, inputs under `data/v18_20/`, and evidence under `artifacts/v18_20/`.
+The current balanced candidate and its participant-disjoint evaluation are
+produced by:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.train_ten_gesture
+.\.venv\Scripts\python.exe -m scripts.qualify_ten_gesture
+```
+
+Those commands leave production untouched. Only after reviewing the generated
+audit, validation-selected thresholds, untouched test, and physical-camera
+acceptance should a maintainer run:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.qualify_ten_gesture --deploy
+```
+
+Deployment replaces the complete model/config/metadata/evidence unit and must be
+followed by manifest rebuild, ONNX preflight, full verification, and a new
+immutable iOS handover suffix.
+
+### Historical v18_20 model work (do not deploy)
+
+The executed `v18_20.ipynb` preserves the earlier eight-command narrative. It
+uses `research/v18_20.py`, inputs under `data/v18_20/`, and evidence under
+`artifacts/v18_20/`; none of those files describe current production.
 
 The notebook's default switches are read-only (`INSTALL_REQUIREMENTS`, `REBUILD_DATA`, `RETRAIN`, and `RUN_LIVE_CAMERA` are false). Enable only the stages you intend to run.
 
@@ -741,19 +791,15 @@ If source inputs must be rebuilt, review the HaGRID, Dorsal Hands, and 11K Hands
 
 Network downloads are large and dataset licenses still apply. Open the notebook, keep test data out of model/threshold selection, run the training/evaluation cells, and inspect the generated candidate and audit evidence.
 
-Qualification without deployment:
+Historical evaluation without deployment:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.qualify_v18_20
 ```
 
-Only after offline review and a separate live NCM acceptance pass, the explicit promotion command is:
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.qualify_v18_20 --deploy
-```
-
-`--deploy` intentionally replaces production model/config/metadata/CSV outputs and rebuilds release evidence. Do not use it merely to test a candidate. After any intentional artifact release change, run:
+Do not run the historical evaluator with `--deploy`; that would attempt to
+replace the current ten-command release with obsolete evidence. After any
+intentional current-release change, run:
 
 ```powershell
 .\.venv\Scripts\python.exe .\scripts\build_artifact_manifest.py
@@ -765,7 +811,7 @@ The manifest proves file integrity/consistency, not real-camera accuracy.
 
 ### Developer-only and legacy tools
 
-- `scripts/build_eight_gesture_model.py` converts an older 15-output sibling model. Its defaults require sibling `gesture-dashboard-onnx` and `gesture-dashboard-joblib` folders and it writes into `models/`; it is not the normal v18_20 handover workflow.
+- `scripts/build_eight_gesture_model.py` converts an older 15-output sibling model. Its defaults require sibling `gesture-dashboard-onnx` and `gesture-dashboard-joblib` folders and it writes into `models/`; it is not the current ten-command workflow.
 - `scripts/check_collection_runtime.py` compares against Git history and retained `.runtime` camera cases. It is a developer regression tool and will not work from every clean handover.
 - `scripts/create_v18_20_notebook.py` regenerates and overwrites `v18_20.ipynb`; recipients normally open the checked-in notebook instead.
 - `scripts/build_artifact_manifest.py` hashes artifacts. It does not qualify a model or repair wrong metadata.
@@ -774,30 +820,44 @@ The manifest proves file integrity/consistency, not real-camera accuracy.
 
 ### What is included and what is not
 
-Use the newest committed iOS snapshot under:
+After the ten-command model has passed qualification, create the current iOS
+snapshot with:
+
+```powershell
+.\scripts\create_ios_handover.ps1 -Version v2026.09.17_ios_onnx_05
+```
+
+The script refuses an eight-output/stale model, verifies the ONNX hash and
+class/action contracts, and writes a new immutable release under:
 
 ```text
-handover_02/v2026.09.12_ios_onnx_01/
+handover_03/v2026.09.17_ios_onnx_05/
 ```
 
 It contains:
 
-- `landmarker/models/hand_landmarker.task`;
-- `landmarker/swift/GestureFeatureExtractor.swift`;
-- `model/models/gesture_mlp_production.onnx`;
-- model metadata/runtime JSON/manifests;
-- split landmarker/model ZIPs and an all-in-one ZIP.
+- `ios/models/hand_landmarker.task`;
+- `ios/models/blaze_face_short_range.tflite` for the desktop-equivalent face
+  guard port;
+- `ios/swift/GestureFeatureExtractor.swift`;
+- `ios/models/gesture_mlp_production.onnx`;
+- matching model metadata/runtime JSON and a mobile-specific manifest;
+- desktop geometry/runtime reference files and an all-in-one ZIP.
 
-The root `swift/GestureFeatureExtractor.swift` is available for direct inspection. The current root runtime/config can evolve after the dated Handover 02 snapshot. **Do not mix files from the root and Handover 02 silently.** Use one internally consistent, versioned snapshot, compare its hashes/config, and publish a new iOS package when root behavior changes.
+The root `swift/GestureFeatureExtractor.swift` is available for direct inspection. The current root runtime/config can evolve after a dated snapshot. **Do not mix files from the root and a handover package silently.** Use one internally consistent, versioned snapshot, compare its hashes/config, and publish a new iOS package when root behavior changes.
 
-The Handover 02 copy of `gesture_artifact_manifest.json` is a desktop-wide manifest and references files that are not all present inside its small model subfolder. Do not try to validate that whole manifest relative to only `model/models/`; either ship the complete referenced set or create a mobile-specific manifest for the exact iOS bundle.
+Handover 03 generates a mobile-specific manifest for the exact files in the iOS
+bundle. Handover 02 remains a historical eight-command snapshot and must not be
+used with the ten-command Swift source. Within `handover_03/`, suffixes `_02`
+through `_04` are preserved superseded snapshots; `_05` is the current integration
+target.
 
 This repository does **not** contain an `.xcodeproj`, `.xcworkspace`, `Podfile`, `Info.plist`, Swift NCM/JLIP client, ONNX session wrapper, iOS geometry resolver, temporal gate, or finished iOS screen. There is no command in this folder that runs an iOS app.
 
 There are two possible iOS targets:
 
 1. **Classifier demonstration:** MediaPipe -> supplied feature extractor -> ONNX -> basic thresholds/action. Faster, but not behaviorally equivalent to the Windows runtime.
-2. **Production-equivalent port:** also port/test low-light policy, detector recovery, face guard, landmark smoothing, `GeometryResolver`, temporal/release/cooldown logic, transport validation, and observability. This is required before claiming desktop/iOS parity. The current iOS handover does not include the BlazeFace asset used by the desktop face guard.
+2. **Production-equivalent port:** also port/test low-light policy, detector recovery, face guard, landmark smoothing, `GeometryResolver`, temporal/release/cooldown logic, transport validation, and observability. This is required before claiming desktop/iOS parity. Handover 03 includes the desktop BlazeFace asset as a reference, but the iOS developer must still integrate and validate its preprocessing/inference path.
 
 ### 1. Create the Xcode project and install libraries
 
@@ -907,14 +967,33 @@ let features = try GestureFeatureExtractor.landmarksToFeature(points)
 precondition(features.count == 76)
 ```
 
+After ONNX inference, apply the supplied cross-platform pose guard before
+temporal confirmation:
+
+```swift
+let allowed = try GestureFeatureExtractor.runtimePoseAllowed(
+    predictedGesture: topClass,
+    modelConfidence: topProbability,
+    landmarksXY: points
+)
+guard allowed else {
+    // Publish no_gesture and reset the candidate hold.
+    return
+}
+```
+
+This makes Open Palm upward-only and applies the handedness-neutral Fist and
+Thumbs Down geometry checks. It does not replace the other production geometry
+and temporal gates.
+
 Create a contiguous `float32` tensor with shape `[1, 76]` and input name `landmark_features`. Query outputs by exact name:
 
 ```text
-probabilities       float32 [1, 8]
+probabilities       float32 [1, 10]
 known_gesture_mass  float32 [1, 1]
 ```
 
-The correct name is `known_gesture_mass`, not `known_mass`. Do not assume output-array position, and do not add `no_gesture` to the probability vector. Validate that all values are finite and normalize the eight probabilities as the desktop runtime does.
+The correct name is `known_gesture_mass`, not `known_mass`. Do not assume output-array position, and do not add `no_gesture` to the probability vector. Validate that all values are finite and normalize the ten probabilities as the desktop runtime does. The exact order is `left`, `right`, `up`, `down`, `open_palm`, `like`, `dorsal`, `ok`, `fist`, `thumb_down`.
 
 `runtime_action` is not an ONNX output. The app derives it only after rejection, geometry, and temporal gates.
 
@@ -924,10 +1003,12 @@ For a minimum compatible gate, in this order:
 
 1. no usable hand -> reset candidate history and return `no_gesture`;
 2. feature extraction failure -> reject;
-3. apply the ported pose/geometry vetoes from `backend/geometry.py`;
-4. require `known_gesture_mass >= 0.95`, except only explicitly ported/tested geometry-supported fallbacks;
-5. require top probability `>= 0.80`;
-6. require top-minus-second probability `>= 0.18`;
+3. apply the ported pose/geometry vetoes from `backend/geometry.py`, including
+   upward-only Open Palm and the Fist/Thumbs Down checks;
+4. require `known_gesture_mass >= 0.70`, except only explicitly ported/tested
+   geometry-supported recovery with mass `>= 0.15`;
+5. require top probability `>= 0.70`;
+6. require top-minus-second probability `>= 0.08`;
 7. apply probability EMA with alpha `0.45`;
 8. require the same EMA label for at least 3 frames and at least 0.18 seconds;
 9. after firing, require 3 release frames and a 0.80-second cooldown before repeating;
@@ -997,7 +1078,10 @@ Before calling the port complete, test on a physical device:
 
 - full 76-value feature fixtures and ONNX fixtures pass;
 - ONNX input/output names, shapes, types, class order, and SHA-256 match metadata;
-- all eight gestures work with unmirrored pixels and correct Left/Right semantics;
+- all ten gestures work with unmirrored pixels and correct Left/Right semantics;
+- Fist and Thumbs Down work with both hands across the qualified angle range;
+- Open Palm fires while pointing upward and is rejected while pointing left,
+  right, or down;
 - `no_gesture` produces no action for empty frames, faces/ears, relaxed hands, and other fingers;
 - low light, backgrounds, both hands, hand sizes, skin tones, distance, tilt, roll, partial hands, and motion are covered;
 - repeated held gestures do not retrigger until release/cooldown rules pass;
@@ -1069,7 +1153,8 @@ Before transfer:
 - run `verify_ncm_onnx_release.bat`;
 - review [HANDOVER_CHECKLIST.md](HANDOVER_CHECKLIST.md);
 - do not include local adapter state/backups, participant data, feedback images, secrets, or credentials unless deliberately reviewed and approved;
-- include the full `models/` release unit and the latest `handover_02/` iOS package;
+- include the full `models/` release unit and
+  `handover_03/v2026.09.17_ios_onnx_05/` as the current iOS package;
 - record the hardware/firmware version and physical board test result separately.
 
-The software preflight and offline metrics are necessary checks, but acceptance still requires all eight commands and rejection cases on the actual target camera, lighting, mounting, and iOS/Windows hardware.
+The software preflight and offline metrics are necessary checks, but acceptance still requires all ten commands and rejection cases on the actual target camera, lighting, mounting, and iOS/Windows hardware.

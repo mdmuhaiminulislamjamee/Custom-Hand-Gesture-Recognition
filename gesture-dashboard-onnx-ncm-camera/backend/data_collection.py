@@ -40,6 +40,10 @@ LABEL_TITLES = dict(zip(CLASS_NAMES, (
     "Left", "Right", "Up · index finger", "Down · index finger", "Open palm",
     "Like · thumb up", "Dorsal · fingers down", "OK",
 )))
+LABEL_TITLES.update({
+    "fist": "Fist - mute",
+    "thumb_down": "Thumb down - volume down",
+})
 
 
 def collection_plan():
@@ -55,6 +59,8 @@ def collection_plan():
             "like": "Give a thumbs-up with the other four fingers folded.",
             "dorsal": "Show the back of the hand with four fingers together pointing down.",
             "ok": "Join thumb and index into a circle; extend the other three fingers.",
+            "fist": "Close all four fingers into the palm and keep the thumb naturally across them.",
+            "thumb_down": "Point the thumb downward and keep the other four fingers folded.",
         }[label]
         for view in views:
             plan.append(dict(id=f"{label}/{view}", label=label, title=LABEL_TITLES[label],
@@ -110,39 +116,78 @@ class CollectionStore:
         with self._lock:
             self.root.mkdir(parents=True, exist_ok=True)
             self._inside("participants").mkdir(exist_ok=True)
-            if not self._inside("dataset.json").exists():
-                atomic_json(self._inside("dataset.json"), {
-                    "schema_version": 2, "type": "gesture_image_collection",
-                    "class_names": [*CLASS_NAMES, "no_gesture"],
-                    "direction_semantics": "NCM unmirrored: image +x is left, -x is right, -y is up",
-                    "labels": "Human-confirmed; model predictions are diagnostics only",
-                    "split_policy": "Keep each participant in one split during retraining",
-                    "raw_images": "Original board JPEGs, no overlays or augmentation",
-                })
+            descriptor_path = self._inside("dataset.json")
+            required = {
+                "schema_version": 2,
+                "type": "gesture_image_collection",
+                "class_names": [*CLASS_NAMES, "no_gesture"],
+                "direction_semantics": "NCM unmirrored: image +x is left, -x is right, -y is up",
+                "labels": "Human-confirmed; model predictions are diagnostics only",
+                "split_policy": "Keep each participant in one split during retraining",
+                "raw_images": "Original NCM or webcam JPEGs, no overlays or augmentation",
+            }
+            if descriptor_path.exists():
+                try:
+                    descriptor = json.loads(descriptor_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as error:
+                    raise ValueError("Collection dataset descriptor is not valid JSON.") from error
+                if not isinstance(descriptor, dict):
+                    raise ValueError("Collection dataset descriptor must be a JSON object.")
+                migrated = {**descriptor, **required}
+                if migrated != descriptor:
+                    atomic_json(descriptor_path, migrated)
+            else:
+                atomic_json(descriptor_path, required)
 
-    def observe(self, frame_id, jpeg, result):
+    def observe(self, frame_id, jpeg, result, source="ncm"):
         # One immutable image/result pair avoids attaching the next camera frame
         # to the previous frame's landmarks. No disk I/O in the inference path.
         with self._lock:
-            self._latest = (int(frame_id), bytes(jpeg), copy.deepcopy(result))
+            if source not in {"ncm", "webcam"}:
+                raise ValueError("Unknown collection camera source.")
+            self._latest = (
+                int(frame_id), bytes(jpeg), copy.deepcopy(result), source
+            )
             self._latest_at = time.monotonic()
+
+    def _freeze_entry(self, frame_id, jpeg, result, source):
+        if source not in {"ncm", "webcam"}:
+            raise ValueError("Unknown collection camera source.")
+        token = secrets.token_hex(16)
+        self._frames[token] = (
+            time.monotonic(), int(frame_id), bytes(jpeg), copy.deepcopy(result), source
+        )
+        while len(self._frames) > 12:
+            self._frames.popitem(last=False)
+        return dict(
+            token=token,
+            frame_id=int(frame_id),
+            source=source,
+            image_url="data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii"),
+            prediction=result.get("runtime_prediction", "no_gesture"),
+            reason=result.get("action_reason", result.get("message", "")),
+            landmarks=result.get("landmarks") or [],
+            world_landmarks=result.get("world_landmarks") or [],
+            plane_angles=result.get("plane_angles"),
+            has_features=len(result.get("feature_vector") or []) == 76,
+            issues=(result.get("quality") or {}).get("issues", []),
+        )
+
+    def freeze_bytes(self, frame_id, jpeg, result, source="webcam"):
+        with self._lock:
+            try:
+                with Image.open(BytesIO(jpeg)) as image:
+                    image.verify()
+            except Exception as error:
+                raise ValueError("The uploaded webcam frame is not a valid image.") from error
+            return self._freeze_entry(frame_id, jpeg, result, source)
 
     def freeze(self):
         with self._lock:
             if self._latest is None or time.monotonic() - self._latest_at > 2.0:
                 raise ValueError("No fresh camera frame. Connect the camera and wait for the preview.")
-            token = secrets.token_hex(16)
-            frame_id, jpeg, result = self._latest
-            self._frames[token] = (time.monotonic(), frame_id, jpeg, result)
-            while len(self._frames) > 12:
-                self._frames.popitem(last=False)
-            return dict(token=token, frame_id=frame_id,
-                        image_url="data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii"),
-                        prediction=result.get("runtime_prediction", "no_gesture"),
-                        reason=result.get("action_reason", result.get("message", "")),
-                        landmarks=result.get("landmarks") or [],
-                        has_features=len(result.get("feature_vector") or []) == 76,
-                        issues=(result.get("quality") or {}).get("issues", []))
+            frame_id, jpeg, result, source = self._latest
+            return self._freeze_entry(frame_id, jpeg, result, source)
 
     def add_participant(self, participant_id):
         participant_id = identifier(participant_id, "Participant ID")
@@ -308,7 +353,7 @@ class CollectionStore:
             entry = self._frames.get(token)
             if entry is None or time.monotonic() - entry[0] > 180:
                 raise ValueError("The reviewed image expired. Capture a fresh image.")
-            _, frame_id, jpeg, prediction = entry
+            _, frame_id, jpeg, prediction, source = entry
             if not self._inside("participants", participant_id, "participant.json").is_file():
                 raise ValueError("Create or select a participant first.")
             with Image.open(BytesIO(jpeg)) as image:
@@ -325,7 +370,7 @@ class CollectionStore:
             captured_at = datetime.now(timezone.utc).isoformat()
             record = dict(schema_version=2, sample_id=sample_id, participant_id=participant_id,
                           session_id=session_id, step_id=step_id, label=step["label"], view=step["view"],
-                          created_at_utc=captured_at, source="ncm", frame_id=frame_id,
+                          created_at_utc=captured_at, source=source, frame_id=frame_id,
                           image_path=image_path.relative_to(self.root).as_posix(), image_sha256=digest,
                           width=width, height=height, handedness=handedness,
                           finger_orientation=finger_orientation, lighting=lighting,

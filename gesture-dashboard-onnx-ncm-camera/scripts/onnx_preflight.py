@@ -16,32 +16,14 @@ MATPLOTLIB_CACHE.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MATPLOTLIB_CACHE))
 
 from backend.artifact_integrity import ArtifactRegistry
-from backend.config import MODELS_DIRECTORY, load_runtime_config
+from backend.config import CLASS_NAMES, GESTURE_TO_ACTION, MODELS_DIRECTORY, load_runtime_config
 from backend.model_runtime import InferenceEngine
 
 
-EXPECTED_CLASSES = [
-    "left",
-    "right",
-    "up",
-    "down",
-    "open_palm",
-    "like",
-    "dorsal",
-    "ok",
-]
+EXPECTED_CLASSES = CLASS_NAMES
 EXPECTED_REJECT_LABEL = "no_gesture"
 EXPECTED_FEEDBACK_LABELS = [*EXPECTED_CLASSES, EXPECTED_REJECT_LABEL]
-EXPECTED_ACTIONS = {
-    "left": "Move Left",
-    "right": "Move Right",
-    "up": "Move Up",
-    "down": "Move Down",
-    "open_palm": "Enable / Disable Object Tracking",
-    "like": "Play / Pause",
-    "dorsal": "Return to Default Position",
-    "ok": "Start / Stop Recording",
-}
+EXPECTED_ACTIONS = GESTURE_TO_ACTION
 EXPECTED_FEATURE_COUNT = 76
 EXPECTED_TARGET_FPS = 10.0
 MINIMUM_OFFLINE_ACCURACY = 0.985
@@ -64,7 +46,7 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
         errors.append("no_gesture must not be an ONNX command output")
     if feedback_labels != EXPECTED_FEEDBACK_LABELS:
         errors.append(
-            "feedback labels must be the eight commands followed by no_gesture"
+            "feedback labels must be the ten commands followed by no_gesture"
         )
     if getattr(config, "reject_label", None) != EXPECTED_REJECT_LABEL:
         errors.append("runtime reject label is not no_gesture")
@@ -101,14 +83,14 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
         errors.append("Safe Learn negative-feedback label must be no_gesture")
 
     if list(metadata.get("output_class_order") or []) != EXPECTED_CLASSES:
-        errors.append("metadata output order differs from the eight-command contract")
+        errors.append("metadata output order differs from the ten-command contract")
     if metadata.get("known_mass_output") != "known_gesture_mass":
         errors.append("metadata does not declare the known-gesture-mass output")
     source_mapping = dict(metadata.get("source_class_mapping") or {})
-    if source_mapping.get("left") != "one_right":
-        errors.append("metadata Left output must use the calibrated one_right source column")
-    if source_mapping.get("right") != "one_left":
-        errors.append("metadata Right output must use the calibrated one_left source column")
+    if not source_mapping.get("left") or not source_mapping.get("right"):
+        errors.append("metadata must document the calibrated Left and Right sources")
+    if not source_mapping.get("fist") or not source_mapping.get("thumb_down"):
+        errors.append("metadata must document the Fist and Thumbs Down sources")
     horizontal_calibration = dict(
         metadata.get("horizontal_direction_calibration") or {}
     )
@@ -126,8 +108,7 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
     if metadata_input.get("dtype") != "float32" or metadata_shape[-1:] != [76]:
         errors.append("metadata input must be float32 [N, 76]")
     runtime_note = str(metadata.get("runtime_note") or "")
-    if ("not a ninth classifier class" not in runtime_note
-            and "not an exposed ninth command" not in runtime_note):
+    if "internal" not in runtime_note or "no_gesture" not in runtime_note:
         errors.append("metadata must document no_gesture as rejection-only at the command output")
     quality = dict(metadata.get("quality") or {})
     try:
@@ -167,17 +148,17 @@ def main() -> int:
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        print(f"Eight-gesture metadata: FAIL | {error}")
+        print(f"Ten-gesture metadata: FAIL | {error}")
         return 1
     errors = _contract_errors(config, metadata)
     if errors:
-        print("Eight-gesture runtime contract: FAIL")
+        print("Ten-gesture runtime contract: FAIL")
         for error in errors:
             print(f"  - {error}")
         return 1
     print(
-        "Eight-gesture runtime contract: PASS | "
-        "8 command outputs + no_gesture rejection | 10 FPS / 100 ms | "
+        "Ten-gesture runtime contract: PASS | "
+        "10 command outputs + no_gesture rejection | 10 FPS / 100 ms | "
         "unmirrored with calibrated Left/Right semantics"
     )
 
@@ -204,7 +185,7 @@ def main() -> int:
             return 1
         probability_rows, known_mass = classifier.predict_with_quality(zero_features)
         if probability_rows.shape != (1, len(EXPECTED_CLASSES)):
-            print("ONNX classifier returned an unexpected eight-probability shape.")
+            print("ONNX classifier returned an unexpected ten-probability shape.")
             return 1
         if known_mass.shape != (1,) or not np.isfinite(known_mass).all():
             print("ONNX classifier returned an invalid known-mass score.")
@@ -213,7 +194,7 @@ def main() -> int:
         print("MediaPipe initialization: PASS")
         print(
             "Classifier smoke test: PASS | "
-            "76 float32 features -> 8 probabilities + known-mass score"
+            "76 float32 features -> 10 probabilities + known-mass score"
         )
         quality = dict(metadata.get("quality") or {})
         print(
@@ -223,8 +204,9 @@ def main() -> int:
             "not a live NCM-camera measurement"
         )
         print(
-            "Live NCM validation: REQUIRED | test all eight gestures, low light, "
-            "empty scenes, landmark jitter, unmirrored directions, and observed FPS"
+            "Live Webcam and NCM validation: REQUIRED | test all ten gestures, "
+            "both hands, varied angles, low light, empty scenes, landmark jitter, "
+            "unmirrored directions, and observed FPS"
         )
         return 0
     finally:

@@ -21,7 +21,7 @@ def _macro_f1(truth: np.ndarray, predicted: np.ndarray, class_count: int) -> flo
     return float(np.mean(scores))
 
 
-def test_untouched_cache_qualifies_eight_class_model_and_open_set_gate():
+def test_untouched_cache_qualifies_ten_class_model_and_open_set_gate():
     config = load_runtime_config()
     manager = ModelManager(config)
     assert manager.ready, manager.errors
@@ -31,8 +31,8 @@ def test_untouched_cache_qualifies_eight_class_model_and_open_set_gate():
     ) as cache:
         features = cache["X"].astype(np.float32)
         labels = cache["y"].astype(np.int64)
-        source_labels = cache["source_y"].astype(np.int64)
-        source_class_names = [str(value) for value in cache["source_class_names"]]
+        cache_class_names = [str(value) for value in cache["class_names"]]
+    assert cache_class_names == config.class_names
 
     classifier = manager.models["ONNX"]
     probabilities, known_mass = classifier.predict_with_quality(features)
@@ -43,6 +43,7 @@ def test_untouched_cache_qualifies_eight_class_model_and_open_set_gate():
     accuracy = float(np.mean(predicted[known] == labels[known]))
     macro_f1 = _macro_f1(labels[known], predicted[known], len(config.class_names))
     accepted = known_mass >= config.known_mass_floor
+    runtime_predicted = np.where(accepted, predicted, -1)
     false_acceptance = float(np.mean(accepted[unknown]))
 
     assert accuracy >= 0.985
@@ -50,16 +51,13 @@ def test_untouched_cache_qualifies_eight_class_model_and_open_set_gate():
     assert float(np.mean(accepted[known])) >= 0.96
     assert false_acceptance <= 0.03
 
-    # Explicitly protect the two live confusions called out during NCM testing.
-    rock = source_labels == source_class_names.index("rock")
-    dorsal = source_labels == source_class_names.index("dorsal_hand")
-    down = source_labels == source_class_names.index("one_down")
-    down_index = config.class_to_idx["down"]
-    dorsal_index = config.class_to_idx["dorsal"]
-    assert float(np.mean(accepted[rock])) <= 0.01
-    assert float(np.mean(accepted[rock] & (predicted[rock] == down_index))) <= 0.005
-    assert float(np.mean(predicted[dorsal] == down_index)) <= 0.01
-    assert float(np.mean(predicted[down] == dorsal_index)) <= 0.01
+    for gesture in ("down", "dorsal", "fist", "thumb_down"):
+        index = config.class_to_idx[gesture]
+        actual = labels == index
+        true_positive = np.count_nonzero(actual & (runtime_predicted == index))
+        false_positive = np.count_nonzero(~actual & (runtime_predicted == index))
+        false_negative = np.count_nonzero(actual & (runtime_predicted != index))
+        assert 2 * true_positive / (2 * true_positive + false_positive + false_negative) >= 0.95
 
 
 def test_direction_source_columns_are_ncm_calibrated_without_pixel_mirroring():

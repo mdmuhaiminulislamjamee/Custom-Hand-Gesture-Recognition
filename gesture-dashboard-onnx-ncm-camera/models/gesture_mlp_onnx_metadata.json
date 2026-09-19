@@ -1,11 +1,11 @@
 {
-  "schema_version": 2,
-  "created_utc": "2026-09-05T08:58:42.953246+00:00",
+  "schema_version": 3,
+  "created_utc": "2026-09-17T10:39:53.951304+00:00",
   "format": "ONNX",
-  "model_name": "v18_20 BalancedMLP",
+  "model_name": "TenGestureBalancedMLP",
   "onnx_file": "gesture_mlp_production.onnx",
-  "onnx_bytes": 76452,
-  "onnx_sha256": "1aec12c072aa86e5f72de405ffba9f0914eb0a7939a19fcb069152b46931fc95",
+  "onnx_bytes": 76993,
+  "onnx_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd",
   "onnx_ir_version": 8,
   "opsets": {
     "ai.onnx": 16
@@ -28,24 +28,39 @@
     "open_palm",
     "like",
     "dorsal",
-    "ok"
+    "ok",
+    "fist",
+    "thumb_down"
+  ],
+  "internal_class_order": [
+    "left",
+    "right",
+    "up",
+    "down",
+    "open_palm",
+    "like",
+    "dorsal",
+    "ok",
+    "fist",
+    "thumb_down",
+    "no_gesture"
   ],
   "source_class_mapping": {
     "left": "one_right",
     "right": "one_left",
     "up": "one",
     "down": "one_down",
-    "open_palm": "palm",
+    "open_palm": "palm_up_only",
     "like": "like",
-    "dorsal": "dorsal_hand",
-    "ok": "ok"
+    "dorsal": "11K/Dorsal hands",
+    "ok": "ok",
+    "fist": "fist",
+    "thumb_down": "dislike"
   },
   "horizontal_direction_calibration": {
     "camera_pixels_mirrored": false,
-    "source_columns_swapped": false,
     "positive_index_dx_command": "left",
     "negative_index_dx_command": "right",
-    "reason": "Observed Left/Right inversion on the target NCM camera",
     "training_labels_ncm_calibrated": true
   },
   "feature_names": [
@@ -128,64 +143,170 @@
   ],
   "parity": {
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 1.1920928955078125e-06,
-    "maximum_absolute_mass_error": 7.450580596923828e-07,
+    "maximum_absolute_probability_error": 7.748603820800781e-07,
+    "maximum_absolute_mass_error": 6.556510925292969e-07,
     "passed": true
   },
   "quality": {
-    "accuracy": 0.9875635952515546,
-    "macro_f1": 0.9835896227227887,
-    "known_acceptance_rate": 0.9604296212549462,
-    "unknown_false_acceptance_rate": 0.02530541012216405,
-    "minimum_per_class_f1": 0.9477351916376306,
-    "evaluation_source": "legacy regression cache; historical feature overlap exists"
+    "accuracy": 0.9961841770541847,
+    "macro_f1": 0.9962552420929562,
+    "runtime_macro_f1": 0.990349501918541,
+    "accepted_precision": 0.9976928992566009,
+    "known_acceptance_rate": 0.9913508013228186,
+    "unknown_false_acceptance_rate": 0.01,
+    "minimum_per_class_f1": 0.9848484848484849,
+    "evaluation_source": "participant-disjoint public test split; used as a release regression gate after candidate iteration"
   },
-  "open_set_rejection": {
-    "known_mass_floor": 0.8,
-    "known_samples": 1769,
-    "unknown_samples": 1146,
-    "known_acceptance_rate": 0.9723007348784624,
-    "unknown_false_acceptance_rate": 0.01832460732984293,
-    "accepted_known_accuracy": 0.9959302325581395
+  "qualification": {
+    "passed": true,
+    "checks": {
+      "runtime_macro_f1_at_least_0_97": true,
+      "accepted_precision_at_least_0_99": true,
+      "unknown_false_accept_rate_at_most_0_02": true,
+      "fist_f1_at_least_0_95": true,
+      "fist_recall_at_least_0_95": true,
+      "thumb_down_f1_at_least_0_95": true,
+      "thumb_down_recall_at_least_0_95": true,
+      "thumb_down_within_0_02_of_like_f1": true,
+      "thumb_down_like_confusion_at_most_0_02": true,
+      "thumb_down_fist_confusion_at_most_0_02": true,
+      "classifier_p95_below_5_ms": true
+    },
+    "confusion_rates": {
+      "thumb_down_as_like_rate": 0.0,
+      "like_as_thumb_down_rate": 0.0,
+      "thumb_down_as_fist_rate": 0.0,
+      "fist_as_thumb_down_rate": 0.0
+    },
+    "independent_confirmation": {
+      "checks": {
+        "new_subject_present_class_macro_f1_at_least_0_95": true,
+        "new_subject_accepted_precision_at_least_0_99": true,
+        "new_subject_unknown_false_accept_rate_at_most_0_02": true,
+        "new_subject_fist_recall_at_least_0_95": true,
+        "new_subject_thumb_down_recall_at_least_0_95": true,
+        "new_subject_thumb_down_within_0_02_of_like_f1": true,
+        "new_subject_upward_open_palm_recall_at_least_0_98": true
+      },
+      "present_classes": [
+        "left",
+        "right",
+        "up",
+        "down",
+        "open_palm",
+        "like",
+        "ok",
+        "fist",
+        "thumb_down",
+        "no_gesture"
+      ],
+      "present_class_macro_f1": 0.9758672077926012,
+      "confusion_rates": {
+        "thumb_down_as_like_rate": 0.0,
+        "like_as_thumb_down_rate": 0.0,
+        "thumb_down_as_fist_rate": 0.0,
+        "fist_as_thumb_down_rate": 0.0
+      }
+    },
+    "selection": {
+      "known_mass_floor": 0.7,
+      "confidence_floor": 0.7,
+      "probability_margin_floor": 0.08,
+      "source": "participant-disjoint public validation split; test excluded",
+      "model_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
+    },
+    "note": "The public test is participant-disjoint within imported public data. It is evidence, not a guarantee for every person, camera, or angle."
   },
-  "hard_case_metrics": {
-    "rock_hard_negative_samples": 293,
-    "rock_false_acceptance_rate": 0.006825938566552901,
-    "rock_accepted_as_down_rate": 0.0,
-    "dorsal_samples": 427,
-    "dorsal_recall": 0.9976580796252927,
-    "dorsal_as_down_rate": 0.00234192037470726,
-    "down_samples": 229,
-    "down_recall": 0.9956331877729258,
-    "down_as_dorsal_rate": 0.0
+  "independent_confirmation": {
+    "metrics": {
+      "raw_known_accuracy": 0.9919444444444444,
+      "raw_known_macro_f1": 0.8927534246088518,
+      "runtime_macro_f1": 0.8871520070841828,
+      "correct_command_rate": 0.9725,
+      "accepted_precision": 0.9963005122367672,
+      "unknown_false_accept_rate": 0.0025,
+      "known_rejection_rate": 0.024166666666666666
+    },
+    "per_class": {
+      "left": {
+        "precision": 0.9823232323232324,
+        "recall": 0.9725,
+        "f1-score": 0.9773869346733668,
+        "support": 400.0
+      },
+      "right": {
+        "precision": 0.9948717948717949,
+        "recall": 0.97,
+        "f1-score": 0.9822784810126582,
+        "support": 400.0
+      },
+      "up": {
+        "precision": 0.9974226804123711,
+        "recall": 0.9675,
+        "f1-score": 0.9822335025380711,
+        "support": 400.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.975,
+        "f1-score": 0.9873417721518988,
+        "support": 400.0
+      },
+      "open_palm": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 400.0
+      },
+      "like": {
+        "precision": 1.0,
+        "recall": 0.9525,
+        "f1-score": 0.9756722151088348,
+        "support": 400.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.9725,
+        "f1-score": 0.9860583016476553,
+        "support": 400.0
+      },
+      "fist": {
+        "precision": 0.9974619289340102,
+        "recall": 0.9825,
+        "f1-score": 0.9899244332493703,
+        "support": 400.0
+      },
+      "thumb_down": {
+        "precision": 0.9948186528497409,
+        "recall": 0.96,
+        "f1-score": 0.9770992366412213,
+        "support": 400.0
+      },
+      "no_gesture": {
+        "precision": 0.8209876543209876,
+        "recall": 0.9975,
+        "f1-score": 0.9006772009029346,
+        "support": 400.0
+      }
+    },
+    "participant_count": 2600,
+    "participant_overlap_with_train_validation_test": 0,
+    "role": "fail-closed deployment and regression gate; excluded from model fitting and scalar-threshold selection, but an earlier failure informed later training and geometry revisions"
   },
-  "runtime_note": "Eight exposed command probabilities. no_gesture is an internal negative training class, not an exposed ninth command; known_gesture_mass preserves its rejection evidence.",
-  "tool_versions": {
-    "onnx": "1.17.0",
-    "onnxruntime": "1.29.0",
-    "numpy": "2.5.2"
-  },
-  "internal_class_order": [
-    "left",
-    "right",
-    "up",
-    "down",
-    "open_palm",
-    "like",
-    "dorsal",
-    "ok",
-    "no_gesture"
-  ],
-  "training_labels_ncm_calibrated": true,
   "public_evaluation": {
-    "raw_known_accuracy": 0.9977642925582881,
-    "raw_known_macro_f1": 0.9978163722546598,
-    "runtime_macro_f1": 0.9900694692254061,
-    "correct_command_rate": 0.9878633024592782,
-    "accepted_precision": 0.999031007751938,
-    "unknown_false_accept_rate": 0.004,
-    "known_rejection_rate": 0.011817310763334398,
-    "known_mass_acceptance": 0.9932928776748643
+    "raw_known_accuracy": 0.9961841770541847,
+    "raw_known_macro_f1": 0.9962552420929562,
+    "runtime_macro_f1": 0.990349501918541,
+    "correct_command_rate": 0.9900788603408802,
+    "accepted_precision": 0.9976928992566009,
+    "unknown_false_accept_rate": 0.01,
+    "known_rejection_rate": 0.008649198677181379
   },
   "training": {
     "seed": 1820,
@@ -193,12 +314,12 @@
     "excluded_overlap": {
       "test": 0,
       "val": 0,
-      "train": 1
+      "train": 3
     },
     "subjects": {
-      "train": 5485,
-      "val": 686,
-      "test": 794
+      "train": 8330,
+      "val": 814,
+      "test": 848
     },
     "dorsal_subjects": 136,
     "dorsal_metadata_matched": 2000,
@@ -213,18 +334,26 @@
       "No claim of universal demographic, child, disability, or lighting coverage."
     ]
   },
-  "runtime_geometry": {
-    "dorsal_independent_support": true,
-    "minimum_unknown_model_hold_seconds": 0.35,
-    "reviewed_negative_feedback_veto": true
+  "runtime_selection": {
+    "known_mass_floor": 0.7,
+    "confidence_floor": 0.7,
+    "probability_margin_floor": 0.08
+  },
+  "classifier_latency": {
+    "p50_ms": 0.028899998142151162,
+    "p95_ms": 0.03020000076503493,
+    "p99_ms": 0.032008999914978624,
+    "note": "ONNX classifier only; full camera pipeline is benchmarked separately."
   },
   "landmark_detector": {
     "running_mode": "VIDEO with IMAGE recovery",
     "minimum_detection_confidence": 0.55,
     "minimum_presence_confidence": 0.55,
     "minimum_tracking_confidence": 0.6,
-    "recovery_detection_confidence": 0.3,
-    "recovery_presence_confidence": 0.4,
+    "recovery_detection_confidence": 0.2,
+    "recovery_presence_confidence": 0.3,
+    "face_guard": "BlazeFace small-hand overlap exclusion",
+    "recovery_confirmation_frames": 2,
     "minimum_palm_pixels": 8,
     "minimum_hand_span_pixels": 24,
     "minimum_hand_short_side_pixels": 10,
@@ -232,5 +361,15 @@
     "maximum_detection_passes_per_frame": 2,
     "recovery_start_budget_ms": 55,
     "distance_method": "user-calibrated apparent palm size; no absolute MediaPipe depth"
-  }
+  },
+  "runtime_geometry": {
+    "open_palm_upward_only": true,
+    "fist_validation": true,
+    "foreshortened_camera_facing_fist_recovery": true,
+    "thumb_down_validation": true,
+    "dorsal_independent_support": true,
+    "reviewed_negative_feedback_veto": true,
+    "geometry_recovery_mass_floor": 0.15
+  },
+  "runtime_note": "Ten exposed command probabilities. no_gesture remains an internal negative class; known_gesture_mass carries its rejection evidence."
 }

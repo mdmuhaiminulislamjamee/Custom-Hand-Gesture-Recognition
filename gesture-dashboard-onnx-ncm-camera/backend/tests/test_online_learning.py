@@ -5,19 +5,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from backend.config import CLASS_NAMES
 from backend.online_learning import OnlineLearningAdapter
-
-
-CLASS_NAMES = [
-    "left",
-    "right",
-    "up",
-    "down",
-    "open_palm",
-    "like",
-    "dorsal",
-    "ok",
-]
 
 
 def _config() -> SimpleNamespace:
@@ -28,14 +17,14 @@ def _config() -> SimpleNamespace:
 
 
 def _base_row(target: int = 0, wrong: int = 1) -> np.ndarray:
-    row = np.full(8, 0.01, dtype=np.float64)
+    row = np.full(len(CLASS_NAMES), 0.01, dtype=np.float64)
     row[target] = 0.05
     row[wrong] = 0.89
     return row / row.sum()
 
 
-def test_requires_exact_eight_class_and_76_feature_contract(tmp_path: Path):
-    with pytest.raises(ValueError, match="exactly eight"):
+def test_requires_exact_ten_class_and_76_feature_contract(tmp_path: Path):
+    with pytest.raises(ValueError, match="ten-command"):
         OnlineLearningAdapter(CLASS_NAMES[:-1], models_directory=tmp_path)
     bad_features = SimpleNamespace(class_names=CLASS_NAMES, feature_names=["x"] * 76)
     with pytest.raises(ValueError, match="76-D"):
@@ -59,7 +48,7 @@ def test_safe_reviewed_update_is_applied_persisted_and_backed_up(tmp_path: Path)
     assert not list(tmp_path.glob("*.tmp"))
 
     adapted = adapter.apply(base, feature)
-    assert adapted.shape == (8,)
+    assert adapted.shape == (len(CLASS_NAMES),)
     assert adapted.sum() == pytest.approx(1.0)
     assert adapted[0] > base[0]
 
@@ -96,8 +85,10 @@ def test_holdout_regression_rejects_candidate_and_persists_counter(tmp_path: Pat
 
 
 def test_cache_without_probabilities_can_use_base_predictor(tmp_path: Path):
-    rows = np.vstack([np.full(76, index / 10.0) for index in range(9)])
-    labels = np.arange(-1, 8, dtype=np.int64)
+    rows = np.vstack(
+        [np.full(76, index / 10.0) for index in range(len(CLASS_NAMES) + 1)]
+    )
+    labels = np.arange(-1, len(CLASS_NAMES), dtype=np.int64)
     np.savez_compressed(
         tmp_path / "gesture_online_replay_cache.npz",
         X=rows,
@@ -106,8 +97,12 @@ def test_cache_without_probabilities_can_use_base_predictor(tmp_path: Path):
     )
 
     def predictor(features: np.ndarray) -> np.ndarray:
-        probabilities = np.full((len(features), 8), 0.01, dtype=np.float64)
-        indexes = np.clip(np.rint(features[:, 0] * 10).astype(int), 0, 7)
+        probabilities = np.full(
+            (len(features), len(CLASS_NAMES)), 0.01, dtype=np.float64
+        )
+        indexes = np.clip(
+            np.rint(features[:, 0] * 10).astype(int), 0, len(CLASS_NAMES) - 1
+        )
         probabilities[np.arange(len(features)), indexes] = 0.93
         return probabilities
 
@@ -118,7 +113,7 @@ def test_cache_without_probabilities_can_use_base_predictor(tmp_path: Path):
     assert cache["valid"] is True
     assert cache["usable"] is True
     assert cache["probabilities_stored"] is False
-    assert cache["covered_classes"] == 8
+    assert cache["covered_classes"] == len(CLASS_NAMES)
     assert cache["has_reject_rows"] is True
 
 
@@ -240,7 +235,7 @@ def test_apply_supports_batches_and_rejects_unsafe_learning_modes(tmp_path: Path
     base = _base_row()
     rows = np.vstack([base, base])
     features = np.zeros((2, 76))
-    assert adapter.apply(rows, features).shape == (2, 8)
+    assert adapter.apply(rows, features).shape == (2, len(CLASS_NAMES))
     with pytest.raises(PermissionError, match="safe learning"):
         adapter.learn(features[0], "left", probabilities=base, force=True)
     with pytest.raises(ValueError, match="explicitly reviewed"):

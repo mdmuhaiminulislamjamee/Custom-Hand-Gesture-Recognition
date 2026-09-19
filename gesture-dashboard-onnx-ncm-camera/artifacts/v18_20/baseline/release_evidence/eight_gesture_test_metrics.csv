@@ -1,0 +1,2 @@
+model,accuracy,macro_f1,known_acceptance_rate,unknown_false_acceptance_rate,minimum_per_class_f1,evaluation_source
+v18_20,0.9875635952515546,0.9835896227227887,0.9604296212549462,0.02530541012216405,0.9477351916376306,legacy regression cache; historical feature overlap exists
