@@ -39,3 +39,45 @@ export function estimateRange(calibration: RangeCalibration | null, observation?
   const distance = median(distances), lower = Math.min(...distances), upper = Math.max(...distances);
   return { distance, lower, upper, inconsistent: (upper - lower) / distance > .3 };
 }
+
+/**
+ * Estimates distance in meters from calibration if available, or apparent palm scale via pinhole model.
+ */
+export function estimateGestureDistance(
+  observation?: PalmObservation,
+  calibration?: RangeCalibration | null,
+  backendDistance?: number | null
+): { distance: number; text: string; isCalibrated: boolean } | null {
+  if (calibration && observation) {
+    const calibrated = estimateRange(calibration, observation);
+    if (calibrated && Number.isFinite(calibrated.distance)) {
+      return {
+        distance: calibrated.distance,
+        text: `~${calibrated.distance.toFixed(2)} m`,
+        isCalibrated: true,
+      };
+    }
+  }
+  if (typeof backendDistance === 'number' && Number.isFinite(backendDistance)) {
+    return {
+      distance: backendDistance,
+      text: `~${backendDistance.toFixed(2)} m`,
+      isCalibrated: false,
+    };
+  }
+  if (observation?.palm_scale_px && observation.palm_scale_px >= 8) {
+    const width = observation.analysis_width || 640;
+    const f = width * 0.85;
+    const d = (f * 0.075) / observation.palm_scale_px;
+    if (Number.isFinite(d)) {
+      const clamped = Math.max(0.15, Math.min(5.0, d));
+      return {
+        distance: clamped,
+        text: `~${clamped.toFixed(2)} m`,
+        isCalibrated: false,
+      };
+    }
+  }
+  return null;
+}
+

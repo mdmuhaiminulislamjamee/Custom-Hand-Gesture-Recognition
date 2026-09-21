@@ -35,7 +35,7 @@ def test_live_plane_angles_use_real_three_dimensional_palm_axis():
     points = np.zeros((21, 3), dtype=np.float32)
     points[[5, 9, 13, 17]] = [1.0, 1.0, 1.0]
     angles = hand_plane_angles(points)
-    assert angles == pytest.approx({"xy": 45.0, "yz": 45.0, "xz": 45.0})
+    assert angles == pytest.approx({"xy": 45.0, "yz": 45.0, "xz": 45.0, "zx": 45.0})
 
 
 def test_hand_pixel_measurement_is_not_crop_magnification():

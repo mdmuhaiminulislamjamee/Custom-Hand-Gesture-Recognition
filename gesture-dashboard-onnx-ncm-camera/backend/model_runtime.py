@@ -837,6 +837,7 @@ class InferenceEngine:
             "actual_fps": actual_fps,
             "world_landmarks": [],
             "plane_angles": None,
+            "distance_m": None,
             "quality": self._quality_payload(
                 image_quality,
                 detector_quality,
@@ -1175,6 +1176,7 @@ class InferenceEngine:
                 if world_landmarks is not None else []
             ),
             "plane_angles": hand_plane_angles(world_landmarks),
+            "distance_m": estimate_hand_distance_m(detector_quality),
             "feature_vector": feature.round(7).tolist(),
             "actual_fps": actual_fps,
             "quality": self._quality_payload(
@@ -1231,7 +1233,7 @@ class InferenceEngine:
             "verdict": "PASS" if capacity_pass else "FAIL",
         }
 def hand_plane_angles(world_landmarks: np.ndarray | None) -> dict[str, float] | None:
-    """Return signed palm-axis angles in the XY, YZ, and XZ planes."""
+    """Return signed palm-axis angles in the XY, YZ, and XZ/ZX planes."""
     if world_landmarks is None:
         return None
     points = np.asarray(world_landmarks, dtype=np.float32)
@@ -1244,4 +1246,19 @@ def hand_plane_angles(world_landmarks: np.ndarray | None) -> dict[str, float] | 
         "xy": float(np.degrees(np.arctan2(axis[1], axis[0]))),
         "yz": float(np.degrees(np.arctan2(axis[2], axis[1]))),
         "xz": float(np.degrees(np.arctan2(axis[2], axis[0]))),
+        "zx": float(np.degrees(np.arctan2(axis[0], axis[2]))),
     }
+
+
+def estimate_hand_distance_m(detector_quality: dict[str, Any] | None) -> float | None:
+    """Estimate camera-to-hand distance in meters from apparent palm scale."""
+    if not detector_quality:
+        return None
+    palm_scale_px = detector_quality.get("palm_scale_px")
+    width = detector_quality.get("analysis_width", 640)
+    if not palm_scale_px or palm_scale_px < 8:
+        return None
+    focal_length_px = float(width) * 0.85
+    ref_palm_m = 0.075
+    distance_m = (focal_length_px * ref_palm_m) / float(palm_scale_px)
+    return round(float(np.clip(distance_m, 0.15, 5.0)), 2)

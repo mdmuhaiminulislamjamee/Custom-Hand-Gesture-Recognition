@@ -217,7 +217,7 @@ class TemporalGate:
         )
         supported_hand = bool(
             geometry_supported
-            and geometry_gesture in {"open_palm", "fist", "thumb_down"}
+            and geometry_gesture in {"open_palm", "like", "fist", "thumb_down"}
             and recovery_mass_ok
         )
         if known_gesture_mass < self.config.known_mass_floor and not (

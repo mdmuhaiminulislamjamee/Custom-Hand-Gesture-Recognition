@@ -2,6 +2,7 @@ export type PlaneAngles = {
   xy: number;
   yz: number;
   xz: number;
+  zx: number;
 };
 
 const PALM_MCP_INDICES = [5, 9, 13, 17];
@@ -12,7 +13,7 @@ function signedDegrees(secondAxis: number, firstAxis: number) {
 }
 
 /**
- * Returns the signed orientation of the wrist-to-palm axis in each 3-D plane.
+ * Returns the signed orientation of the wrist-to-palm axis in each 3-D plane (XY, YZ, XZ/ZX).
  * MediaPipe's coordinate signs are preserved, so the values remain useful for
  * comparing poses without pretending that monocular depth is metric distance.
  */
@@ -30,9 +31,15 @@ export function planeAnglesFromLandmarks(landmarks?: number[][] | null): PlaneAn
     xy: signedDegrees(y, x),
     yz: signedDegrees(z, y),
     xz: signedDegrees(z, x),
+    zx: signedDegrees(x, z),
   };
 }
 
 export function validPlaneAngles(value?: Partial<PlaneAngles> | null): value is PlaneAngles {
-  return Boolean(value && Number.isFinite(value.xy) && Number.isFinite(value.yz) && Number.isFinite(value.xz));
+  return Boolean(
+    value &&
+    Number.isFinite(value.xy) &&
+    Number.isFinite(value.yz) &&
+    (Number.isFinite(value.xz) || Number.isFinite(value.zx))
+  );
 }

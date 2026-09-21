@@ -169,3 +169,44 @@ def test_tcp_client_receives_jpeg_and_replies_to_heartbeat() -> None:
     status = client.status()
     assert status["frames_received"] == 1
     assert status["device_metadata"] == {"camera": "mock"}
+
+
+def test_tcp_client_accepts_jpeg_with_trailing_padding() -> None:
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+
+    def serve() -> None:
+        connection, _ = server.accept()
+        with connection:
+            padded_payload = b"\xff\xd8real-jpeg\xff\xd9" + (b"\x00" * 256)
+            stream = build_jlip_packet(JLIP_TYPE_JPEG, 1, padded_payload)
+            connection.sendall(stream)
+            connection.settimeout(1.0)
+            try:
+                connection.recv(1024)
+            except (socket.timeout, OSError):
+                pass
+        server.close()
+
+    worker = threading.Thread(target=serve, daemon=True)
+    worker.start()
+    client = NcmCameraClient(NcmCameraConfig(
+        host_ip="127.0.0.1",
+        device_ip="127.0.0.1",
+        tcp_port=port,
+        connect_timeout_seconds=1.0,
+        receive_timeout_seconds=0.1,
+        reconnect_delay_seconds=0.1,
+    ))
+    client.start()
+    frame_id, jpeg = client.wait_for_frame(0, timeout_seconds=2.0)
+    client.stop()
+    worker.join(timeout=1.0)
+
+    assert frame_id == 1
+    assert jpeg == b"\xff\xd8real-jpeg\xff\xd9"
+    status = client.status()
+    assert status["frames_received"] == 1
+    assert status["invalid_jpeg_frames"] == 0

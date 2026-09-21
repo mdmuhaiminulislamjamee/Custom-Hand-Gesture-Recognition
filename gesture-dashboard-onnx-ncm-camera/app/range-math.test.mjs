@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calibrateRange, estimateRange } from './range-math.ts';
+import { calibrateRange, estimateRange, estimateGestureDistance } from './range-math.ts';
 
 const palm = { palm_segments_px: [60, 70, 60, 50], analysis_width: 442, analysis_height: 442, selected_handedness: 'Right' };
 test('known-distance calibration obeys inverse apparent size', () => {
@@ -30,4 +30,15 @@ test('pose-dependent segment disagreement is disclosed', () => {
   assert.equal(estimate?.inconsistent, true);
   assert.equal(estimate?.lower, .5);
   assert.equal(estimate?.upper, 1);
+});
+
+test('estimateGestureDistance provides calibrated and pinhole fallback distances', () => {
+  const calibration = calibrateRange(Array(12).fill(palm), .5);
+  const calibrated = estimateGestureDistance({ ...palm, palm_segments_px: palm.palm_segments_px.map(v => v / 2) }, calibration);
+  assert.equal(calibrated?.isCalibrated, true);
+  assert.equal(calibrated?.text, '~1.00 m');
+
+  const uncalibrated = estimateGestureDistance({ palm_scale_px: 60, analysis_width: 640 });
+  assert.equal(uncalibrated?.isCalibrated, false);
+  assert.match(uncalibrated?.text ?? '', /^~\d+\.\d{2} m$/);
 });

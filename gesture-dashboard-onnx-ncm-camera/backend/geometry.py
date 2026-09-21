@@ -728,6 +728,19 @@ class GeometryResolver:
             and extensions[0] >= 0.40 and thumb_up_score >= 0.20
             and thumb_lead >= 0.10
         )
+        # A side-on thumbs-up can be outside the classifier's learned camera
+        # angles even though its silhouette is unambiguous. Keep this recovery
+        # deliberately stricter than ordinary Like validation: the thumb must
+        # be strongly extended/upward, lead every fingertip, and the other four
+        # fingers must all remain folded.
+        like_geometry_supported = bool(
+            raw == "like"
+            and extensions[0] >= .70
+            and float(non_thumb.max()) <= .50
+            and float(non_thumb.mean()) <= .38
+            and thumb_up_score >= .70
+            and thumb_lead >= .25
+        )
         thumb_down_score = float(thumb_vector[1] / thumb_norm)
         thumb_down_lead = float(
             min(points[4, 1] - points[tip, 1] for tip in (8, 12, 16, 20))
@@ -802,7 +815,12 @@ class GeometryResolver:
         # different top class. The ordinary compact-fist validator remains a
         # guard for an already predicted Fist; otherwise it can resemble the
         # clustered Down silhouettes covered by the camera regressions.
-        if fist_foreshortened_relabel:
+        if like_geometry_supported:
+            adjusted = _set_probability_floor(
+                adjusted, self.config.class_to_idx["like"], 0.96
+            )
+            raw = "like"
+        elif fist_foreshortened_relabel:
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx["fist"], 0.96
             )
@@ -848,6 +866,7 @@ class GeometryResolver:
             "dorsal_score": float(dorsal["score"]),
             "dorsal_geometry_supported": dorsal_supported,
             "palm_geometry_supported": palm_geometry_supported,
+            "like_geometry_supported": like_geometry_supported,
             "fist_geometry_supported": fist_geometry_supported,
             "fist_foreshortened_relabel": fist_foreshortened_relabel,
             "fist_retracted_finger_count": int(
@@ -901,6 +920,7 @@ class GeometryResolver:
                 "geometry_supported": bool(
                     (resolved == "dorsal" and shape.get("dorsal_geometry_supported", False))
                     or (resolved == "open_palm" and shape.get("palm_geometry_supported", False))
+                    or (resolved == "like" and shape.get("like_geometry_supported", False))
                     or (resolved == "fist" and shape.get("fist_geometry_supported", False))
                     or (resolved == "thumb_down" and shape.get("thumb_down_geometry_supported", False))
                     or (resolved in {"left", "right", "up", "down"} and directional.get("strong_geometry", False))),

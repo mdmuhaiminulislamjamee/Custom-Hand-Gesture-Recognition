@@ -192,7 +192,19 @@ def _utc_now() -> str:
 
 
 def _looks_like_jpeg(payload: bytes) -> bool:
-    return len(payload) >= 4 and payload[:2] == b"\xff\xd8" and payload[-2:] == b"\xff\xd9"
+    return len(payload) >= 4 and payload[:2] == b"\xff\xd8" and payload.rfind(b"\xff\xd9") != -1
+
+
+def _extract_jpeg(payload: bytes) -> bytes | None:
+    """Extract standard JPEG bytes, trimming trailing padding if present."""
+    if len(payload) < 4 or payload[:2] != b"\xff\xd8":
+        return None
+    if payload[-2:] == b"\xff\xd9":
+        return payload
+    end = payload.rfind(b"\xff\xd9")
+    if end != -1:
+        return payload[: end + 2]
+    return None
 
 
 class NcmCameraClient:
@@ -447,11 +459,12 @@ class NcmCameraClient:
 
         if packet.packet_type != JLIP_TYPE_JPEG:
             return
-        if not _looks_like_jpeg(packet.payload):
+        jpeg = _extract_jpeg(packet.payload)
+        if jpeg is None:
             with self._lock:
                 self._invalid_jpeg_frames += 1
             return
-        jpeg = self._apply_orientation(packet.payload)
+        jpeg = self._apply_orientation(jpeg)
         if jpeg is None:
             with self._lock:
                 self._invalid_jpeg_frames += 1

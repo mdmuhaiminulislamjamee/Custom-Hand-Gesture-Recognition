@@ -10,6 +10,7 @@ test('computes signed wrist-to-palm orientation in all three planes', () => {
   assert.equal(angles?.xy, 45);
   assert.equal(angles?.yz, 45);
   assert.equal(angles?.xz, 45);
+  assert.equal(angles?.zx, 45);
   assert.equal(validPlaneAngles(angles), true);
 });
 
@@ -18,6 +19,7 @@ test('preserves axis signs and rejects data without real depth', () => {
   assert.equal(angles?.xy, -45);
   assert.equal(angles?.yz, -135);
   assert.equal(angles?.xz, -45);
+  assert.equal(angles?.zx, 135);
   assert.equal(planeAnglesFromLandmarks(Array.from({ length: 21 }, () => [.2, .3])), null);
   assert.equal(planeAnglesFromLandmarks(Array.from({ length: 21 }, () => [0, 0, 0])), null);
 });

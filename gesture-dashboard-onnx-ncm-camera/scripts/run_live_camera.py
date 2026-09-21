@@ -203,16 +203,25 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
     mass = float(result.get("known_gesture_mass", 0.0))
     fps = float(result.get("actual_fps", 0.0))
     landmarks = result.get("landmarks")
+    distance_m = result.get("distance_m")
+    plane_angles = result.get("plane_angles")
+
+    if distance_m is None and landmarks and len(landmarks) == 21:
+        pts_arr = np.asarray(landmarks) * np.array([w, h])
+        segs = [np.linalg.norm(pts_arr[a] - pts_arr[b]) for a, b in ((0, 5), (0, 9), (0, 17), (5, 17))]
+        palm_scale = float(np.median(segs))
+        if palm_scale >= 8:
+            distance_m = round(float(np.clip((w * 0.85 * 0.075) / palm_scale, 0.15, 5.0)), 2)
 
     is_recognized = (pred != "no_gesture" and conf >= 0.8)
 
     # 1. Draw Centered Interaction Guide Frame
     gw = int(w * 0.52)
-    gh = int(h * 0.62)
+    gh = int(h * 0.58)
     gx1 = (w - gw) // 2
     gy1 = max(95, (h - gh) // 2)
     gx2 = gx1 + gw
-    gy2 = gy1 + gh
+    gy2 = min(h - 45, gy1 + gh)
 
     if landmarks and len(landmarks) == 21:
         # Faint guide frame when hand is active
@@ -281,7 +290,13 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
         _draw_corner_brackets(frame, bx1, by1, bx2, by2, box_color, thickness=3, corner_len=22)
 
         # Draw Badge/Tag over the hand box
-        tag_label = f"{pred.upper()} ({conf*100:.0f}%)" if is_recognized else ("DETECTING..." if pred != "no_gesture" else "HAND")
+        dist_suffix = f" | ~{distance_m:.2f}m" if distance_m is not None else ""
+        if is_recognized:
+            tag_label = f"{pred.upper()} ({conf*100:.0f}%){dist_suffix}"
+        elif pred != "no_gesture":
+            tag_label = f"DETECTING...{dist_suffix}"
+        else:
+            tag_label = f"HAND{dist_suffix}"
         (lw, lh), _ = cv2.getTextSize(tag_label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
         tag_y1 = max(90, by1 - lh - 10)
         tag_y2 = tag_y1 + lh + 8
@@ -326,8 +341,33 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
     cv2.putText(frame, action_text, (20, 68), cv2.FONT_HERSHEY_SIMPLEX, 0.62, action_color, 2, cv2.LINE_AA)
 
     # Stats on top right
-    stats_text = f"Mass: {mass:.2f} | FPS: {fps:.1f}"
-    cv2.putText(frame, stats_text, (w - 250, 34), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1, cv2.LINE_AA)
+    dist_hud = f"Dist: ~{distance_m:.2f}m | " if distance_m is not None else ""
+    stats_text = f"{dist_hud}Mass: {mass:.2f} | FPS: {fps:.1f}"
+    (sw, _), _ = cv2.getTextSize(stats_text, cv2.FONT_HERSHEY_SIMPLEX, 0.58, 1)
+    cv2.putText(frame, stats_text, (max(20, w - sw - 20), 34), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (200, 200, 200), 1, cv2.LINE_AA)
+
+    # 4. Bottom HUD Banner: 3D Palm Angles (XY, YZ, ZX) and Distance
+    bar_h = 36
+    cv2.rectangle(frame, (0, h - bar_h), (w, h), (18, 18, 18), -1)
+    cv2.line(frame, (0, h - bar_h), (w, h - bar_h), (45, 45, 45), 1)
+
+    if plane_angles:
+        xy_val = plane_angles.get("xy", 0.0)
+        yz_val = plane_angles.get("yz", 0.0)
+        zx_val = plane_angles.get("zx", plane_angles.get("xz", 0.0))
+        angles_str = f"XY: {xy_val:+.0f}deg   YZ: {yz_val:+.0f}deg   ZX: {zx_val:+.0f}deg"
+        angles_color = (0, 230, 230)
+    else:
+        angles_str = "XY: --deg   YZ: --deg   ZX: --deg"
+        angles_color = (130, 130, 130)
+
+    dist_display = f"~{distance_m:.2f} m" if distance_m is not None else "--"
+    bottom_left = f"3D ANGLES:  {angles_str}"
+    bottom_right = f"DISTANCE: {dist_display}"
+
+    cv2.putText(frame, bottom_left, (20, h - 11), cv2.FONT_HERSHEY_SIMPLEX, 0.50, angles_color, 1, cv2.LINE_AA)
+    (rw, _), _ = cv2.getTextSize(bottom_right, cv2.FONT_HERSHEY_SIMPLEX, 0.50, 1)
+    cv2.putText(frame, bottom_right, (max(20, w - rw - 20), h - 11), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (200, 220, 200), 1, cv2.LINE_AA)
 
 
 

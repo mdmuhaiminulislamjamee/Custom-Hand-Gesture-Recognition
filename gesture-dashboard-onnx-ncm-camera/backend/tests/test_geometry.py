@@ -98,6 +98,72 @@ def camera_facing_fist_pose() -> np.ndarray:
     ], dtype=np.float32)
 
 
+def side_on_like_pose() -> np.ndarray:
+    """Landmark regression for the low-angle, side-on thumbs-up report."""
+    return np.asarray([
+        [413, 406],
+        [374, 381], [349, 362], [328, 333], [315, 290],
+        [350, 362], [320, 350], [298, 355], [310, 326],
+        [349, 384], [316, 378], [288, 381], [302, 357],
+        [346, 406], [315, 402], [288, 407], [305, 384],
+        [342, 424], [317, 429], [299, 425], [312, 412],
+    ], dtype=np.float32)
+
+
+def test_side_on_thumbs_up_recovers_like_below_classifier_confidence_floor():
+    config = RuntimeConfig()
+    probabilities = np.full(len(config.class_names), .05)
+    probabilities[config.class_to_idx['like']] = .40
+    probabilities[config.class_to_idx['fist']] = .20
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities, side_on_like_pose()
+    )
+    pose = details['pose_validation']
+
+    assert probabilities.max() < config.confidence_floor
+    assert details['hand_shape']['like_geometry_supported'] is True
+    assert pose['gesture'] == 'like'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+    assert resolved[config.class_to_idx['like']] >= .96
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1):
+        assert not gate.update(
+            resolved,
+            now=now,
+            known_gesture_mass=.93,
+            pose_valid=True,
+            geometry_supported=True,
+        ).execute
+    decision = gate.update(
+        resolved,
+        now=1.2,
+        known_gesture_mass=.93,
+        pose_valid=True,
+        geometry_supported=True,
+    )
+    assert decision.execute is True
+    assert decision.predicted_gesture == 'like'
+
+
+def test_side_on_like_recovery_requires_an_upward_thumb():
+    config = RuntimeConfig()
+    points = side_on_like_pose()
+    points[:, 1] = 2 * points[0, 1] - points[:, 1]
+    probabilities = np.full(len(config.class_names), .05)
+    probabilities[config.class_to_idx['like']] = .40
+    probabilities[config.class_to_idx['fist']] = .20
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+
+    assert details['hand_shape']['like_geometry_supported'] is False
+    assert resolved[config.class_to_idx['like']] < config.confidence_floor
+
+
 @pytest.mark.parametrize("gesture,rotation", [
     ("left", 0), ("right", np.pi),
 ])

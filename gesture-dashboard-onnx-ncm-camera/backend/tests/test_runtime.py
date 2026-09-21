@@ -4,7 +4,13 @@ import numpy as np
 import pytest
 
 from backend.config import RuntimeConfig
-from backend.model_runtime import InferenceEngine, ModelManager, RuntimeSession
+from backend.model_runtime import (
+    InferenceEngine,
+    ModelManager,
+    RuntimeSession,
+    estimate_hand_distance_m,
+    hand_plane_angles,
+)
 from backend.online_learning import OnlineLearningAdapter
 from backend.runtime import InferenceStartLimiter, TemporalGate, probability_ema
 
@@ -181,7 +187,7 @@ def test_capture_outage_requires_new_confirmation():
     assert decision.stable_frames == 1
 
 
-@pytest.mark.parametrize("gesture", ["open_palm", "fist", "thumb_down"])
+@pytest.mark.parametrize("gesture", ["open_palm", "like", "fist", "thumb_down"])
 def test_geometry_supported_hand_commands_can_recover_from_low_known_mass(gesture):
     config = RuntimeConfig(known_mass_floor=0.95)
     gate = TemporalGate(config)
@@ -293,3 +299,29 @@ def test_configured_fps_budget_verdict_uses_total_pipeline_time():
     assert failing["ten_fps_capacity_pass"] is False
     assert failing["target_fps_capacity_pass"] is False
     assert failing["verdict"] == "FAIL"
+
+
+def test_hand_plane_angles_computes_xy_yz_xz_and_zx():
+    world_landmarks = np.zeros((21, 3), dtype=np.float32)
+    world_landmarks[[5, 9, 13, 17]] = [0.0, 1.0, 0.5]
+    angles = hand_plane_angles(world_landmarks)
+    assert angles is not None
+    assert "xy" in angles
+    assert "yz" in angles
+    assert "xz" in angles
+    assert "zx" in angles
+    assert np.isclose(angles["xy"], 90.0)
+    assert np.isclose(angles["yz"], np.degrees(np.arctan2(0.5, 1.0)))
+    assert np.isclose(angles["zx"], np.degrees(np.arctan2(0.0, 0.5)))
+    assert np.isclose(angles["xz"], np.degrees(np.arctan2(0.5, 0.0)))
+
+
+def test_estimate_hand_distance_m():
+    quality = {"palm_scale_px": 80.0, "analysis_width": 640}
+    dist = estimate_hand_distance_m(quality)
+    assert dist is not None
+    assert np.isclose(dist, 0.51, atol=0.01)
+
+    assert estimate_hand_distance_m(None) is None
+    assert estimate_hand_distance_m({"palm_scale_px": 4}) is None
+

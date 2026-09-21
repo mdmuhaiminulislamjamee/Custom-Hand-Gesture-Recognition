@@ -5,6 +5,7 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RangeDiagnostics, { type RangePrediction } from './range-diagnostics';
+import { estimateGestureDistance } from './range-math';
 import DataCollection, { type CameraSource } from './data-collection';
 import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './landmark-angles';
 
@@ -208,6 +209,7 @@ type Prediction = RangePrediction & {
   world_landmarks?: number[][];
   landmarks_3d?: number[][];
   plane_angles?: Partial<PlaneAngles>;
+  distance_m?: number;
   actual_fps?: number;
   camera_fps?: number;
   ncm_camera?: NcmStatus;
@@ -431,6 +433,14 @@ export default function Dashboard() {
     if (validPlaneAngles(prediction.plane_angles)) return prediction.plane_angles;
     return planeAnglesFromLandmarks(prediction.world_landmarks ?? prediction.landmarks_3d);
   }, [prediction.landmarks_3d, prediction.plane_angles, prediction.world_landmarks]);
+
+  const liveDistance = useMemo(() => {
+    return estimateGestureDistance(
+      prediction.quality?.detector,
+      undefined,
+      prediction.distance_m,
+    );
+  }, [prediction.distance_m, prediction.quality?.detector]);
 
   const drawLandmarksOnCanvas = useCallback((canvas: HTMLCanvasElement | null, landmarks?: number[][]) => {
     if (!canvas) return;
@@ -1357,10 +1367,11 @@ export default function Dashboard() {
                 <span>{demoVideo ? `Target ${demoTransform.scale.toFixed(1)}x · X ${demoTransform.x} · Y ${demoTransform.y}` : prediction.status === 'predicted' ? 'ONNX Runtime · CPU' : humanize(prediction.status)}</span>
                 <span>Unmirrored {cameraSource === 'webcam' ? 'PC webcam' : 'NCM camera'} · calibrated Left/Right · {fps(cameraFps)} FPS · inference capped at {targetFps.toFixed(0)} FPS</span>
               </div>
-              <div className="live-angle-panel" aria-label="Live three-dimensional palm-axis angles">
-                <div><span>LIVE 3-D PALM AXIS</span><small>Signed wrist → palm angle in each coordinate plane</small></div>
-                {(['xy', 'yz', 'xz'] as const).map(plane => <div key={plane}><span>{plane.toUpperCase()}</span><strong>{livePlaneAngles ? `${livePlaneAngles[plane].toFixed(1)}°` : '—'}</strong></div>)}
-                {!livePlaneAngles && <p>Waiting for a complete hand and depth landmarks.</p>}
+              <div className="live-angle-panel" aria-label="Live three-dimensional gesture angles and distance">
+                <div><span>LIVE 3-D GESTURE AXIS &amp; DISTANCE</span><small>Camera distance and signed angles in XY, YZ, ZX planes</small></div>
+                <div className="dist-item"><span>DIST</span><strong>{liveDistance ? liveDistance.text : '—'}</strong></div>
+                {(['xy', 'yz', 'zx'] as const).map(plane => <div key={plane}><span>{plane.toUpperCase()}</span><strong>{livePlaneAngles ? `${(plane === 'zx' && livePlaneAngles.zx !== undefined ? livePlaneAngles.zx : (plane === 'zx' ? -livePlaneAngles.xz : livePlaneAngles[plane])).toFixed(1)}°` : '—'}</strong></div>)}
+                {!livePlaneAngles && !liveDistance && <p>Waiting for a complete hand and depth landmarks.</p>}
               </div>
               {demoVideo && <div className="demo-action-console">
                 <div className="demo-console-summary">
