@@ -461,6 +461,20 @@ class GeometryResolver:
         outer_reach_advantage = float(
             finger_reaches[3] / max(float(finger_reaches[:3].mean()), 1e-6)
         )
+        fingertip_y = points[finger_tips, 1]
+        deepest_finger_index = int(np.argmax(fingertip_y))
+        remaining_fingers = np.arange(len(finger_tips)) != deepest_finger_index
+        remaining_tip_y = fingertip_y[remaining_fingers]
+        edge_tip_cluster_spread = float(np.ptp(remaining_tip_y) / palm_scale)
+        deepest_edge_tip_drop = float(
+            (fingertip_y[deepest_finger_index] - float(remaining_tip_y.max()))
+            / palm_scale
+        )
+        deepest_edge_reach = float(finger_reaches[deepest_finger_index])
+        deepest_edge_reach_advantage = float(
+            deepest_edge_reach
+            / max(float(finger_reaches[remaining_fingers].mean()), 1e-6)
+        )
         # In a steep edge-on Down pose, MediaPipe can project the folded-finger
         # chains almost parallel with the index and place the pinky outline past
         # the index tip. Preserve this tightly bounded silhouette without
@@ -523,6 +537,25 @@ class GeometryResolver:
             and finger_reaches[3] >= 1.55
             and outer_reach_advantage >= 1.55
         )
+        # In the reported NCM view the wrist can project below, or almost level
+        # with, the MCP row even though every MCP-to-tip vector points down. The
+        # three shorter tips form a compact row and one edge finger is reconstructed
+        # much farther down. MediaPipe can assign that edge to either the index or
+        # pinky side at this angle, so the test is independent of left/right finger
+        # identity. Do not require locally straight joints in the three short chains.
+        reverse_palm_edge_down = bool(
+            gesture == "down"
+            and dominance >= .78
+            and palm_down_alignment <= .35
+            and deepest_finger_index in (0, 3)
+            and float(finger_units[:, 1].min()) >= .75
+            and projected_hand["downward_score"] >= .90
+            and projected_hand["parallel_score"] >= .80
+            and edge_tip_cluster_spread <= .90
+            and deepest_edge_tip_drop >= .55
+            and deepest_edge_reach >= 1.20
+            and deepest_edge_reach_advantage >= 1.30
+        )
         ordered = np.sort(probabilities)
         model_agrees = bool(
             raw == gesture
@@ -547,6 +580,7 @@ class GeometryResolver:
             or edge_on_down
             or curled_edge_down
             or clustered_edge_down
+            or reverse_palm_edge_down
         )
         settings = (self.config.raw.get("directional_resolution") or {})
         minimum_axis_dominance = float(settings.get("minimum_axis_dominance", 0.73))
@@ -557,6 +591,7 @@ class GeometryResolver:
                 or edge_on_down
                 or curled_edge_down
                 or clustered_edge_down
+                or reverse_palm_edge_down
             )
         )
         strong_short_index = bool(
@@ -584,6 +619,7 @@ class GeometryResolver:
             "edge_on_down": edge_on_down,
             "curled_edge_down": curled_edge_down,
             "clustered_edge_down": clustered_edge_down,
+            "reverse_palm_edge_down": reverse_palm_edge_down,
             "palm_down_alignment": palm_down_alignment,
             "minimum_finger_down_alignment": float(finger_units[:, 1].min()),
             "finger_reach_ratios": finger_reaches.tolist(),
@@ -591,12 +627,18 @@ class GeometryResolver:
             "inner_tip_spread_ratio": inner_tip_spread,
             "outer_tip_drop_ratio": outer_tip_drop,
             "outer_reach_advantage": outer_reach_advantage,
+            "deepest_finger_index": deepest_finger_index,
+            "edge_tip_cluster_spread_ratio": edge_tip_cluster_spread,
+            "deepest_edge_tip_drop_ratio": deepest_edge_tip_drop,
+            "deepest_edge_reach_ratio": deepest_edge_reach,
+            "deepest_edge_reach_advantage": deepest_edge_reach_advantage,
             "strong_geometry": bool(
                 directional
                 and (
                     edge_on_down
                     or curled_edge_down
                     or clustered_edge_down
+                    or reverse_palm_edge_down
                     or (
                         model_agrees
                         and float(ordered[-1]) >= .95

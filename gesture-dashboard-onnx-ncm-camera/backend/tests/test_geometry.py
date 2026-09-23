@@ -758,6 +758,80 @@ def test_clustered_edge_down_camera_variants_are_accepted(points):
     assert decision.predicted_gesture == 'down'
 
 
+@pytest.mark.parametrize('points', [
+    # Wrist below the MCP row; the inner tips cluster near the wrist while the
+    # outer finger drops much farther down. These coordinates reproduce the
+    # landmark layout from the reported NCM frames at different view angles.
+    np.asarray([
+        [338, 314], [365, 322], [393, 333], [412, 346], [430, 357],
+        [307, 282], [313, 306], [315, 313], [315, 321],
+        [340, 273], [339, 303], [339, 311], [340, 321],
+        [372, 269], [370, 305], [369, 315], [369, 327],
+        [404, 275], [398, 330], [400, 348], [400, 377],
+    ], dtype=np.float32),
+    np.asarray([
+        [449, 344], [474, 351], [497, 365], [516, 392], [531, 437],
+        [451, 343], [450, 356], [451, 366], [451, 376],
+        [478, 338], [475, 354], [472, 368], [469, 383],
+        [509, 332], [502, 349], [496, 367], [490, 385],
+        [532, 339], [532, 370], [532, 405], [532, 437],
+    ], dtype=np.float32),
+    np.asarray([
+        [316, 327], [336, 343], [350, 364], [360, 390], [365, 405],
+        [279, 307], [278, 320], [277, 333], [277, 345],
+        [308, 304], [308, 320], [307, 336], [307, 350],
+        [339, 303], [338, 323], [336, 343], [335, 361],
+        [371, 304], [369, 335], [367, 371], [365, 406],
+    ], dtype=np.float32),
+    # The same projected hand when MediaPipe assigns the long edge chain to the
+    # index side rather than the pinky side.
+    np.asarray([
+        [338, 314], [365, 322], [393, 333], [412, 346], [430, 357],
+        [404, 275], [398, 330], [400, 348], [400, 377],
+        [372, 269], [370, 305], [369, 315], [369, 327],
+        [340, 273], [339, 303], [339, 311], [340, 321],
+        [307, 282], [313, 306], [315, 313], [315, 321],
+    ], dtype=np.float32),
+])
+def test_reverse_palm_edge_down_camera_variants_are_accepted(points):
+    config = RuntimeConfig()
+    probabilities = np.full(len(config.class_names), 0.001)
+    probabilities[config.class_to_idx['ok']] = 0.993
+
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+
+    direction = details['directional']
+    assert direction['gesture'] == 'down'
+    assert direction['palm_down_alignment'] <= .35
+    assert direction['deepest_finger_index'] in (0, 3)
+    assert direction['reverse_palm_edge_down'] is True
+    assert direction['strong_geometry'] is True
+    assert details['pose_validation']['valid'] is True
+    assert details['pose_validation']['geometry_supported'] is True
+    assert config.class_names[int(np.argmax(resolved))] == 'down'
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        assert not gate.update(
+            resolved,
+            now=now,
+            known_gesture_mass=.01,
+            pose_valid=True,
+            geometry_supported=True,
+            directional_recovery=True,
+        ).execute
+    decision = gate.update(
+        resolved,
+        now=1.41,
+        known_gesture_mass=.01,
+        pose_valid=True,
+        geometry_supported=True,
+        directional_recovery=True,
+    )
+    assert decision.execute
+    assert decision.predicted_gesture == 'down'
+
+
 def test_clustered_edge_down_requires_the_lower_outer_tip():
     config = RuntimeConfig()
     points = np.asarray([

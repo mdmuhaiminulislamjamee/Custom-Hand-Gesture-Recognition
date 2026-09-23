@@ -31,22 +31,6 @@
     "hand_landmarker.task": {
       "bytes": 7819105,
       "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
-    },
-    "ten_gesture_classification_report.csv": {
-      "bytes": 522,
-      "sha256": "1261cab14298887e0b1d70dd615d1e6ab9b3247caeccf7bc3f39b908db8e4072"
-    },
-    "ten_gesture_confusion_matrix.csv": {
-      "bytes": 425,
-      "sha256": "d1bd0318f13d12ade1c74ba4ed5968b57c1eddc6f6c6441a1409ee6c36cd3726"
-    },
-    "ten_gesture_hard_case_metrics.csv": {
-      "bytes": 114,
-      "sha256": "173725f47165cf3917c4afcec3c0b050fe9cb3ff86f0369f83add1e32abf7496"
-    },
-    "ten_gesture_test_metrics.csv": {
-      "bytes": 383,
-      "sha256": "5e097d07cd839f05fce8c3270d80fb5ac7a8a66ac4c592d82cf3d317a5cebba5"
     }
   },
   "class_names": [
@@ -61,8 +45,8 @@
     "fist",
     "thumb_down"
   ],
-  "created_utc": "2026-09-20T10:31:35.684448+00:00",
+  "created_utc": "2026-09-23T02:19:59.503607+00:00",
   "feature_count": 76,
-  "release_fingerprint": "a493a1508c96af8c1472c1298096e40b8b9b6f188fdde8818a9b42f70b198a37",
+  "release_fingerprint": "b2cb134248fd6223ea86130e730c6578e54f071cc6873e7bcf9fe46163f680d1",
   "schema_version": 1
 }
