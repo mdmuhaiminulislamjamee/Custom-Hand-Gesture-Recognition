@@ -442,7 +442,7 @@ export default function Dashboard() {
     );
   }, [prediction.distance_m, prediction.quality?.detector]);
 
-  const drawLandmarksOnCanvas = useCallback((canvas: HTMLCanvasElement | null, landmarks?: number[][]) => {
+  const drawLandmarksOnCanvas = useCallback((canvas: HTMLCanvasElement | null, landmarks?: number[][], classified = false) => {
     if (!canvas) return;
     const size = Math.max(1, Math.round(canvas.clientWidth || 400));
     canvas.width = size;
@@ -452,7 +452,7 @@ export default function Dashboard() {
     context.clearRect(0, 0, size, size);
     if (!landmarks || landmarks.length !== 21) return;
     context.lineWidth = Math.max(2, size / 180);
-    context.strokeStyle = 'rgba(73, 217, 209, .92)';
+    context.strokeStyle = classified ? 'rgba(73, 217, 209, .92)' : 'rgba(255, 180, 84, .88)';
     context.beginPath();
     HAND_CONNECTIONS.forEach(([from, to]) => {
       context.moveTo(landmarks[from][0] * size, landmarks[from][1] * size);
@@ -461,18 +461,24 @@ export default function Dashboard() {
     context.stroke();
     landmarks.forEach(([x, y], index) => {
       context.beginPath();
-      context.fillStyle = index === 0 ? '#ffb454' : '#f4f7ff';
+      context.fillStyle = classified ? (index === 0 ? '#ffb454' : '#f4f7ff') : '#ffcf8a';
       context.arc(x * size, y * size, Math.max(2.4, size / 120), 0, Math.PI * 2);
       context.fill();
     });
   }, []);
 
-  const drawLandmarks = useCallback((landmarks?: number[][]) => {
-    drawLandmarksOnCanvas(landmarkCanvasRef.current, landmarks);
-    drawLandmarksOnCanvas(feedbackLandmarkCanvasRef.current, landmarks);
+  const drawLandmarks = useCallback((landmarks?: number[][], classified = false) => {
+    drawLandmarksOnCanvas(landmarkCanvasRef.current, landmarks, classified);
+    drawLandmarksOnCanvas(feedbackLandmarkCanvasRef.current, landmarks, classified);
   }, [drawLandmarksOnCanvas]);
 
-  useEffect(() => { drawLandmarks(prediction.display_landmarks ?? prediction.landmarks); }, [prediction.display_landmarks, prediction.landmarks, activeTab, drawLandmarks]);
+  const hasRawLandmarks = prediction.landmarks?.length === 21;
+  const hasClassifiedLandmarks = hasRawLandmarks && canonicalGesture(prediction.runtime_prediction) !== undefined;
+  useEffect(() => {
+    // Landmark visibility is diagnostic only.  Gesture actions continue to use
+    // the backend's confidence, geometry, stability, hold, and cooldown gates.
+    drawLandmarks(hasRawLandmarks ? prediction.landmarks : undefined, hasClassifiedLandmarks);
+  }, [prediction.landmarks, hasRawLandmarks, hasClassifiedLandmarks, activeTab, drawLandmarks]);
 
   const captureWebcamFrame = useCallback(async () => {
     const video = webcamVideoRef.current;
@@ -1355,6 +1361,9 @@ export default function Dashboard() {
                   <span className="corner top-left" /><span className="corner top-right" />
                   <span className="corner bottom-left" /><span className="corner bottom-right" />
                   <canvas ref={landmarkCanvasRef} className="landmark-canvas" />
+                  {cameraActive && hasRawLandmarks && <div className={`landmark-state ${hasClassifiedLandmarks ? 'classified' : 'unconfirmed'}`}>
+                    {hasClassifiedLandmarks ? 'HAND TRACKED · GESTURE CANDIDATE' : 'HAND TRACKED · CHECKING GESTURE'}
+                  </div>}
                   {demoVideo && <div className="webcam-pip-label"><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> {cameraSource === 'webcam' ? 'PC WEBCAM' : 'NCM BOARD CAMERA'} + LANDMARKS</div>}
                   {!cameraActive && <div className="camera-empty">
                     <span className="hand-orbit" /><strong>Camera is ready</strong>
@@ -1511,6 +1520,9 @@ export default function Dashboard() {
                   <span className="corner top-left" /><span className="corner top-right" />
                   <span className="corner bottom-left" /><span className="corner bottom-right" />
                   <canvas ref={feedbackLandmarkCanvasRef} className="landmark-canvas" />
+                  {cameraActive && hasRawLandmarks && <div className={`landmark-state ${hasClassifiedLandmarks ? 'classified' : 'unconfirmed'}`}>
+                    {hasClassifiedLandmarks ? 'HAND TRACKED · GESTURE CANDIDATE' : 'HAND TRACKED · CHECKING GESTURE'}
+                  </div>}
                   {!cameraActive && <div className="camera-empty">
                     <span className="hand-orbit" /><strong>Camera stays available here</strong>
                     <p>Connect the selected camera, show a gesture, then confirm or correct the result beside the preview.</p>

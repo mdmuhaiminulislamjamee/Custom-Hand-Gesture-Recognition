@@ -162,14 +162,47 @@ class HandDetector:
 
     def _search_views(self, shape):
         height, width = shape[:2]
-        views = [(0, 0, width, height, turn, enhance)
-                 for turn, enhance in ((3, 0), (3, 1), (1, 0), (1, 1), (2, 0), (0, 1))]
         side = max(32, int(min(width, height) * 0.60))
-        # Search only one alternative per frame; cycle overlapping regions.
-        for turn in (0, 3, 1):
-            for fx, fy in ((.5, .5), (0, .5), (1, .5), (0, 0), (1, 0), (0, 1), (1, 1)):
-                views.append((round((width-side)*fx), round((height-side)*fy), side, side, turn, 1))
-        return views
+        positions = ((.5, .5), (0, .5), (1, .5), (0, 0), (1, 0), (0, 1), (1, 1))
+
+        # Keep exactly the same bounded recovery candidate set, but put the
+        # common distant side-pointing case first.  MediaPipe often needs a
+        # +/-90-degree view for Left/Right, and the guide asks users to keep
+        # their hand near the centre.  Reordering is safer than lowering any
+        # detector threshold or adding more opportunities for a false match.
+        full_side_views = [
+            (0, 0, width, height, 3, 0),
+            (0, 0, width, height, 1, 0),
+        ]
+        full_remaining_views = [
+            (0, 0, width, height, 3, 1),
+            (0, 0, width, height, 1, 1),
+            (0, 0, width, height, 2, 0),
+            (0, 0, width, height, 0, 1),
+        ]
+        crop_views = [
+            (
+                round((width - side) * fx),
+                round((height - side) * fy),
+                side,
+                side,
+                turn,
+                1,
+            )
+            for fx, fy in positions
+            for turn in (3, 1, 0)
+        ]
+        centre_side_views = crop_views[:2]
+        centre_upright_view = crop_views[2:3]
+        other_crop_views = crop_views[3:]
+        return [
+            *full_side_views,
+            *centre_side_views,
+            *full_remaining_views[:2],
+            *centre_upright_view,
+            *full_remaining_views[2:],
+            *other_crop_views,
+        ]
 
     def detect(self, rgb_image, candidate_score=None):
         if not self.ready:

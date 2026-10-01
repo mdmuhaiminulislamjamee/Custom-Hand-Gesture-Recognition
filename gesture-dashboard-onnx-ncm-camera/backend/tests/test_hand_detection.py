@@ -72,6 +72,33 @@ def simulated_detector():
     return detector
 
 
+def test_recovery_prioritizes_central_side_views_without_expanding_search_set():
+    detector = simulated_detector()
+    height, width = 480, 640
+    side = int(min(width, height) * .60)
+    views = detector._search_views((height, width, 3))
+
+    original_full_views = {
+        (0, 0, width, height, turn, enhance)
+        for turn, enhance in ((3, 0), (3, 1), (1, 0), (1, 1), (2, 0), (0, 1))
+    }
+    original_crop_views = {
+        (round((width - side) * fx), round((height - side) * fy), side, side, turn, 1)
+        for turn in (0, 3, 1)
+        for fx, fy in ((.5, .5), (0, .5), (1, .5), (0, 0), (1, 0), (0, 1), (1, 1))
+    }
+
+    assert len(views) == 27
+    assert len(set(views)) == 27
+    assert set(views) == original_full_views | original_crop_views
+    assert views[:4] == [
+        (0, 0, width, height, 3, 0),
+        (0, 0, width, height, 1, 0),
+        (round((width - side) * .5), round((height - side) * .5), side, side, 3, 1),
+        (round((width - side) * .5), round((height - side) * .5), side, side, 1, 1),
+    ]
+
+
 def test_recovery_can_replace_bad_tracked_fingers_with_new_image_evidence(monkeypatch):
     detector = simulated_detector()
     initial = representative_hand()

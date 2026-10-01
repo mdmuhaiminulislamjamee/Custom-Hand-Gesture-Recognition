@@ -21,7 +21,11 @@ def test_default_runtime_contract_is_backend_safe_ten_fps():
     assert config.target_fps == 10.0
     assert config.frame_interval_ms == 100
     assert config.frame_budget_ms == 100.0
+    assert config.confidence_floor == 0.70
+    assert config.probability_margin_floor == 0.08
+    assert config.known_mass_floor == 0.70
     assert config.stable_frames_required == 3
+    assert config.minimum_hold_seconds == 0.18
 
 
 def test_inference_start_limiter_serializes_aggregate_starts_at_ten_fps():
