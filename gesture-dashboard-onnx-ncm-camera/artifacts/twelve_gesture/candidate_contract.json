@@ -1,0 +1,53 @@
+{
+  "class_names": [
+    "left",
+    "right",
+    "up",
+    "down",
+    "open_palm",
+    "like",
+    "dorsal",
+    "ok",
+    "fist",
+    "thumb_down",
+    "peace",
+    "rock"
+  ],
+  "internal_class_names": [
+    "left",
+    "right",
+    "up",
+    "down",
+    "open_palm",
+    "like",
+    "dorsal",
+    "ok",
+    "fist",
+    "thumb_down",
+    "peace",
+    "rock",
+    "no_gesture"
+  ],
+  "gesture_to_action": {
+    "left": "Move Left",
+    "right": "Move Right",
+    "up": "Move Up",
+    "down": "Move Down",
+    "open_palm": "Enable / Disable Object Tracking",
+    "like": "Play / Pause",
+    "dorsal": "Return to Default Position",
+    "ok": "Start / Stop Recording",
+    "fist": "Mute",
+    "thumb_down": "Volume Down",
+    "peace": "Turn 90 Degrees",
+    "rock": "Backup"
+  },
+  "source_class_mapping": {
+    "peace": "peace",
+    "rock": "rock"
+  },
+  "feature_count": 76,
+  "model_file": "candidate.onnx",
+  "model_sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e",
+  "deployment_status": "active twelve-command ONNX runtime; live-camera validation pending"
+}

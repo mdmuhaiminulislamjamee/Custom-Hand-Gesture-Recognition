@@ -12,19 +12,21 @@ import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './
 const API_URL = process.env.NEXT_PUBLIC_GESTURE_API_URL ?? 'http://127.0.0.1:8200';
 const WS_URL = API_URL.replace(/^http/, 'ws');
 const DEFAULT_CLASSES = [
-  'left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down',
+  'left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down', 'peace', 'rock',
 ];
 const DEFAULT_ACTIONS: Record<string, string> = {
   left: 'Move Left',
   right: 'Move Right',
   up: 'Move Up',
   down: 'Move Down',
-  open_palm: 'Enable / Disable Object Tracking · Upward Only',
+  open_palm: 'Enable / Disable Object Tracking · Up, Left, or Right',
   like: 'Play / Pause',
   dorsal: 'Return to Default Position',
   ok: 'Start / Stop Recording',
   fist: 'Mute',
   thumb_down: 'Volume Down',
+  peace: 'Turn 90 Degrees',
+  rock: 'Backup',
 };
 const DEMO_COMMANDS: Record<string, string> = {
   left: 'MOVE_LEFT',
@@ -37,6 +39,8 @@ const DEMO_COMMANDS: Record<string, string> = {
   ok: 'TOGGLE_RECORDING',
   fist: 'MUTE_AUDIO',
   thumb_down: 'VOLUME_DOWN',
+  peace: 'TURN_90',
+  rock: 'BACKUP',
 };
 const CANONICAL_CLASS_SET = new Set(DEFAULT_CLASSES);
 const HAND_CONNECTIONS = [
@@ -137,6 +141,7 @@ type Health = {
       status: string;
       current?: boolean;
       pc_release_ready: boolean;
+      live_camera_validation_pending?: boolean;
       selected_model?: string;
       gated_macro_f1?: number;
       gated_minimum_per_class_f1?: number;
@@ -235,7 +240,7 @@ type DemoMediaAsset = {
   width?: number;
   height?: number;
 };
-type VideoTransform = { x: number; y: number; scale: number };
+type VideoTransform = { x: number; y: number; scale: number; rotation: number };
 type LearningMode = 'audit' | 'safe';
 
 function canonicalGesture(value?: string) {
@@ -289,7 +294,7 @@ export default function Dashboard() {
   const [snapshotReady, setSnapshotReady] = useState(false);
   const [demoVideo, setDemoVideo] = useState<DemoMediaAsset | null>(null);
   const [demoVideoMessage, setDemoVideoMessage] = useState('Upload a video (up to 60 seconds) or an image to enable the action demo.');
-  const [demoTransform, setDemoTransform] = useState<VideoTransform>({ x: 0, y: 0, scale: 1 });
+  const [demoTransform, setDemoTransform] = useState<VideoTransform>({ x: 0, y: 0, scale: 1, rotation: 0 });
   const [demoEvents, setDemoEvents] = useState<DemoEvent[]>([]);
   const [demoRecording, setDemoRecording] = useState(false);
   const [recordingDownloadUrl, setRecordingDownloadUrl] = useState<string | null>(null);
@@ -316,7 +321,7 @@ export default function Dashboard() {
   const stopCameraRef = useRef<(preservePrediction?: boolean) => void>(() => undefined);
   const executeDemoPredictionRef = useRef<(message: Prediction) => void>(() => undefined);
   const demoVideoAssetRef = useRef<DemoMediaAsset | null>(null);
-  const demoTransformRef = useRef<VideoTransform>({ x: 0, y: 0, scale: 1 });
+  const demoTransformRef = useRef<VideoTransform>({ x: 0, y: 0, scale: 1, rotation: 0 });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const lastExecutedGestureRef = useRef<string | null>(null);
@@ -801,7 +806,7 @@ export default function Dashboard() {
     if (!sourceWidth || !sourceHeight) return;
     const context = canvas.getContext('2d');
     if (!context) return;
-    const { x, y, scale } = demoTransformRef.current;
+    const { x, y, scale, rotation } = demoTransformRef.current;
     context.fillStyle = '#060b13';
     context.fillRect(0, 0, canvas.width, canvas.height);
     const fit = Math.min((canvas.width * 0.82) / sourceWidth, (canvas.height * 0.82) / sourceHeight);
@@ -812,6 +817,7 @@ export default function Dashboard() {
       canvas.width / 2 + (x / 100) * drawWidth,
       canvas.height / 2 + (y / 100) * drawHeight,
     );
+    context.rotate(rotation * Math.PI / 180);
     context.scale(scale, scale);
     context.drawImage(source, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
     context.restore();
@@ -964,6 +970,16 @@ export default function Dashboard() {
           detail = 'Video target moved right.';
           toastLabel = 'MOVED RIGHT';
           break;
+        case 'TURN_90':
+          updateDemoTransform((current) => ({ ...current, rotation: current.rotation + 90 }));
+          detail = 'Uploaded media turned 90 degrees.';
+          toastLabel = 'TURNED 90 DEGREES';
+          break;
+        case 'BACKUP':
+          updateDemoTransform((current) => ({ ...current, scale: Math.max(0.5, current.scale - 0.15) }));
+          detail = 'Uploaded media target moved back.';
+          toastLabel = 'MOVED BACK';
+          break;
         case 'TOGGLE_TRACKING': {
           const next = !objectTrackingEnabled;
           setObjectTrackingEnabled(next);
@@ -974,7 +990,7 @@ export default function Dashboard() {
           break;
         }
         case 'RETURN_HOME':
-          updateDemoTransform(() => ({ x: 0, y: 0, scale: 1 }));
+          updateDemoTransform(() => ({ x: 0, y: 0, scale: 1, rotation: 0 }));
           setObjectTrackingEnabled(false);
           setImagePreviewActive(true);
           detail = 'Target returned to its default position and object tracking was cleared.';
@@ -1062,7 +1078,7 @@ export default function Dashboard() {
       if (demoVideoAssetRef.current) URL.revokeObjectURL(demoVideoAssetRef.current.url);
       demoVideoAssetRef.current = asset;
       setDemoVideo(asset);
-      updateDemoTransform(() => ({ x: 0, y: 0, scale: 1 }));
+      updateDemoTransform(() => ({ x: 0, y: 0, scale: 1, rotation: 0 }));
       setDemoEvents([]);
       setActionToast(null);
       setObjectTrackingEnabled(false);
@@ -1097,7 +1113,7 @@ export default function Dashboard() {
       if (current) URL.revokeObjectURL(current);
       return null;
     });
-    updateDemoTransform(() => ({ x: 0, y: 0, scale: 1 }));
+    updateDemoTransform(() => ({ x: 0, y: 0, scale: 1, rotation: 0 }));
     setDemoVideoMessage('Upload a video (up to 60 seconds) or an image to enable the action demo.');
     lastExecutedGestureRef.current = null;
   };
@@ -1327,13 +1343,13 @@ export default function Dashboard() {
                         if (mediaRecorderRef.current?.state === 'recording') stopDemoRecording();
                         setDemoVideoMessage('The uploaded video reached the end. Replay it or upload another clip.');
                       }}
-                      style={{ transform: `translate(${demoTransform.x}%, ${demoTransform.y}%) scale(${demoTransform.scale})` }}
+                      style={{ transform: `translate(${demoTransform.x}%, ${demoTransform.y}%) rotate(${demoTransform.rotation}deg) scale(${demoTransform.scale})` }}
                     /> : <img
                       ref={demoImageRef}
                       src={demoVideo.url}
                       alt="Uploaded gesture action target"
                       className={`demo-target-media demo-target-image ${imagePreviewActive ? '' : 'preview-paused'}`}
-                      style={{ transform: `translate(${demoTransform.x}%, ${demoTransform.y}%) scale(${demoTransform.scale})` }}
+                      style={{ transform: `translate(${demoTransform.x}%, ${demoTransform.y}%) rotate(${demoTransform.rotation}deg) scale(${demoTransform.scale})` }}
                     />}
                 </div>}
                 {cameraActive && cameraSource === 'ncm' && <img
@@ -1373,7 +1389,7 @@ export default function Dashboard() {
                 <canvas ref={demoRecordingCanvasRef} className="capture-canvas" />
               </div>
               <div className="camera-footer">
-                <span>{demoVideo ? `Target ${demoTransform.scale.toFixed(1)}x · X ${demoTransform.x} · Y ${demoTransform.y}` : prediction.status === 'predicted' ? 'ONNX Runtime · CPU' : humanize(prediction.status)}</span>
+                <span>{demoVideo ? `Target ${demoTransform.scale.toFixed(1)}x · X ${demoTransform.x} · Y ${demoTransform.y} · Rotation ${demoTransform.rotation % 360}°` : prediction.status === 'predicted' ? 'ONNX Runtime · CPU' : humanize(prediction.status)}</span>
                 <span>Unmirrored {cameraSource === 'webcam' ? 'PC webcam' : 'NCM camera'} · calibrated Left/Right · {fps(cameraFps)} FPS · inference capped at {targetFps.toFixed(0)} FPS</span>
               </div>
               <div className="live-angle-panel" aria-label="Live three-dimensional gesture angles and distance">
@@ -1387,7 +1403,7 @@ export default function Dashboard() {
                   <div><span>ACTION DISPATCH</span><strong>{demoEvents[0]?.command.replaceAll('_', ' ') ?? 'WAITING'}</strong></div>
                   <div className="demo-console-buttons">
                     {recordingDownloadUrl && <a href={recordingDownloadUrl} download="gesture-action-demo.webm">Download recording</a>}
-                    <button type="button" onClick={() => { updateDemoTransform(() => ({ x: 0, y: 0, scale: 1 })); setObjectTrackingEnabled(false); setImagePreviewActive(true); if (demoVideoRef.current) { demoVideoRef.current.muted = false; demoVideoRef.current.volume = 1; } setDemoMuted(false); setDemoVolume(1); }}>Reset media</button>
+                    <button type="button" onClick={() => { updateDemoTransform(() => ({ x: 0, y: 0, scale: 1, rotation: 0 })); setObjectTrackingEnabled(false); setImagePreviewActive(true); if (demoVideoRef.current) { demoVideoRef.current.muted = false; demoVideoRef.current.volume = 1; } setDemoMuted(false); setDemoVolume(1); }}>Reset media</button>
                   </div>
                 </div>
                 <div className="demo-event-list">
@@ -1570,10 +1586,11 @@ export default function Dashboard() {
           </div>}
           <div className="setup-layout">
             <article className="panel runtime-contract">
-              <div className="panel-header"><div>PRODUCTION RELEASE GATE</div><span>{qualification?.pc_release_ready ? 'PASS' : 'ACTION NEEDED'}</span></div>
+              <div className="panel-header"><div>12-COMMAND RELEASE CHECK</div><span>{qualification?.pc_release_ready ? 'PASS' : qualification?.status === 'provisional' ? 'OFFLINE PASS · LIVE TEST PENDING' : 'ACTION NEEDED'}</span></div>
               <dl>
                 <div><dt>Artifact integrity</dt><dd>{health?.artifact_integrity?.verified ? `Verified (${health.artifact_integrity.checked_files})` : 'Failed / unsigned'}</dd></div>
                 <div><dt>Qualification report</dt><dd>{qualification?.current ? qualification.status.toUpperCase() : qualification?.status === 'not_run' ? 'NOT RUN' : 'STALE'}</dd></div>
+                <div><dt>Live-camera validation</dt><dd>{qualification?.live_camera_validation_pending ? 'Pending across gestures, distances, and lighting' : 'Complete'}</dd></div>
                 <div><dt>ONNX prediction agreement</dt><dd>{qualification?.onnx_parity?.prediction_agreement == null ? '—' : percent(qualification.onnx_parity.prediction_agreement)}</dd></div>
                 <div><dt>Maximum probability error</dt><dd>{qualification?.onnx_parity?.maximum_absolute_probability_error?.toExponential(3) ?? '—'}</dd></div>
                 <div><dt>Deferred quality work</dt><dd>{qualification?.deferred_classes?.map(humanize).join(', ') || 'None'}</dd></div>
@@ -1633,7 +1650,7 @@ export default function Dashboard() {
                 <div><dt>Execution provider</dt><dd>CPUExecutionProvider</dd></div>
                 <div><dt>Temporal filter</dt><dd>EMA α {health?.config.ema_alpha ?? 0.65}</dd></div>
                 <div><dt>Confidence floor</dt><dd>{percent(health?.config.confidence_floor ?? 0.70)}</dd></div>
-                <div><dt>Object tracking</dt><dd>Toggled only by an upward Open Palm</dd></div>
+                <div><dt>Object tracking</dt><dd>Toggled by an Open Palm pointing up, left, or right</dd></div>
               </dl>
             </article>
 

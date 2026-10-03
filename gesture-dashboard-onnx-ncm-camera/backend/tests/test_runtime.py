@@ -146,7 +146,7 @@ def test_open_set_rejection_never_executes():
     decision = gate.update(row, now=1.0, known_gesture_mass=0.1)
     assert decision.execute is False
     assert decision.predicted_gesture == "no_gesture"
-    assert decision.reason == "outside the ten-gesture vocabulary"
+    assert decision.reason == "outside the twelve-gesture vocabulary"
 
 
 @pytest.mark.parametrize("fps", [5, 8, 10, 15, 20, 30, 60])
@@ -218,6 +218,25 @@ def test_geometry_supported_hand_commands_can_recover_from_low_known_mass(gestur
     )
     assert decision.execute is True
     assert decision.predicted_gesture == gesture
+
+
+def test_clear_open_palm_recovers_at_reported_camera_angle_mass():
+    config = RuntimeConfig()
+    gate = TemporalGate(config)
+    row = np.eye(len(config.class_names))[config.class_to_idx['open_palm']]
+
+    assert gate.update(
+        row, now=0.0, known_gesture_mass=.11, geometry_supported=True
+    ).predicted_gesture == 'no_gesture'
+    for now in (1.0, 1.1, 1.2, 1.3, 1.4):
+        assert not gate.update(
+            row, now=now, known_gesture_mass=.13, geometry_supported=True
+        ).execute
+    decision = gate.update(
+        row, now=1.5, known_gesture_mass=.13, geometry_supported=True
+    )
+    assert decision.execute
+    assert decision.predicted_gesture == 'open_palm'
 
 
 def test_nonfinite_classifier_evidence_fails_closed():

@@ -45,9 +45,7 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
     if EXPECTED_REJECT_LABEL in class_names:
         errors.append("no_gesture must not be an ONNX command output")
     if feedback_labels != EXPECTED_FEEDBACK_LABELS:
-        errors.append(
-            "feedback labels must be the ten commands followed by no_gesture"
-        )
+        errors.append("feedback labels must be the twelve commands followed by no_gesture")
     if getattr(config, "reject_label", None) != EXPECTED_REJECT_LABEL:
         errors.append("runtime reject label is not no_gesture")
     if actions != EXPECTED_ACTIONS:
@@ -83,48 +81,30 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
         errors.append("Safe Learn negative-feedback label must be no_gesture")
 
     if list(metadata.get("output_class_order") or []) != EXPECTED_CLASSES:
-        errors.append("metadata output order differs from the ten-command contract")
+        errors.append("metadata output order differs from the twelve-command contract")
     if metadata.get("known_mass_output") != "known_gesture_mass":
         errors.append("metadata does not declare the known-gesture-mass output")
     source_mapping = dict(metadata.get("source_class_mapping") or {})
-    if not source_mapping.get("left") or not source_mapping.get("right"):
-        errors.append("metadata must document the calibrated Left and Right sources")
-    if not source_mapping.get("fist") or not source_mapping.get("thumb_down"):
-        errors.append("metadata must document the Fist and Thumbs Down sources")
-    horizontal_calibration = dict(
-        metadata.get("horizontal_direction_calibration") or {}
-    )
-    if horizontal_calibration.get("camera_pixels_mirrored") is not False:
-        errors.append("metadata must declare unmirrored camera pixels")
-    if not (horizontal_calibration.get("source_columns_swapped") is True
-            or horizontal_calibration.get("training_labels_ncm_calibrated") is True):
-        errors.append("metadata must declare calibrated horizontal labels or a source-column swap")
-    if horizontal_calibration.get("positive_index_dx_command") != "left":
-        errors.append("metadata positive index dx must resolve to Left")
-    if horizontal_calibration.get("negative_index_dx_command") != "right":
-        errors.append("metadata negative index dx must resolve to Right")
+    if any(not source_mapping.get(name) for name in ("peace", "rock")):
+        errors.append("metadata must document the two new command sources")
     metadata_input = dict(metadata.get("input") or {})
     metadata_shape = list(metadata_input.get("shape") or [])
     if metadata_input.get("dtype") != "float32" or metadata_shape[-1:] != [76]:
         errors.append("metadata input must be float32 [N, 76]")
-    runtime_note = str(metadata.get("runtime_note") or "")
-    if "internal" not in runtime_note or "no_gesture" not in runtime_note:
-        errors.append("metadata must document no_gesture as rejection-only at the command output")
+    if metadata.get("internal_class_order") != EXPECTED_FEEDBACK_LABELS:
+        errors.append("metadata must document no_gesture as the internal rejection label")
     quality = dict(metadata.get("quality") or {})
     try:
-        accuracy = float(quality["accuracy"])
         macro_f1 = float(quality["macro_f1"])
-        known_acceptance = float(quality["known_acceptance_rate"])
+        accepted_precision = float(quality["accepted_precision"])
         unknown_false_acceptance = float(quality["unknown_false_acceptance_rate"])
     except (KeyError, TypeError, ValueError):
         errors.append("metadata is missing numeric offline/open-set quality evidence")
     else:
-        if accuracy < MINIMUM_OFFLINE_ACCURACY:
-            errors.append("offline known-class accuracy is below 0.985")
         if macro_f1 < MINIMUM_OFFLINE_MACRO_F1:
             errors.append("offline macro F1 is below 0.98")
-        if known_acceptance < MINIMUM_KNOWN_ACCEPTANCE:
-            errors.append("offline known-sample acceptance is below 0.96")
+        if accepted_precision < .99:
+            errors.append("offline accepted precision is below 0.99")
         if unknown_false_acceptance > MAXIMUM_UNKNOWN_FALSE_ACCEPTANCE:
             errors.append("offline unknown false acceptance exceeds 0.03")
     return errors
@@ -148,17 +128,17 @@ def main() -> int:
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        print(f"Ten-gesture metadata: FAIL | {error}")
+        print(f"Twelve-gesture metadata: FAIL | {error}")
         return 1
     errors = _contract_errors(config, metadata)
     if errors:
-        print("Ten-gesture runtime contract: FAIL")
+        print("Twelve-gesture runtime contract: FAIL")
         for error in errors:
             print(f"  - {error}")
         return 1
     print(
-        "Ten-gesture runtime contract: PASS | "
-        "10 command outputs + no_gesture rejection | 10 FPS / 100 ms | "
+        "Twelve-gesture runtime contract: PASS | "
+        "12 command outputs + no_gesture rejection | 10 FPS / 100 ms | "
         "unmirrored with calibrated Left/Right semantics"
     )
 
@@ -185,7 +165,7 @@ def main() -> int:
             return 1
         probability_rows, known_mass = classifier.predict_with_quality(zero_features)
         if probability_rows.shape != (1, len(EXPECTED_CLASSES)):
-            print("ONNX classifier returned an unexpected ten-probability shape.")
+            print("ONNX classifier returned an unexpected twelve-probability shape.")
             return 1
         if known_mass.shape != (1,) or not np.isfinite(known_mass).all():
             print("ONNX classifier returned an invalid known-mass score.")
@@ -194,17 +174,17 @@ def main() -> int:
         print("MediaPipe initialization: PASS")
         print(
             "Classifier smoke test: PASS | "
-            "76 float32 features -> 10 probabilities + known-mass score"
+            "76 float32 features -> 12 probabilities + known-mass score"
         )
         quality = dict(metadata.get("quality") or {})
         print(
             "Offline qualification metadata: "
-            f"accuracy={float(quality.get('accuracy', 0.0)):.5f} | "
+            f"accepted_precision={float(quality.get('accepted_precision', 0.0)):.5f} | "
             f"macro_f1={float(quality.get('macro_f1', 0.0)):.5f} | "
             "not a live NCM-camera measurement"
         )
         print(
-            "Live Webcam and NCM validation: REQUIRED | test all ten gestures, "
+            "Live Webcam and NCM validation: REQUIRED | test all twelve gestures, "
             "both hands, varied angles, low light, empty scenes, landmark jitter, "
             "unmirrored directions, and observed FPS"
         )

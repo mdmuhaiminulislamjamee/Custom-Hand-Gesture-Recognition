@@ -43,24 +43,28 @@ LABEL_TITLES = dict(zip(CLASS_NAMES, (
 LABEL_TITLES.update({
     "fist": "Fist - mute",
     "thumb_down": "Thumb down - volume down",
+    "peace": "Peace - turn 90 degrees",
+    "rock": "Rock - backup",
 })
 
 
 def collection_plan():
     plan = []
     for label in CLASS_NAMES:
-        views = list(VIEWS) if label in CLASS_NAMES[:4] else ["front", "yaw_left", "yaw_right", "casual"]
+        views = list(VIEWS) if label in {*CLASS_NAMES[:4], "peace", "rock"} else ["front", "yaw_left", "yaw_right", "casual"]
         instruction = {
             "left": "Extend ONLY the index finger toward your left (right side of the unmirrored preview).",
             "right": "Extend ONLY the index finger toward your right (left side of the unmirrored preview).",
             "up": "Point ONLY the index finger upward. Fold the middle, ring, and little fingers.",
             "down": "Point ONLY the index finger downward. Fold the middle, ring, and little fingers.",
-            "open_palm": "Show an open palm with all five fingers visible, pointing mostly upward.",
+            "open_palm": "Show your palm with all five fingers visible. Point up, left, or right; never down. Vary the wrist angle across captures.",
             "like": "Give a thumbs-up with the other four fingers folded.",
             "dorsal": "Show the back of the hand with four fingers together pointing down.",
             "ok": "Join thumb and index into a circle; extend the other three fingers.",
-            "fist": "Close all four fingers into the palm and keep the thumb naturally across them.",
+            "fist": "Close all four fingers into the palm and keep the thumb naturally across them. Capture both hands pointing up, left, and right; do not label downward poses as Fist.",
             "thumb_down": "Point the thumb downward and keep the other four fingers folded.",
+            "peace": "Extend index and middle fingers as a V. Fold ring and little fingers; vary wrist direction.",
+            "rock": "Extend index and little finger. Fold middle and ring fingers. The thumb may be folded or extended.",
         }[label]
         for view in views:
             plan.append(dict(id=f"{label}/{view}", label=label, title=LABEL_TITLES[label],
@@ -73,6 +77,9 @@ def collection_plan():
         "ring_finger": "Raise only the ring finger. This is NOT a directional command.",
         "little_finger": "Raise only the little finger. This is NOT a directional command.",
         "relaxed_hand": "Rest or loosely curl the hand without making a command.",
+        "thumb_little_sign": "Extend the thumb and little finger while folding the other fingers. This retired sign is not a command.",
+        "partial_fist": "Keep four fingers partly raised or bent as in the open-looking hand false positive. Label it No gesture, not Fist.",
+        "downward_fist": "Make a closed fist with its palm axis pointing down. This is not a Fist command.",
     }.items():
         plan.append(dict(id=f"no_gesture/{view}", label="no_gesture", title="No gesture",
                          view=view, instruction=instruction,

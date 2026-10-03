@@ -1,0 +1,884 @@
+{
+  "artifact": {
+    "bytes": 77529,
+    "sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
+  },
+  "parity": {
+    "label_agreement": 1.0,
+    "max_probability_error": 2.2649765014648438e-06,
+    "max_mass_error": 1.0132789611816406e-06
+  },
+  "audit": {
+    "seed": 1302,
+    "per_class": 4096,
+    "labels": [
+      "left",
+      "right",
+      "up",
+      "down",
+      "open_palm",
+      "like",
+      "dorsal",
+      "ok",
+      "fist",
+      "thumb_down",
+      "peace",
+      "rock",
+      "no_gesture"
+    ],
+    "counts": {
+      "train": {
+        "left": 1413,
+        "right": 1413,
+        "up": 1413,
+        "down": 1413,
+        "open_palm": 1379,
+        "like": 1396,
+        "dorsal": 1405,
+        "ok": 1418,
+        "fist": 1406,
+        "thumb_down": 1379,
+        "peace": 1387,
+        "rock": 1387,
+        "no_gesture": 3658
+      },
+      "val": {
+        "left": 710,
+        "right": 710,
+        "up": 710,
+        "down": 710,
+        "open_palm": 675,
+        "like": 698,
+        "dorsal": 263,
+        "ok": 668,
+        "fist": 689,
+        "thumb_down": 701,
+        "peace": 314,
+        "rock": 303,
+        "no_gesture": 783
+      },
+      "test": {
+        "left": 677,
+        "right": 677,
+        "up": 677,
+        "down": 677,
+        "open_palm": 737,
+        "like": 706,
+        "dorsal": 331,
+        "ok": 714,
+        "fist": 705,
+        "thumb_down": 720,
+        "peace": 299,
+        "rock": 310,
+        "no_gesture": 793
+      }
+    },
+    "subjects": {
+      "train": 5931,
+      "val": 1897,
+      "test": 1902
+    },
+    "removed_overlap": {
+      "test": 0,
+      "val": 2,
+      "train": 1
+    },
+    "ambiguous_legacy_negatives_excluded": {
+      "val": 400,
+      "test": 400
+    },
+    "limitations": [
+      "New-command validation/test examples are participant-held-out rows from HaGRID's training partition.",
+      "Legacy evaluation negatives mixed the new valid commands with true negatives without source labels; all were excluded.",
+      "In-plane rotation is synthetic; it cannot prove all camera viewing angles, distances, lighting, or occlusions.",
+      "No new live low-resolution or low-FPS camera capture is available for qualification."
+    ]
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "val_raw_macro_f1": 0.9806080764411882
+    },
+    {
+      "epoch": 2,
+      "val_raw_macro_f1": 0.9881343100945015
+    },
+    {
+      "epoch": 3,
+      "val_raw_macro_f1": 0.9894826692759882
+    },
+    {
+      "epoch": 4,
+      "val_raw_macro_f1": 0.9905367474286552
+    },
+    {
+      "epoch": 5,
+      "val_raw_macro_f1": 0.9910962095784988
+    },
+    {
+      "epoch": 6,
+      "val_raw_macro_f1": 0.9913104767673997
+    },
+    {
+      "epoch": 7,
+      "val_raw_macro_f1": 0.9915645903492829
+    },
+    {
+      "epoch": 8,
+      "val_raw_macro_f1": 0.9917636094349304
+    },
+    {
+      "epoch": 9,
+      "val_raw_macro_f1": 0.9919731093809363
+    },
+    {
+      "epoch": 10,
+      "val_raw_macro_f1": 0.992032661809726
+    },
+    {
+      "epoch": 11,
+      "val_raw_macro_f1": 0.9920248020327347
+    },
+    {
+      "epoch": 12,
+      "val_raw_macro_f1": 0.9921258008173701
+    },
+    {
+      "epoch": 13,
+      "val_raw_macro_f1": 0.9923167768730307
+    },
+    {
+      "epoch": 14,
+      "val_raw_macro_f1": 0.99252892855407
+    },
+    {
+      "epoch": 15,
+      "val_raw_macro_f1": 0.9928585179189195
+    },
+    {
+      "epoch": 16,
+      "val_raw_macro_f1": 0.9930646691093018
+    },
+    {
+      "epoch": 17,
+      "val_raw_macro_f1": 0.9927555394136944
+    },
+    {
+      "epoch": 18,
+      "val_raw_macro_f1": 0.9930536171664424
+    },
+    {
+      "epoch": 19,
+      "val_raw_macro_f1": 0.9928406474780019
+    },
+    {
+      "epoch": 20,
+      "val_raw_macro_f1": 0.9931508731046192
+    },
+    {
+      "epoch": 21,
+      "val_raw_macro_f1": 0.9930379431920409
+    },
+    {
+      "epoch": 22,
+      "val_raw_macro_f1": 0.9929262314550245
+    },
+    {
+      "epoch": 23,
+      "val_raw_macro_f1": 0.9932527987867631
+    },
+    {
+      "epoch": 24,
+      "val_raw_macro_f1": 0.9931483636236981
+    },
+    {
+      "epoch": 25,
+      "val_raw_macro_f1": 0.993142228049926
+    },
+    {
+      "epoch": 26,
+      "val_raw_macro_f1": 0.9932530875735422
+    },
+    {
+      "epoch": 27,
+      "val_raw_macro_f1": 0.9935306170903859
+    },
+    {
+      "epoch": 28,
+      "val_raw_macro_f1": 0.9938053580089429
+    },
+    {
+      "epoch": 29,
+      "val_raw_macro_f1": 0.993520940689617
+    },
+    {
+      "epoch": 30,
+      "val_raw_macro_f1": 0.9936304192819481
+    },
+    {
+      "epoch": 31,
+      "val_raw_macro_f1": 0.9937972972307905
+    },
+    {
+      "epoch": 32,
+      "val_raw_macro_f1": 0.9938457395155537
+    },
+    {
+      "epoch": 33,
+      "val_raw_macro_f1": 0.9937398559001281
+    },
+    {
+      "epoch": 34,
+      "val_raw_macro_f1": 0.9936280608070847
+    },
+    {
+      "epoch": 35,
+      "val_raw_macro_f1": 0.993527372858426
+    },
+    {
+      "epoch": 36,
+      "val_raw_macro_f1": 0.9931529679028053
+    },
+    {
+      "epoch": 37,
+      "val_raw_macro_f1": 0.9933726554491338
+    },
+    {
+      "epoch": 38,
+      "val_raw_macro_f1": 0.9933688002357512
+    },
+    {
+      "epoch": 39,
+      "val_raw_macro_f1": 0.9910607190898972
+    },
+    {
+      "epoch": 40,
+      "val_raw_macro_f1": 0.9929793469918746
+    },
+    {
+      "epoch": 41,
+      "val_raw_macro_f1": 0.993482469916796
+    },
+    {
+      "epoch": 42,
+      "val_raw_macro_f1": 0.9929828979119446
+    },
+    {
+      "epoch": 43,
+      "val_raw_macro_f1": 0.9932941509025244
+    }
+  ],
+  "validation": {
+    "raw_old_command_accuracy": 0.9960208142026323,
+    "old_command_correct_accept_rate": 0.9949494949494949,
+    "new_command_recall": {
+      "peace": 0.9904458598726115,
+      "rock": 0.9867986798679867
+    },
+    "new_command_precision": {
+      "peace": 1.0,
+      "rock": 0.9933554817275747
+    },
+    "unknown_false_accept_rate": 0.01532567049808429,
+    "accepted_precision": 0.9964966367713004,
+    "macro_f1": 0.9938724535439114,
+    "per_class": {
+      "left": {
+        "precision": 0.998589562764457,
+        "recall": 0.9971830985915493,
+        "f1-score": 0.9978858350951374,
+        "support": 710.0
+      },
+      "right": {
+        "precision": 0.9971910112359551,
+        "recall": 1.0,
+        "f1-score": 0.9985935302390999,
+        "support": 710.0
+      },
+      "up": {
+        "precision": 0.9943741209563994,
+        "recall": 0.995774647887324,
+        "f1-score": 0.9950738916256158,
+        "support": 710.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 710.0
+      },
+      "open_palm": {
+        "precision": 0.9941089837997055,
+        "recall": 1.0,
+        "f1-score": 0.9970457902511078,
+        "support": 675.0
+      },
+      "like": {
+        "precision": 0.9942528735632183,
+        "recall": 0.9914040114613181,
+        "f1-score": 0.9928263988522238,
+        "support": 698.0
+      },
+      "dorsal": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 263.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 668.0
+      },
+      "fist": {
+        "precision": 0.9941434846266471,
+        "recall": 0.9854862119013063,
+        "f1-score": 0.9897959183673469,
+        "support": 689.0
+      },
+      "thumb_down": {
+        "precision": 0.9942279942279942,
+        "recall": 0.9828815977175464,
+        "f1-score": 0.9885222381635581,
+        "support": 701.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 0.9904458598726115,
+        "f1-score": 0.9952,
+        "support": 314.0
+      },
+      "rock": {
+        "precision": 0.9933554817275747,
+        "recall": 0.9867986798679867,
+        "f1-score": 0.9900662251655629,
+        "support": 303.0
+      },
+      "no_gesture": {
+        "precision": 0.9661654135338346,
+        "recall": 0.9846743295019157,
+        "f1-score": 0.9753320683111955,
+        "support": 783.0
+      },
+      "accuracy": 0.9934459289135367,
+      "macro avg": {
+        "precision": 0.9943391481873682,
+        "recall": 0.9934344951385813,
+        "f1-score": 0.9938724535439114,
+        "support": 7934.0
+      },
+      "weighted avg": {
+        "precision": 0.993500733281232,
+        "recall": 0.9934459289135367,
+        "f1-score": 0.9934576379733343,
+        "support": 7934.0
+      }
+    },
+    "confusion": [
+      [
+        708,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        710,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        707,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        710,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        675,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        692,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        263,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        668,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        679,
+        1,
+        0,
+        0,
+        7
+      ],
+      [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        689,
+        0,
+        0,
+        10
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        311,
+        0,
+        1
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        299,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        0,
+        0,
+        1,
+        1,
+        0,
+        2,
+        771
+      ]
+    ]
+  },
+  "test": {
+    "raw_old_command_accuracy": 0.994411720283945,
+    "old_command_correct_accept_rate": 0.9915420631324573,
+    "new_command_recall": {
+      "peace": 0.9866220735785953,
+      "rock": 0.9967741935483871
+    },
+    "new_command_precision": {
+      "peace": 0.9768211920529801,
+      "rock": 1.0
+    },
+    "unknown_false_accept_rate": 0.017654476670870115,
+    "accepted_precision": 0.9950034698126301,
+    "macro_f1": 0.991080808830469,
+    "per_class": {
+      "left": {
+        "precision": 0.9985185185185185,
+        "recall": 0.9955686853766618,
+        "f1-score": 0.9970414201183432,
+        "support": 677.0
+      },
+      "right": {
+        "precision": 0.9955621301775148,
+        "recall": 0.9940915805022157,
+        "f1-score": 0.9948263118994827,
+        "support": 677.0
+      },
+      "up": {
+        "precision": 0.9955555555555555,
+        "recall": 0.9926144756277696,
+        "f1-score": 0.9940828402366864,
+        "support": 677.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.9896602658788775,
+        "f1-score": 0.9948032665181886,
+        "support": 677.0
+      },
+      "open_palm": {
+        "precision": 0.9945945945945946,
+        "recall": 0.9986431478968792,
+        "f1-score": 0.996614759647935,
+        "support": 737.0
+      },
+      "like": {
+        "precision": 0.994269340974212,
+        "recall": 0.9830028328611898,
+        "f1-score": 0.9886039886039886,
+        "support": 706.0
+      },
+      "dorsal": {
+        "precision": 0.9910179640718563,
+        "recall": 1.0,
+        "f1-score": 0.9954887218045113,
+        "support": 331.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.9985994397759104,
+        "f1-score": 0.9992992291520673,
+        "support": 714.0
+      },
+      "fist": {
+        "precision": 0.9971264367816092,
+        "recall": 0.9843971631205674,
+        "f1-score": 0.9907209136331192,
+        "support": 705.0
+      },
+      "thumb_down": {
+        "precision": 0.9874476987447699,
+        "recall": 0.9833333333333333,
+        "f1-score": 0.9853862212943633,
+        "support": 720.0
+      },
+      "peace": {
+        "precision": 0.9768211920529801,
+        "recall": 0.9866220735785953,
+        "f1-score": 0.9816971713810316,
+        "support": 299.0
+      },
+      "rock": {
+        "precision": 1.0,
+        "recall": 0.9967741935483871,
+        "f1-score": 0.9983844911147012,
+        "support": 310.0
+      },
+      "no_gesture": {
+        "precision": 0.9523227383863081,
+        "recall": 0.9823455233291298,
+        "f1-score": 0.9671011793916822,
+        "support": 793.0
+      },
+      "accuracy": 0.9906518758569114,
+      "macro avg": {
+        "precision": 0.9910181669121477,
+        "recall": 0.9912040549868858,
+        "f1-score": 0.991080808830469,
+        "support": 8023.0
+      },
+      "weighted avg": {
+        "precision": 0.9907988254171222,
+        "recall": 0.9906518758569114,
+        "f1-score": 0.9906905726517902,
+        "support": 8023.0
+      }
+    },
+    "confusion": [
+      [
+        674,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        673,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        672,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        670,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        736,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        2,
+        0,
+        0,
+        0,
+        694,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        8
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        331,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        713,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        694,
+        1,
+        0,
+        0,
+        7
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        708,
+        0,
+        0,
+        11
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        295,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        309,
+        1
+      ],
+      [
+        1,
+        0,
+        1,
+        0,
+        4,
+        3,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        779
+      ]
+    ],
+    "retired_call_negative_count": 291,
+    "retired_call_false_accept_rate": 0.006872852233676976
+  },
+  "deployed": true
+}

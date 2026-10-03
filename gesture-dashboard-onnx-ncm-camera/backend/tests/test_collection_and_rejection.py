@@ -85,7 +85,7 @@ def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp
 
 def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_angles():
     plan = collection_plan()
-    assert len(plan) == 62
+    assert len(plan) == 81
     assert all(step['target'] == 12 for step in plan)
     assert all(step['per_hand_target'] == 6 for step in plan if step['view'] not in {'background', 'face_ear'})
     assert all(step['per_orientation_target'] == 3 for step in plan if step['view'] not in {'background', 'face_ear'})

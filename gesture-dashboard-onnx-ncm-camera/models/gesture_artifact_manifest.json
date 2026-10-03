@@ -5,28 +5,28 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 11182,
-      "sha256": "d49399610c03f7e3494486f9b6913dcf79cf653efb7f2c3b767273795c890ba0"
+      "bytes": 19281,
+      "sha256": "c3baa6def2271dec888d2462b340ae808f33bc0813a8399322877e5ab59501ed"
     },
     "gesture_mlp_production.onnx": {
-      "bytes": 76993,
-      "sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
+      "bytes": 77529,
+      "sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 14465,
-      "sha256": "5ba522cc04280c8c89e7e8a28e5f665145625ff0a783c24284eb534d9a35b465"
+      "bytes": 8232,
+      "sha256": "ecb9ea9bd3544ab345024a2b37544d3b09f6a79e0e9b0bcc57601bec8a2eadfd"
     },
     "gesture_online_replay_cache.npz": {
-      "bytes": 362308,
-      "sha256": "ab7891631639e30ea324bbd641e719847aabc0b00913ceb69405c37ec50e44cf"
+      "bytes": 428209,
+      "sha256": "8b722c968e86fd814018bc8a631fd5aeccfd4f05b873af8b49f548f5c65c4e6e"
     },
     "gesture_online_untouched_test_cache.npz": {
-      "bytes": 1526063,
-      "sha256": "0b5a58ca38c2acc049152fa9b65f893cd8d625226876ee692c2f04f1b8702af0"
+      "bytes": 2825777,
+      "sha256": "9ea67f8775bf4fc1f462a1d0ee4eb35821955b72199ed13ac898ae1d25aa972c"
     },
     "gesture_online_validation_cache.npz": {
-      "bytes": 1499904,
-      "sha256": "c8bce5128445a7ecc71ffcf7ab0f43a1ece01782c4226b5e6d4125e3c5acf4c3"
+      "bytes": 2777486,
+      "sha256": "0cc4e83724e176c5309def9828cb11c8a8eec8a96f986d1679f612739a6cef0d"
     },
     "hand_landmarker.task": {
       "bytes": 7819105,
@@ -43,10 +43,12 @@
     "dorsal",
     "ok",
     "fist",
-    "thumb_down"
+    "thumb_down",
+    "peace",
+    "rock"
   ],
-  "created_utc": "2026-09-29T06:14:51.424074+00:00",
+  "created_utc": "2026-10-03T03:59:53.931778+00:00",
   "feature_count": 76,
-  "release_fingerprint": "9ac98e3131d293fffc24dcb1301d2c49196b7cba1c5017247b5cd2de66e9b4ea",
+  "release_fingerprint": "e106e4819de5694d52480318a8015ab269dc71c600ba4dc28b3ac4d64049c03e",
   "schema_version": 1
 }

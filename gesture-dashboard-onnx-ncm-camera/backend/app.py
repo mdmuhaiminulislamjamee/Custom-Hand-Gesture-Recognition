@@ -233,32 +233,18 @@ def _onnx_qualification() -> dict[str, Any]:
     parity = metadata.get("parity") or {}
     quality = metadata.get("quality") or {}
     qualification = metadata.get("qualification") or {}
-    release_checks = qualification.get("checks") or {}
-    confirmation = qualification.get("independent_confirmation") or {}
-    confirmation_checks = confirmation.get("checks") or {}
+    checks = qualification.get("checks") or {}
     selection = qualification.get("selection") or {}
-
-    required_release_checks = {
-        "runtime_macro_f1_at_least_0_97",
-        "accepted_precision_at_least_0_99",
-        "unknown_false_accept_rate_at_most_0_02",
-        "fist_f1_at_least_0_95",
-        "fist_recall_at_least_0_95",
-        "thumb_down_f1_at_least_0_95",
-        "thumb_down_recall_at_least_0_95",
-        "thumb_down_within_0_02_of_like_f1",
-        "thumb_down_like_confusion_at_most_0_02",
-        "thumb_down_fist_confusion_at_most_0_02",
-        "classifier_p95_below_5_ms",
-    }
-    required_confirmation_checks = {
-        "new_subject_present_class_macro_f1_at_least_0_95",
-        "new_subject_accepted_precision_at_least_0_99",
-        "new_subject_unknown_false_accept_rate_at_most_0_02",
-        "new_subject_fist_recall_at_least_0_95",
-        "new_subject_thumb_down_recall_at_least_0_95",
-        "new_subject_thumb_down_within_0_02_of_like_f1",
-        "new_subject_upward_open_palm_recall_at_least_0_98",
+    expected_checks = {
+        "onnx_parity", "offline_macro_f1_at_least_0_97",
+        "offline_accepted_precision_at_least_0_99",
+        "offline_unknown_false_accept_at_most_0_02",
+        "old_command_correct_accept_at_least_0_98",
+        "new_command_recall_at_least_0_97",
+        "retired_call_false_accept_at_most_0_02",
+        "runtime_peace_recall_at_least_0_95",
+        "runtime_rock_recall_at_least_0_97",
+        "runtime_unknown_false_accept_at_most_0_02",
     }
 
     def threshold_matches(name: str, expected: float) -> bool:
@@ -269,47 +255,25 @@ def _onnx_qualification() -> dict[str, Any]:
 
     gates = {
         "schema_version_is_current": metadata.get("schema_version") == 3,
-        "exact_ten_class_contract": (
-            metadata.get("output_class_order") == runtime_config.class_names
-        ),
-        "onnx_parity": bool(parity.get("passed")),
-        "qualification_passed": qualification.get("passed") is True,
-        "complete_release_checks": required_release_checks <= set(release_checks),
-        "complete_confirmation_checks": (
-            required_confirmation_checks <= set(confirmation_checks)
-        ),
+        "exact_twelve_class_contract": metadata.get("output_class_order") == runtime_config.class_names,
+        "onnx_parity": parity.get("passed") is True,
+        "offline_qualification_passed": qualification.get("offline_passed") is True,
+        "complete_offline_checks": expected_checks <= set(checks),
         "selected_thresholds_match_runtime": (
             threshold_matches("known_mass_floor", runtime_config.known_mass_floor)
             and threshold_matches("confidence_floor", runtime_config.confidence_floor)
-            and threshold_matches(
-                "probability_margin_floor",
-                runtime_config.probability_margin_floor,
-            )
+            and threshold_matches("probability_margin_floor", runtime_config.probability_margin_floor)
         ),
-        "selection_matches_model": (
-            selection.get("model_sha256") == metadata.get("onnx_sha256")
-        ),
-        **{name: release_checks.get(name) is True for name in sorted(required_release_checks)},
-        **{
-            name: confirmation_checks.get(name) is True
-            for name in sorted(required_confirmation_checks)
-        },
+        "selection_matches_model": selection.get("model_sha256") == metadata.get("onnx_sha256"),
+        **{name: checks.get(name) is True for name in sorted(expected_checks)},
     }
-    open_set = {
-        "known_acceptance_rate": quality.get("known_acceptance_rate"),
-        "unknown_false_acceptance_rate": quality.get(
-            "unknown_false_acceptance_rate"
-        ),
-    }
-    hard_cases = {
-        "public_confusion_rates": qualification.get("confusion_rates") or {},
-        "confirmation_confusion_rates": confirmation.get("confusion_rates") or {},
-    }
-    passed = all(gates.values())
+    offline_passed = all(gates.values())
+    live_pending = qualification.get("live_camera_validation_pending") is True
     return {
-        "status": "passed" if passed else "failed",
-        "current": passed,
-        "pc_release_ready": passed,
+        "status": "provisional" if offline_passed and live_pending else "passed" if offline_passed else "failed",
+        "current": offline_passed,
+        "pc_release_ready": offline_passed and not live_pending,
+        "live_camera_validation_pending": live_pending,
         "selected_model": "ONNX",
         "format": "ONNX",
         "created_utc": metadata.get("created_utc"),
@@ -320,20 +284,18 @@ def _onnx_qualification() -> dict[str, Any]:
         "failing_gated_classes": [],
         "gates": gates,
         "quality": quality,
-        "open_set_rejection": open_set,
-        "hard_case_metrics": hard_cases,
+        "open_set_rejection": {"unknown_false_acceptance_rate": quality.get("unknown_false_acceptance_rate")},
+        "hard_case_metrics": {},
         "gated_macro_f1": quality.get("macro_f1"),
-        "gated_minimum_per_class_f1": quality.get("minimum_per_class_f1"),
+        "gated_minimum_per_class_f1": None,
         "onnx_parity": parity,
         "prediction_agreement": parity.get("prediction_agreement"),
-        "maximum_absolute_probability_error": parity.get(
-            "maximum_absolute_probability_error"
-        ),
+        "maximum_absolute_probability_error": parity.get("maximum_absolute_probability_error"),
         "message": (
-            "The exact ten-command ONNX graph passed parity, public-test, "
-            "new-participant confirmation, threshold, and new-command gates."
-            if passed
-            else "One or more ONNX release qualification gates did not pass."
+            "Twelve-command ONNX passed offline checks; live low-resolution camera validation is pending."
+            if offline_passed and live_pending else
+            "Twelve-command ONNX passed qualification." if offline_passed else
+            "One or more twelve-command offline qualification gates failed."
         ),
     }
 

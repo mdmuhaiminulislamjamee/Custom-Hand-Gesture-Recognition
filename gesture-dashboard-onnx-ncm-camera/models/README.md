@@ -1,16 +1,17 @@
-# Ten-Gesture Runtime Artifacts
+# Twelve-Gesture Runtime Artifacts
 
-Current qualified release: **TenGestureBalancedMLP (2026-09-16)**.
+Active offline-qualified model: **TwelveGestureBalancedMLP**. Live webcam/NCM
+validation remains pending; the older ten-command evidence below is historical.
 
 This directory is the atomic runtime bundle:
 
-- `gesture_mlp_production.onnx` — 76-feature, ten-output classifier plus
+- `gesture_mlp_production.onnx` — 76-feature, twelve-output classifier plus
   `known_gesture_mass`;
 - `gesture_mlp_onnx_metadata.json` — hash, tensor/class contract, data audit,
   qualification, per-class evidence, and independent confirmation evidence;
 - `gesture_mobile_runtime_config.json` — action mapping, pose policy, rejection
   thresholds, 10 FPS controls, and Safe Learn settings;
-- `gesture_online_*_cache.npz` — ten-command replay/validation/test anchors;
+- `gesture_online_*_cache.npz` — twelve-command replay/validation/test anchors;
 - `hand_landmarker.task` and `blaze_face_short_range.tflite` — detector assets;
 - `ten_gesture_*` CSV files — readable release metrics and confusion matrix;
 - `gesture_artifact_manifest.json` — sizes and SHA-256 hashes for every trusted
@@ -19,19 +20,25 @@ This directory is the atomic runtime bundle:
 Canonical probability order:
 
 ```text
-left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down
+left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down, peace, rock
 ```
 
 `fist` maps to **Mute** and `thumb_down` maps to **Volume Down**.
-`no_gesture` is the internal rejection/feedback label, not an eleventh output.
-Open Palm is eligible only when the palm axis points upward; left-, right-, and
-downward Open Palm poses are intentionally rejected. Fist and Thumbs Down are
-handedness-neutral.
+`no_gesture` is the internal rejection/feedback label, not a thirteenth output.
+Peace maps to Turn 90 Degrees and Rock to Backup.
+Open Palm is eligible when the palm axis points up, left, or right, including
+oblique side angles. Downward Open Palm poses are rejected. Fist and Thumbs Down are
+handedness-neutral. Fist is accepted when the palm axis points up or sideways;
+downward poses are rejected.
 Raised, camera-facing Fists also use a compact curl-back resolver for angles
 where perspective hides the finger bend. That resolver cannot override an
 existing Like or Thumbs Down prediction.
 
-## Qualification summary
+## Historical ten-command qualification summary
+
+The measurements in this section describe the retired ten-command model, not
+the active twelve-command ONNX. Current offline results are in
+`artifacts/twelve_gesture/evaluation.json` and `runtime_comparison.json`.
 
 Training is balanced at 4,096 rows for each of 11 internal classes (45,056
 rows total). HaGRID participant groups are disjoint across training,
@@ -78,9 +85,9 @@ Train and qualify without touching production, then deploy only if every gate
 passes:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.train_ten_gesture
-.\.venv\Scripts\python.exe -m scripts.qualify_ten_gesture
-.\.venv\Scripts\python.exe -m scripts.qualify_ten_gesture --deploy
+.\.venv\Scripts\python.exe -m scripts.train_twelve_gesture_candidate
+.\.venv\Scripts\python.exe -m scripts.evaluate_twelve_gesture_candidate
+.\.venv\Scripts\python.exe -m scripts.promote_twelve_gesture
 .\.venv\Scripts\python.exe -m scripts.onnx_preflight
 ```
 

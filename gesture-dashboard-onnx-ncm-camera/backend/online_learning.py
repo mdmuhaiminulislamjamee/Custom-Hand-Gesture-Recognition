@@ -169,7 +169,7 @@ class OnlineLearningAdapter:
     """Validation-gated, persisted local probability adapter.
 
     ``config`` may be a ``RuntimeConfig``-like object (with ``class_names`` and
-    ``feature_names``), or it may be the configured ten-class sequence itself.
+    ``feature_names``), or it may be the configured twelve-class sequence itself.
     ``model_manager`` is optional and is used only to obtain raw ONNX
     probabilities for caches that contain ``X``/``y`` but no probability rows.
 
@@ -220,7 +220,7 @@ class OnlineLearningAdapter:
             reject_label = "no_gesture"
         if tuple(class_names) != tuple(CLASS_NAMES):
             raise ValueError(
-                "Online learning requires the exact configured ten-command class order."
+                "Online learning requires the exact configured twelve-command class order."
             )
         if len(feature_names) != FEATURE_COUNT or len(set(feature_names)) != FEATURE_COUNT:
             raise ValueError("Online learning requires the exact unique 76-D feature contract.")
@@ -231,7 +231,7 @@ class OnlineLearningAdapter:
         if not 0.0 <= float(minimum_similarity) < 1.0:
             raise ValueError("minimum_similarity must be in [0, 1).")
         if reject_label in class_names:
-            raise ValueError("The reject label must not be one of the ten output classes.")
+            raise ValueError("The reject label must not be one of the twelve output classes.")
         if not 0.0 < float(rejection_strength) <= 1.0:
             raise ValueError("rejection_strength must be in (0, 1].")
         if not 0.0 < float(adapter_acceptance_floor) < 1.0:
@@ -428,7 +428,7 @@ class OnlineLearningAdapter:
         if was_vector:
             values = values.reshape(1, -1)
         if values.ndim != 2 or values.shape[1] != CLASS_COUNT:
-            raise ValueError("Expected one ten-class probability row per feature row.")
+            raise ValueError("Expected one twelve-class probability row per feature row.")
         return _soft_normalize(values), was_vector
 
     @staticmethod
@@ -554,7 +554,7 @@ class OnlineLearningAdapter:
         mass multiplied by the adapter's acceptance scale.  The runtime should
         pass this adjusted mass to its existing open-set/temporal gate.  This is
         how a reviewed ``no_gesture`` sample suppresses a false command without
-        exposing it as an eleventh public command output.
+        exposing it as a thirteenth public command output.
         """
 
         rows, probability_was_vector = self._coerce_public_probabilities(probabilities)
@@ -686,7 +686,7 @@ class OnlineLearningAdapter:
             raise ValueError(f"{path.name} has no rows for the configured feedback labels.")
         if (labels < -1).any() or (labels >= CLASS_COUNT).any():
             raise ValueError(
-                f"{path.name} labels are outside -1 plus the configured ten-class order; "
+                f"{path.name} labels are outside -1 plus the configured twelve-class order; "
                 "include class_names when reducing an older cache."
             )
 
@@ -696,7 +696,7 @@ class OnlineLearningAdapter:
             probabilities = probabilities[keep]
             if probabilities.shape[1] != CLASS_COUNT:
                 if source_names is None or probabilities.shape[1] != len(source_names):
-                    raise ValueError(f"{path.name} probabilities do not follow the ten-class order.")
+                    raise ValueError(f"{path.name} probabilities do not follow the twelve-class order.")
                 try:
                     columns = [source_names.index(name) for name in self.class_names]
                 except ValueError as error:
@@ -758,7 +758,7 @@ class OnlineLearningAdapter:
             covered = set(static_labels[static_labels >= 0].tolist())
             if covered != set(range(CLASS_COUNT)) or not np.any(static_labels == -1):
                 raise RuntimeError(
-                    "Safe learning requires holdout coverage for all ten classes "
+                    "Safe learning requires holdout coverage for all twelve classes "
                     "and the -1 reject rows."
                 )
 
@@ -1253,7 +1253,7 @@ class OnlineLearningAdapter:
             raise _IncompatibleAdapterState("unsupported schema version")
         if tuple(metadata.get("class_names", ())) != self.class_names:
             raise _IncompatibleAdapterState(
-                "class order differs from the configured ten-class contract"
+                "class order differs from the configured twelve-class contract"
             )
         if metadata.get("reject_label", "no_gesture") != self.reject_label:
             raise _IncompatibleAdapterState(

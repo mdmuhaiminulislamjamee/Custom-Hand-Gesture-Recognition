@@ -243,7 +243,7 @@ h2 { margin: 0; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -.04em; }
 .demo-upload-button { position: relative; overflow: hidden; white-space: nowrap; }
 .demo-video-viewport { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at center, rgba(30, 51, 79, .56), transparent 58%), repeating-linear-gradient(135deg, rgba(255,255,255,.022) 0 1px, transparent 1px 14px), #050912; }
 .demo-video-viewport::before { content: ''; position: absolute; inset: 5%; border: 1px dashed rgba(110, 168, 254, .2); border-radius: 14px; pointer-events: none; }
-.demo-target-media { width: 82%; height: 80%; object-fit: contain; border: 1px solid rgba(110, 168, 254, .48); border-radius: 12px; background: #03060b; box-shadow: 0 16px 42px rgba(0,0,0,.52), 0 0 0 5px rgba(5, 10, 18, .72); transition: transform .34s cubic-bezier(.2,.75,.2,1), opacity .25s ease, filter .25s ease; transform-origin: center; }
+.demo-target-media { width: 82%; height: 80%; object-fit: contain; border: 1px solid rgba(110, 168, 254, .48); border-radius: 12px; background: #03060b; box-shadow: 0 16px 42px rgba(0,0,0,.52), 0 0 0 5px rgba(5, 10, 18, .72); transition: transform .75s cubic-bezier(.2,.75,.2,1), opacity .25s ease, filter .25s ease; transform-origin: center; }
 .demo-target-image { user-select: none; }
 .demo-target-image.preview-paused { opacity: .38; filter: grayscale(.85) saturate(.45); }
 .has-demo-video .camera-video { z-index: 6; inset: 15px 15px auto auto; width: clamp(150px, 27%, 230px); height: auto; aspect-ratio: 1; border: 2px solid rgba(73, 217, 209, .82); border-radius: 13px; background: #07101a; box-shadow: 0 12px 34px rgba(0,0,0,.5); }

@@ -1,13 +1,13 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}_ios_onnx_[0-9]{2}$')]
-    [string]$Version = "v2026.09.17_ios_onnx_05"
+    [string]$Version = "v2026.10.03_ios_onnx_02"
 )
 
 $ErrorActionPreference = "Stop"
 
 $ProjectDirectory = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$ReleaseRoot = [System.IO.Path]::GetFullPath((Join-Path $ProjectDirectory "handover_03"))
+$ReleaseRoot = [System.IO.Path]::GetFullPath((Join-Path $ProjectDirectory "handover_04"))
 $FinalDirectory = [System.IO.Path]::GetFullPath((Join-Path $ReleaseRoot $Version))
 $StagingDirectory = [System.IO.Path]::GetFullPath(
     (Join-Path $ReleaseRoot (".staging-" + [guid]::NewGuid().ToString("N")))
@@ -39,7 +39,7 @@ if (Test-Path -LiteralPath $FinalDirectory) {
 
 $ExpectedClasses = @(
     "left", "right", "up", "down", "open_palm", "like", "dorsal", "ok",
-    "fist", "thumb_down"
+    "fist", "thumb_down", "peace", "rock"
 )
 $ExpectedActions = [ordered]@{
     left = "Move Left"
@@ -52,6 +52,8 @@ $ExpectedActions = [ordered]@{
     ok = "Start / Stop Recording"
     fist = "Mute"
     thumb_down = "Volume Down"
+    peace = "Turn 90 Degrees"
+    rock = "Backup"
 }
 
 $ModelDirectory = Join-Path $ProjectDirectory "models"
@@ -61,11 +63,18 @@ $RuntimeConfigPath = Join-Path $ModelDirectory "gesture_mobile_runtime_config.js
 $LandmarkerPath = Join-Path $ModelDirectory "hand_landmarker.task"
 $FaceGuardPath = Join-Path $ModelDirectory "blaze_face_short_range.tflite"
 $SwiftPath = Join-Path $ProjectDirectory "swift\GestureFeatureExtractor.swift"
+$SwiftGeometryPath = Join-Path $ProjectDirectory "swift\GestureGeometryResolver.swift"
+$SwiftTemporalPath = Join-Path $ProjectDirectory "swift\GestureTemporalGate.swift"
+$SwiftLatchPath = Join-Path $ProjectDirectory "swift\GestureActionLatch.swift"
+$SwiftPipelinePath = Join-Path $ProjectDirectory "swift\GestureDecisionPipeline.swift"
 $SwiftReadmePath = Join-Path $ProjectDirectory "swift\README.md"
+$ModelCardPath = Join-Path $ProjectDirectory "MODEL_CARD.md"
+$ChecklistPath = Join-Path $ProjectDirectory "HANDOVER_CHECKLIST.md"
 
 foreach ($requiredPath in @(
     $OnnxPath, $MetadataPath, $RuntimeConfigPath, $LandmarkerPath, $FaceGuardPath,
-    $SwiftPath, $SwiftReadmePath
+    $SwiftPath, $SwiftGeometryPath, $SwiftTemporalPath, $SwiftLatchPath, $SwiftPipelinePath,
+    $SwiftReadmePath, $ModelCardPath, $ChecklistPath
 )) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required iOS release input is missing: $requiredPath"
@@ -79,17 +88,20 @@ Assert-Sequence -Actual @($RuntimeConfig.class_names) -Expected $ExpectedClasses
 if (-not [bool]$Metadata.parity.passed) {
     throw "The production ONNX conversion parity gate did not pass."
 }
-if (-not [bool]$Metadata.qualification.passed) {
-    throw "The ten-command production qualification gate did not pass."
+if (-not [bool]$Metadata.qualification.offline_passed) {
+    throw "The twelve-command offline qualification gate did not pass."
 }
-if (-not [bool]$RuntimeConfig.qualification.deployment_gate.passed) {
-    throw "The runtime configuration does not record a passed deployment gate."
+if (-not [bool]$RuntimeConfig.twelve_gesture_release.offline_checks.onnx_parity) {
+    throw "The runtime configuration does not record ONNX parity."
 }
-if (-not [bool]$RuntimeConfig.open_palm_orientation.reject_left_right_down) {
-    throw "The runtime configuration must enforce upward-only Open Palm."
+if (-not [bool]$RuntimeConfig.open_palm_orientation.reject_down) {
+    throw "The runtime configuration must reject downward Open Palm."
 }
-if ([double]$RuntimeConfig.open_palm_orientation.minimum_up_alignment -lt 0.70) {
-    throw "The Open Palm upward-alignment gate is weaker than the iOS contract."
+if ([double]$RuntimeConfig.open_palm_orientation.minimum_non_down_alignment -lt -0.10) {
+    throw "The Open Palm downward-alignment gate is weaker than the iOS contract."
+}
+if (-not [bool]$Metadata.qualification.live_camera_validation_pending) {
+    throw "Live camera validation status must be explicit in the handover."
 }
 
 foreach ($entry in $ExpectedActions.GetEnumerator()) {
@@ -127,7 +139,7 @@ $SwiftSource = Get-Content -LiteralPath $SwiftPath -Raw
 foreach ($requiredSwiftToken in @(
     '"fist": "Mute"',
     '"thumb_down": "Volume Down"',
-    'isOpenPalmPointingUpward',
+    'isOpenPalmDirectionAllowed',
     'runtimePoseAllowed'
 )) {
     if (-not $SwiftSource.Contains($requiredSwiftToken)) {
@@ -148,7 +160,13 @@ try {
     Copy-Item -LiteralPath $LandmarkerPath -Destination (Join-Path $PackageDirectory "models\hand_landmarker.task")
     Copy-Item -LiteralPath $FaceGuardPath -Destination (Join-Path $PackageDirectory "models\blaze_face_short_range.tflite")
     Copy-Item -LiteralPath $SwiftPath -Destination (Join-Path $PackageDirectory "swift\GestureFeatureExtractor.swift")
+    Copy-Item -LiteralPath $SwiftGeometryPath -Destination (Join-Path $PackageDirectory "swift\GestureGeometryResolver.swift")
+    Copy-Item -LiteralPath $SwiftTemporalPath -Destination (Join-Path $PackageDirectory "swift\GestureTemporalGate.swift")
+    Copy-Item -LiteralPath $SwiftLatchPath -Destination (Join-Path $PackageDirectory "swift\GestureActionLatch.swift")
+    Copy-Item -LiteralPath $SwiftPipelinePath -Destination (Join-Path $PackageDirectory "swift\GestureDecisionPipeline.swift")
     Copy-Item -LiteralPath $SwiftReadmePath -Destination (Join-Path $PackageDirectory "README.md")
+    Copy-Item -LiteralPath $ModelCardPath -Destination (Join-Path $PackageDirectory "MODEL_CARD.md")
+    Copy-Item -LiteralPath $ChecklistPath -Destination (Join-Path $PackageDirectory "HANDOVER_CHECKLIST.md")
     Copy-Item -LiteralPath (Join-Path $ProjectDirectory "backend\config.py") -Destination (Join-Path $PackageDirectory "reference\config.py")
     Copy-Item -LiteralPath (Join-Path $ProjectDirectory "backend\geometry.py") -Destination (Join-Path $PackageDirectory "reference\geometry.py")
     Copy-Item -LiteralPath (Join-Path $ProjectDirectory "backend\runtime.py") -Destination (Join-Path $PackageDirectory "reference\runtime.py")
@@ -178,15 +196,15 @@ try {
             shape = @(1, 76)
         }
         outputs = [ordered]@{
-            probabilities = @(1, 10)
+            probabilities = @(1, 12)
             known_gesture_mass = @(1, 1)
         }
         output_class_order = $ExpectedClasses
         rejection_sentinel = "no_gesture"
         gesture_to_action = $ExpectedActions
         cross_platform_pose_rules = [ordered]@{
-            open_palm = "wrist-to-palm axis must point upward"
-            fist = "supported for either hand"
+            open_palm = "wrist-to-palm axis may point up, left, or right, but not down"
+            fist = "supported for either hand facing up or sideways; downward rejected"
             thumb_down = "supported for either hand"
         }
         onnx_sha256 = $OnnxHash
@@ -213,7 +231,7 @@ try {
     Compress-Archive -LiteralPath $PackageDirectory -DestinationPath $ArchivePath -CompressionLevel Optimal
     Move-Item -LiteralPath $StagingDirectory -Destination $FinalDirectory
 
-    Write-Host "Created verified ten-command iOS handover:" -ForegroundColor Green
+    Write-Host "Created verified twelve-command iOS handover:" -ForegroundColor Green
     Write-Host $FinalDirectory
 } catch {
     if (Test-Path -LiteralPath $StagingDirectory) {

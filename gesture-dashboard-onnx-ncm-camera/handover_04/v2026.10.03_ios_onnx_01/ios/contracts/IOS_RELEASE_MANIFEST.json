@@ -1,0 +1,166 @@
+﻿{
+    "schema_version":  1,
+    "release_version":  "v2026.10.03_ios_onnx_01",
+    "created_utc":  "2026-10-03T04:01:32.5787225Z",
+    "platform":  "iOS",
+    "input":  {
+                  "name":  "landmark_features",
+                  "dtype":  "float32",
+                  "shape":  [
+                                1,
+                                76
+                            ]
+              },
+    "outputs":  {
+                    "probabilities":  [
+                                          1,
+                                          12
+                                      ],
+                    "known_gesture_mass":  [
+                                               1,
+                                               1
+                                           ]
+                },
+    "output_class_order":  [
+                               "left",
+                               "right",
+                               "up",
+                               "down",
+                               "open_palm",
+                               "like",
+                               "dorsal",
+                               "ok",
+                               "fist",
+                               "thumb_down",
+                               "peace",
+                               "rock"
+                           ],
+    "rejection_sentinel":  "no_gesture",
+    "gesture_to_action":  {
+                              "left":  "Move Left",
+                              "right":  "Move Right",
+                              "up":  "Move Up",
+                              "down":  "Move Down",
+                              "open_palm":  "Enable / Disable Object Tracking",
+                              "like":  "Play / Pause",
+                              "dorsal":  "Return to Default Position",
+                              "ok":  "Start / Stop Recording",
+                              "fist":  "Mute",
+                              "thumb_down":  "Volume Down",
+                              "peace":  "Turn 90 Degrees",
+                              "rock":  "Backup"
+                          },
+    "cross_platform_pose_rules":  {
+                                      "open_palm":  "wrist-to-palm axis may point up, left, or right, but not down",
+                                      "fist":  "supported for either hand facing up or sideways; downward rejected",
+                                      "thumb_down":  "supported for either hand"
+                                  },
+    "onnx_sha256":  "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e",
+    "files":  [
+                  {
+                      "path":  "HANDOVER_CHECKLIST.md",
+                      "bytes":  6035,
+                      "sha256":  "5e590db7229caf37538eca4adfb57061f07b73e53239b2f06b977fc734353c05"
+                  },
+                  {
+                      "path":  "MODEL_CARD.md",
+                      "bytes":  4179,
+                      "sha256":  "6b742fd1b5fdf73ef1e2bc894cacb84d6586730d51750719a38a20b65a5e031c"
+                  },
+                  {
+                      "path":  "README.md",
+                      "bytes":  3542,
+                      "sha256":  "930554ec49aaba0dde946d8542f59b4aae27d377b7c29215b8fa0a3708d6dcfb"
+                  },
+                  {
+                      "path":  "models/blaze_face_short_range.tflite",
+                      "bytes":  229746,
+                      "sha256":  "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+                  },
+                  {
+                      "path":  "models/gesture_mlp_onnx_metadata.json",
+                      "bytes":  19281,
+                      "sha256":  "c3baa6def2271dec888d2462b340ae808f33bc0813a8399322877e5ab59501ed"
+                  },
+                  {
+                      "path":  "models/gesture_mlp_production.onnx",
+                      "bytes":  77529,
+                      "sha256":  "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
+                  },
+                  {
+                      "path":  "models/gesture_mobile_runtime_config.json",
+                      "bytes":  8232,
+                      "sha256":  "ecb9ea9bd3544ab345024a2b37544d3b09f6a79e0e9b0bcc57601bec8a2eadfd"
+                  },
+                  {
+                      "path":  "models/hand_landmarker.task",
+                      "bytes":  7819105,
+                      "sha256":  "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+                  },
+                  {
+                      "path":  "reference/config.py",
+                      "bytes":  12564,
+                      "sha256":  "9c306273921b569e121faedd465660109e9fc334f9233e1c394f3b1a0e77bbfa"
+                  },
+                  {
+                      "path":  "reference/face_guard.py",
+                      "bytes":  2128,
+                      "sha256":  "c7a577fe110258dcaa136280936eb9f78f013e234ba07f2475ce70e9f9fd2252"
+                  },
+                  {
+                      "path":  "reference/follow_object.py",
+                      "bytes":  5766,
+                      "sha256":  "fb60d3f6ed9f0b24cbf488774b66d3e01b9e4d650ee234359c3550293b1aa95d"
+                  },
+                  {
+                      "path":  "reference/geometry.py",
+                      "bytes":  55303,
+                      "sha256":  "f4fc7c137a5c76da05a34ab738ef9eca8fc97fcda74936ab84d303294753d65a"
+                  },
+                  {
+                      "path":  "reference/hand_detection.py",
+                      "bytes":  18913,
+                      "sha256":  "8f901e4864b690fdd900c502bc6dda110bafebab88a071549af8f3faced15e9a"
+                  },
+                  {
+                      "path":  "reference/model_runtime.py",
+                      "bytes":  55943,
+                      "sha256":  "9f80ee2a2c1205190e62a4cca353090948f2de1f3e0b0b5d55a9bcb4c828ee9a"
+                  },
+                  {
+                      "path":  "reference/ncm_camera.py",
+                      "bytes":  18008,
+                      "sha256":  "bcea58b59babeaa6eaf0c2ed1ce51481db21f03944d4256027eadcfcb1f8f045"
+                  },
+                  {
+                      "path":  "reference/runtime.py",
+                      "bytes":  13115,
+                      "sha256":  "8275769e149fdd8c7416bead561ce6fddfa2146eea808b7946744a53d2e3f5e6"
+                  },
+                  {
+                      "path":  "swift/GestureActionLatch.swift",
+                      "bytes":  1964,
+                      "sha256":  "1b0a3f5daa567cf019738ea38360ac49a9216b3529e6a7b63816acc0f66b79f8"
+                  },
+                  {
+                      "path":  "swift/GestureDecisionPipeline.swift",
+                      "bytes":  2680,
+                      "sha256":  "f290f65f2305e8babce4245c4f8696a68c1c3dcc756e711fbcdfaf18886b850d"
+                  },
+                  {
+                      "path":  "swift/GestureFeatureExtractor.swift",
+                      "bytes":  16971,
+                      "sha256":  "7a8e02fcb1992e532b819727f09e0e60f18eee347fd5282e69fd15837c4317bb"
+                  },
+                  {
+                      "path":  "swift/GestureGeometryResolver.swift",
+                      "bytes":  31029,
+                      "sha256":  "f4610096d22b50d6593af016d4a977c4f15db29b578b8947f92328c22b0ecc68"
+                  },
+                  {
+                      "path":  "swift/GestureTemporalGate.swift",
+                      "bytes":  6582,
+                      "sha256":  "33b39961a2515e4e3eecd13567435b8b829bce73e5bd55ebc1925848afda21fa"
+                  }
+              ]
+}

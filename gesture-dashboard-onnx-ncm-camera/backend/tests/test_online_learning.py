@@ -23,8 +23,8 @@ def _base_row(target: int = 0, wrong: int = 1) -> np.ndarray:
     return row / row.sum()
 
 
-def test_requires_exact_ten_class_and_76_feature_contract(tmp_path: Path):
-    with pytest.raises(ValueError, match="ten-command"):
+def test_requires_exact_twelve_class_and_76_feature_contract(tmp_path: Path):
+    with pytest.raises(ValueError, match="twelve-command"):
         OnlineLearningAdapter(CLASS_NAMES[:-1], models_directory=tmp_path)
     bad_features = SimpleNamespace(class_names=CLASS_NAMES, feature_names=["x"] * 76)
     with pytest.raises(ValueError, match="76-D"):

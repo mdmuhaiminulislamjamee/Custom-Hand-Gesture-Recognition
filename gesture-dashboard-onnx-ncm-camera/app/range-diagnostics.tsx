@@ -13,7 +13,7 @@ export type RangePrediction = {
 type Sample = { at: number; measured_m: number; expected: string; hand_found: boolean; command_correct: boolean;
   predicted: string; estimated_m: number | null; palm_px: number | null; processing_ms: number | null; reason: string };
 type Trial = { distance: number; expected: string; samples: Sample[] };
-const COMMANDS = ['left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down', 'no_gesture'];
+const COMMANDS = ['left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down', 'peace', 'rock', 'no_gesture'];
 
 export default function RangeDiagnostics({ prediction, connected }: { prediction: RangePrediction; connected: boolean }) {
   const [calibration, setCalibration] = useState<RangeCalibration | null>(null);

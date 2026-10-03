@@ -9,12 +9,15 @@ Open **05 Data Collection** at http://127.0.0.1:3200.
 5. Collect three images in each hand/angle group (12 per prompt). The collector then advances to the next unfinished prompt. You can skip or jump to any prompt. Counts survive server restarts.
 6. Saved images for the current prompt appear as thumbnails. Select one or more and use **Delete selected**, or use **Delete last image** in Recent saves. Both ask for confirmation and remove the matching JPEG and JSON label together.
 
-There are 62 prompts and 744 photos for one complete pass per person. Hand-based prompts use the 3 + 3 + 3 + 3 balance above; face/ear and empty-background prompts simply require 12 varied images. This is a starting target, not a guarantee of sufficient training coverage. Vary people, both hands, sessions, backgrounds and conditions. Move naturally between photos; near-identical frames do not replace genuine variation. Keep directions clear while changing the wrist/camera angle. Here “one” means the index-up pose, not an additional command.
+There are 81 prompts and 972 photos for one complete pass per person. Hand-based prompts use the 3 + 3 + 3 + 3 balance above; face/ear and empty-background prompts simply require 12 varied images. This is a starting target, not a guarantee of sufficient training coverage. Vary people, both hands, sessions, backgrounds and conditions. Move naturally between photos; near-identical frames do not replace genuine variation. Keep directions clear while changing the wrist/camera angle. Here “one” means the index-up pose, not an additional command.
 
 Collect Fist and Thumbs Down with both hands and genuine camera/wrist-angle
-variation. Positive Open Palm examples must point upward. Open palms pointing
-left, right, or down belong in reviewed `no_gesture` hard-negative coverage so
-they cannot enable object tracking.
+variation. Positive Open Palm examples should point up, left, right, and at
+oblique side angles, with the palm surface visible. Downward and diagonal-down
+palms belong in reviewed `no_gesture` hard-negative coverage so they cannot
+enable object tracking. Collect upward and sideways Fists with both hands.
+Capture downward fists, partly bent open hands, and the retired thumb-and-little
+sign as `no_gesture` negatives.
 
 The unmirrored board camera retains its calibration: image-right is **Left**, image-left is **Right**, image-up is **Up**. Follow the written instructions; do not reverse labels to match an incorrect prediction.
 

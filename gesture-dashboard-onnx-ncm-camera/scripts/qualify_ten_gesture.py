@@ -414,6 +414,8 @@ def _deploy(
 
 
 def qualify(root: Path, deploy: bool = False) -> dict:
+    if deploy:
+        raise RuntimeError("Ten-command deployment is retired. Use scripts.promote_twelve_gesture for the 12-command runtime.")
     root = Path(root)
     output = root / ARTIFACT_DIRECTORY
     candidate = output / "candidate.onnx"

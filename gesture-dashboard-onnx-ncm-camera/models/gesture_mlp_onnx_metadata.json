@@ -1,15 +1,11 @@
 {
   "schema_version": 3,
-  "created_utc": "2026-09-17T10:39:53.951304+00:00",
+  "created_utc": "2026-10-03T03:59:53.897949+00:00",
   "format": "ONNX",
-  "model_name": "TenGestureBalancedMLP",
+  "model_name": "TwelveGestureBalancedMLP",
   "onnx_file": "gesture_mlp_production.onnx",
-  "onnx_bytes": 76993,
-  "onnx_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd",
-  "onnx_ir_version": 8,
-  "opsets": {
-    "ai.onnx": 16
-  },
+  "onnx_bytes": 77529,
+  "onnx_sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e",
   "input": {
     "name": "landmark_features",
     "dtype": "float32",
@@ -30,7 +26,9 @@
     "dorsal",
     "ok",
     "fist",
-    "thumb_down"
+    "thumb_down",
+    "peace",
+    "rock"
   ],
   "internal_class_order": [
     "left",
@@ -43,26 +41,10 @@
     "ok",
     "fist",
     "thumb_down",
+    "peace",
+    "rock",
     "no_gesture"
   ],
-  "source_class_mapping": {
-    "left": "one_right",
-    "right": "one_left",
-    "up": "one",
-    "down": "one_down",
-    "open_palm": "palm_up_only",
-    "like": "like",
-    "dorsal": "11K/Dorsal hands",
-    "ok": "ok",
-    "fist": "fist",
-    "thumb_down": "dislike"
-  },
-  "horizontal_direction_calibration": {
-    "camera_pixels_mirrored": false,
-    "positive_index_dx_command": "left",
-    "negative_index_dx_command": "right",
-    "training_labels_ncm_calibrated": true
-  },
   "feature_names": [
     "landmark_0_x",
     "landmark_0_y",
@@ -141,235 +123,706 @@
     "thumb_tip_index_mcp_ratio",
     "thumb_reach_ratio"
   ],
+  "source_class_mapping": {
+    "left": "one_right",
+    "right": "one_left",
+    "up": "one",
+    "down": "one_down",
+    "open_palm": "palm_up_only",
+    "like": "like",
+    "dorsal": "11K/Dorsal hands",
+    "ok": "ok",
+    "fist": "fist",
+    "thumb_down": "dislike",
+    "peace": "peace",
+    "rock": "rock"
+  },
+  "horizontal_direction_calibration": {
+    "camera_pixels_mirrored": false,
+    "positive_index_dx_command": "left",
+    "negative_index_dx_command": "right",
+    "training_labels_ncm_calibrated": true
+  },
   "parity": {
+    "passed": true,
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 7.748603820800781e-07,
-    "maximum_absolute_mass_error": 6.556510925292969e-07,
-    "passed": true
+    "maximum_absolute_probability_error": 2.2649765014648438e-06,
+    "maximum_absolute_mass_error": 1.0132789611816406e-06
   },
   "quality": {
-    "accuracy": 0.9961841770541847,
-    "macro_f1": 0.9962552420929562,
-    "runtime_macro_f1": 0.990349501918541,
-    "accepted_precision": 0.9976928992566009,
-    "known_acceptance_rate": 0.9913508013228186,
-    "unknown_false_acceptance_rate": 0.01,
-    "minimum_per_class_f1": 0.9848484848484849,
-    "evaluation_source": "participant-disjoint public test split; used as a release regression gate after candidate iteration"
+    "macro_f1": 0.991080808830469,
+    "accepted_precision": 0.9950034698126301,
+    "unknown_false_acceptance_rate": 0.017654476670870115,
+    "old_command_correct_accept_rate": 0.9915420631324573,
+    "new_command_recall": {
+      "peace": 0.9866220735785953,
+      "rock": 0.9967741935483871
+    },
+    "retired_call_false_accept_rate": 0.006872852233676976
   },
   "qualification": {
-    "passed": true,
+    "offline_passed": true,
+    "live_camera_validation_pending": true,
     "checks": {
-      "runtime_macro_f1_at_least_0_97": true,
-      "accepted_precision_at_least_0_99": true,
-      "unknown_false_accept_rate_at_most_0_02": true,
-      "fist_f1_at_least_0_95": true,
-      "fist_recall_at_least_0_95": true,
-      "thumb_down_f1_at_least_0_95": true,
-      "thumb_down_recall_at_least_0_95": true,
-      "thumb_down_within_0_02_of_like_f1": true,
-      "thumb_down_like_confusion_at_most_0_02": true,
-      "thumb_down_fist_confusion_at_most_0_02": true,
-      "classifier_p95_below_5_ms": true
+      "onnx_parity": true,
+      "offline_macro_f1_at_least_0_97": true,
+      "offline_accepted_precision_at_least_0_99": true,
+      "offline_unknown_false_accept_at_most_0_02": true,
+      "old_command_correct_accept_at_least_0_98": true,
+      "new_command_recall_at_least_0_97": true,
+      "runtime_peace_recall_at_least_0_95": true,
+      "runtime_rock_recall_at_least_0_97": true,
+      "runtime_unknown_false_accept_at_most_0_02": true,
+      "retired_call_false_accept_at_most_0_02": true
     },
-    "confusion_rates": {
-      "thumb_down_as_like_rate": 0.0,
-      "like_as_thumb_down_rate": 0.0,
-      "thumb_down_as_fist_rate": 0.0,
-      "fist_as_thumb_down_rate": 0.0
+    "selection": {
+      "model_sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e",
+      "known_mass_floor": 0.7,
+      "confidence_floor": 0.7,
+      "probability_margin_floor": 0.08
     },
-    "independent_confirmation": {
-      "checks": {
-        "new_subject_present_class_macro_f1_at_least_0_95": true,
-        "new_subject_accepted_precision_at_least_0_99": true,
-        "new_subject_unknown_false_accept_rate_at_most_0_02": true,
-        "new_subject_fist_recall_at_least_0_95": true,
-        "new_subject_thumb_down_recall_at_least_0_95": true,
-        "new_subject_thumb_down_within_0_02_of_like_f1": true,
-        "new_subject_upward_open_palm_recall_at_least_0_98": true
-      },
-      "present_classes": [
+    "data_audit": {
+      "seed": 1302,
+      "per_class": 4096,
+      "labels": [
         "left",
         "right",
         "up",
         "down",
         "open_palm",
         "like",
+        "dorsal",
         "ok",
         "fist",
         "thumb_down",
+        "peace",
+        "rock",
         "no_gesture"
       ],
-      "present_class_macro_f1": 0.9758672077926012,
-      "confusion_rates": {
-        "thumb_down_as_like_rate": 0.0,
-        "like_as_thumb_down_rate": 0.0,
-        "thumb_down_as_fist_rate": 0.0,
-        "fist_as_thumb_down_rate": 0.0
+      "counts": {
+        "train": {
+          "left": 1413,
+          "right": 1413,
+          "up": 1413,
+          "down": 1413,
+          "open_palm": 1379,
+          "like": 1396,
+          "dorsal": 1405,
+          "ok": 1418,
+          "fist": 1406,
+          "thumb_down": 1379,
+          "peace": 1387,
+          "rock": 1387,
+          "no_gesture": 3658
+        },
+        "val": {
+          "left": 710,
+          "right": 710,
+          "up": 710,
+          "down": 710,
+          "open_palm": 675,
+          "like": 698,
+          "dorsal": 263,
+          "ok": 668,
+          "fist": 689,
+          "thumb_down": 701,
+          "peace": 314,
+          "rock": 303,
+          "no_gesture": 783
+        },
+        "test": {
+          "left": 677,
+          "right": 677,
+          "up": 677,
+          "down": 677,
+          "open_palm": 737,
+          "like": 706,
+          "dorsal": 331,
+          "ok": 714,
+          "fist": 705,
+          "thumb_down": 720,
+          "peace": 299,
+          "rock": 310,
+          "no_gesture": 793
+        }
+      },
+      "subjects": {
+        "train": 5931,
+        "val": 1897,
+        "test": 1902
+      },
+      "removed_overlap": {
+        "test": 0,
+        "val": 2,
+        "train": 1
+      },
+      "ambiguous_legacy_negatives_excluded": {
+        "val": 400,
+        "test": 400
+      },
+      "limitations": [
+        "New-command validation/test examples are participant-held-out rows from HaGRID's training partition.",
+        "Legacy evaluation negatives mixed the new valid commands with true negatives without source labels; all were excluded.",
+        "In-plane rotation is synthetic; it cannot prove all camera viewing angles, distances, lighting, or occlusions.",
+        "No new live low-resolution or low-FPS camera capture is available for qualification."
+      ]
+    },
+    "comparison_to_previous_ten_command_model": {
+      "validation": {
+        "production": {
+          "old_correct_accept": 0.9885215794306703,
+          "old_per_class_recall": {
+            "left": 0.995774647887324,
+            "right": 0.995774647887324,
+            "up": 0.995774647887324,
+            "down": 0.995774647887324,
+            "open_palm": 0.9955555555555555,
+            "like": 0.9828080229226361,
+            "dorsal": 1.0,
+            "ok": 0.9790419161676647,
+            "fist": 0.9724238026124818,
+            "thumb_down": 0.978601997146933
+          },
+          "true_negative_false_accept": 0.40357598978288634
+        },
+        "candidate": {
+          "old_correct_accept": 0.9882154882154882,
+          "old_per_class_recall": {
+            "left": 0.995774647887324,
+            "right": 0.995774647887324,
+            "up": 0.995774647887324,
+            "down": 0.995774647887324,
+            "open_palm": 1.0,
+            "like": 0.9828080229226361,
+            "dorsal": 1.0,
+            "ok": 0.9790419161676647,
+            "fist": 0.9724238026124818,
+            "thumb_down": 0.9714693295292439
+          },
+          "true_negative_false_accept": 0.01532567049808429,
+          "new_recall": {
+            "peace": 0.9617834394904459,
+            "rock": 0.9867986798679867
+          },
+          "confusion": [
+            [
+              707,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              707,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              707,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              707,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              675,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              1,
+              0,
+              1,
+              0,
+              686,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              263,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              654,
+              0,
+              0,
+              0,
+              0,
+              14
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0,
+              670,
+              0,
+              0,
+              0,
+              16
+            ],
+            [
+              2,
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              681,
+              0,
+              0,
+              14
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              302,
+              0,
+              11
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              299,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              4,
+              2,
+              2,
+              0,
+              0,
+              0,
+              0,
+              2,
+              771
+            ]
+          ]
+        }
+      },
+      "test": {
+        "production": {
+          "old_correct_accept": 0.988068267633288,
+          "old_per_class_recall": {
+            "left": 0.9940915805022157,
+            "right": 0.9940915805022157,
+            "up": 0.9926144756277696,
+            "down": 0.9926144756277696,
+            "open_palm": 0.9932157394843962,
+            "like": 0.9773371104815864,
+            "dorsal": 1.0,
+            "ok": 0.988795518207283,
+            "fist": 0.9730496453900709,
+            "thumb_down": 0.9819444444444444
+          },
+          "true_negative_false_accept": 0.3745271122320303
+        },
+        "candidate": {
+          "old_correct_accept": 0.9879172330463676,
+          "old_per_class_recall": {
+            "left": 0.9940915805022157,
+            "right": 0.9926144756277696,
+            "up": 0.9911373707533235,
+            "down": 0.9926144756277696,
+            "open_palm": 0.9986431478968792,
+            "like": 0.9801699716713881,
+            "dorsal": 1.0,
+            "ok": 0.9873949579831933,
+            "fist": 0.9730496453900709,
+            "thumb_down": 0.9763888888888889
+          },
+          "true_negative_false_accept": 0.017654476670870115,
+          "new_recall": {
+            "peace": 0.9632107023411371,
+            "rock": 0.9967741935483871
+          },
+          "confusion": [
+            [
+              673,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              672,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              671,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              5
+            ],
+            [
+              0,
+              0,
+              0,
+              672,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              736,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              3,
+              1,
+              0,
+              0,
+              692,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              331,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              705,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              1,
+              0,
+              0,
+              686,
+              0,
+              0,
+              0,
+              16
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              703,
+              0,
+              0,
+              15
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              288,
+              0,
+              9
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              309,
+              1
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              4,
+              2,
+              5,
+              0,
+              0,
+              0,
+              1,
+              0,
+              779
+            ]
+          ],
+          "rock_thumb_recall": {
+            "folded_below_0.4": {
+              "count": 133,
+              "recall": 1.0
+            },
+            "middle_0.4_to_0.7": {
+              "count": 121,
+              "recall": 1.0
+            },
+            "extended_at_least_0.7": {
+              "count": 56,
+              "recall": 0.9821428571428571
+            }
+          },
+          "in_plane_quadrant_recall": {
+            "peace": {
+              "0": {
+                "count": 146,
+                "recall": 0.958904109589041
+              },
+              "1": {
+                "count": 153,
+                "recall": 0.9673202614379085
+              },
+              "2": {
+                "count": 0,
+                "recall": null
+              },
+              "3": {
+                "count": 0,
+                "recall": null
+              }
+            },
+            "rock": {
+              "0": {
+                "count": 149,
+                "recall": 1.0
+              },
+              "1": {
+                "count": 160,
+                "recall": 1.0
+              },
+              "2": {
+                "count": 1,
+                "recall": 0.0
+              },
+              "3": {
+                "count": 0,
+                "recall": null
+              }
+            }
+          },
+          "synthetic_rotation_recall": {
+            "0": {
+              "peace": 0.9632107023411371,
+              "rock": 0.9967741935483871
+            },
+            "90": {
+              "peace": 0.9632107023411371,
+              "rock": 0.9935483870967742
+            },
+            "180": {
+              "peace": 0.9632107023411371,
+              "rock": 0.9935483870967742
+            },
+            "270": {
+              "peace": 0.9632107023411371,
+              "rock": 0.9935483870967742
+            }
+          },
+          "synthetic_peace_jitter": {
+            "1": {
+              "peace_recall": 0.7926421404682275,
+              "wrong_direction_rate": 0.0033444816053511705
+            },
+            "2": {
+              "peace_recall": 0.4816053511705686,
+              "wrong_direction_rate": 0.0033444816053511705
+            },
+            "3": {
+              "peace_recall": 0.23411371237458195,
+              "wrong_direction_rate": 0.013377926421404682
+            }
+          }
+        }
       }
-    },
-    "selection": {
-      "known_mass_floor": 0.7,
-      "confidence_floor": 0.7,
-      "probability_margin_floor": 0.08,
-      "source": "participant-disjoint public validation split; test excluded",
-      "model_sha256": "f598a0eb676f6bf7a42c1a46a4ff31615f6b8fc36d730edd1cfe8391d5bceecd"
-    },
-    "note": "The public test is participant-disjoint within imported public data. It is evidence, not a guarantee for every person, camera, or angle."
+    }
   },
-  "independent_confirmation": {
-    "metrics": {
-      "raw_known_accuracy": 0.9919444444444444,
-      "raw_known_macro_f1": 0.8927534246088518,
-      "runtime_macro_f1": 0.8871520070841828,
-      "correct_command_rate": 0.9725,
-      "accepted_precision": 0.9963005122367672,
-      "unknown_false_accept_rate": 0.0025,
-      "known_rejection_rate": 0.024166666666666666
-    },
-    "per_class": {
-      "left": {
-        "precision": 0.9823232323232324,
-        "recall": 0.9725,
-        "f1-score": 0.9773869346733668,
-        "support": 400.0
-      },
-      "right": {
-        "precision": 0.9948717948717949,
-        "recall": 0.97,
-        "f1-score": 0.9822784810126582,
-        "support": 400.0
-      },
-      "up": {
-        "precision": 0.9974226804123711,
-        "recall": 0.9675,
-        "f1-score": 0.9822335025380711,
-        "support": 400.0
-      },
-      "down": {
-        "precision": 1.0,
-        "recall": 0.975,
-        "f1-score": 0.9873417721518988,
-        "support": 400.0
-      },
-      "open_palm": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1-score": 1.0,
-        "support": 400.0
-      },
-      "like": {
-        "precision": 1.0,
-        "recall": 0.9525,
-        "f1-score": 0.9756722151088348,
-        "support": 400.0
-      },
-      "dorsal": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1-score": 0.0,
-        "support": 0.0
-      },
-      "ok": {
-        "precision": 1.0,
-        "recall": 0.9725,
-        "f1-score": 0.9860583016476553,
-        "support": 400.0
-      },
-      "fist": {
-        "precision": 0.9974619289340102,
-        "recall": 0.9825,
-        "f1-score": 0.9899244332493703,
-        "support": 400.0
-      },
-      "thumb_down": {
-        "precision": 0.9948186528497409,
-        "recall": 0.96,
-        "f1-score": 0.9770992366412213,
-        "support": 400.0
-      },
-      "no_gesture": {
-        "precision": 0.8209876543209876,
-        "recall": 0.9975,
-        "f1-score": 0.9006772009029346,
-        "support": 400.0
-      }
-    },
-    "participant_count": 2600,
-    "participant_overlap_with_train_validation_test": 0,
-    "role": "fail-closed deployment and regression gate; excluded from model fitting and scalar-threshold selection, but an earlier failure informed later training and geometry revisions"
-  },
-  "public_evaluation": {
-    "raw_known_accuracy": 0.9961841770541847,
-    "raw_known_macro_f1": 0.9962552420929562,
-    "runtime_macro_f1": 0.990349501918541,
-    "correct_command_rate": 0.9900788603408802,
-    "accepted_precision": 0.9976928992566009,
-    "unknown_false_accept_rate": 0.01,
-    "known_rejection_rate": 0.008649198677181379
-  },
-  "training": {
-    "seed": 1820,
-    "per_class": 4096,
-    "excluded_overlap": {
-      "test": 0,
-      "val": 0,
-      "train": 3
-    },
-    "subjects": {
-      "train": 8330,
-      "val": 814,
-      "test": 848
-    },
-    "dorsal_subjects": 136,
-    "dorsal_metadata_matched": 2000,
-    "subject_overlap": {
-      "train_val": 0,
-      "train_test": 0,
-      "val_test": 0
-    },
-    "limitations": [
-      "Directional public examples are rotations of one, not new horizontal camera captures.",
-      "Legacy replay has no participant IDs; cross-source subject overlap cannot be proved absent.",
-      "No claim of universal demographic, child, disability, or lighting coverage."
-    ]
-  },
-  "runtime_selection": {
-    "known_mass_floor": 0.7,
-    "confidence_floor": 0.7,
-    "probability_margin_floor": 0.08
-  },
-  "classifier_latency": {
-    "p50_ms": 0.028899998142151162,
-    "p95_ms": 0.03020000076503493,
-    "p99_ms": 0.032008999914978624,
-    "note": "ONNX classifier only; full camera pipeline is benchmarked separately."
-  },
-  "landmark_detector": {
-    "running_mode": "VIDEO with IMAGE recovery",
-    "minimum_detection_confidence": 0.55,
-    "minimum_presence_confidence": 0.55,
-    "minimum_tracking_confidence": 0.6,
-    "recovery_detection_confidence": 0.2,
-    "recovery_presence_confidence": 0.3,
-    "face_guard": "BlazeFace small-hand overlap exclusion",
-    "recovery_confirmation_frames": 2,
-    "minimum_palm_pixels": 8,
-    "minimum_hand_span_pixels": 24,
-    "minimum_hand_short_side_pixels": 10,
-    "maximum_analysis_dimension": 960,
-    "maximum_detection_passes_per_frame": 2,
-    "recovery_start_budget_ms": 55,
-    "distance_method": "user-calibrated apparent palm size; no absolute MediaPipe depth"
-  },
-  "runtime_geometry": {
-    "open_palm_upward_only": true,
-    "fist_validation": true,
-    "foreshortened_camera_facing_fist_recovery": true,
-    "thumb_down_validation": true,
-    "dorsal_independent_support": true,
-    "reviewed_negative_feedback_veto": true,
-    "geometry_recovery_mass_floor": 0.15
-  },
-  "runtime_note": "Ten exposed command probabilities. no_gesture remains an internal negative class; known_gesture_mass carries its rejection evidence."
+  "runtime_note": "Twelve-command offline-qualified bundle; live camera validation remains pending."
 }
