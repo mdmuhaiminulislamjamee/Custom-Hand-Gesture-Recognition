@@ -50,6 +50,7 @@ next-env.d.ts
 /artifacts/multiview/
 /v18_20_bundle.zip
 /gesture-distance-tests.csv
+/.pytest_*/
 
 # Trained/exported artifacts and reviewed local data
 /models/*.joblib
