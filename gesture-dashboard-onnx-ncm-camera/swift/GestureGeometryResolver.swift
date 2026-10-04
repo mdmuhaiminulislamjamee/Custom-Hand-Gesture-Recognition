@@ -18,6 +18,7 @@ public struct GestureGeometryResolution {
 
 public enum GestureGeometryResolver {
     private static let eps: Float = 1e-8
+    private static let minimumPeaceTipSeparationRatio: Float = 0.04
     private static let directionalNames: Set<String> = ["left", "right", "up", "down"]
 
     private struct ReturnMainGeometry {
@@ -425,13 +426,15 @@ public enum GestureGeometryResolver {
             && extensions[2] >= 0.45
             && max(extensions[3], extensions[4]) <= 0.65
             && indexReachRatio >= 0.62 && indexReachRatio <= 1.45
-            && indexForwardRatio >= 0.42 && tipSeparationRatio >= 0.22
+            && indexForwardRatio >= 0.42
+            && tipSeparationRatio >= minimumPeaceTipSeparationRatio
         let peaceRelaxed = peaceStrongModel
             && extensions[1] >= 0.75 && extensions[2] >= 0.65
             && min(extensions[3], extensions[4]) <= 0.65
             && max(extensions[3], extensions[4]) <= 0.85
             && indexReachRatio >= 0.70 && indexReachRatio <= 1.45
-            && indexForwardRatio >= 0.25 && tipSeparationRatio >= 0.22
+            && indexForwardRatio >= 0.25
+            && tipSeparationRatio >= minimumPeaceTipSeparationRatio
         let peaceValid = peaceStrict || peaceRelaxed
 
         let allowDorsalResolution = !(raw == "open_palm" && !openPalmAllowedDirection && !dorsalVisible)

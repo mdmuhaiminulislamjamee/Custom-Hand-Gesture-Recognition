@@ -651,13 +651,19 @@ export default function Dashboard() {
       const sendFrame = async () => {
         if (webcamFramePendingRef.current || socket.readyState !== WebSocket.OPEN || socket.bufferedAmount > 1_000_000) return;
         webcamFramePendingRef.current = true;
+        let sent = false;
         try {
           const frame = await captureWebcamFrame();
-          if (socket.readyState === WebSocket.OPEN) socket.send(await frame.arrayBuffer());
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(await frame.arrayBuffer());
+            sent = true;
+          }
         } catch (error) {
           setPrediction({ status: 'camera_error', message: error instanceof Error ? error.message : 'Webcam capture failed.' });
         } finally {
-          webcamFramePendingRef.current = false;
+          // Hold the slot until inference returns. Releasing it on upload lets
+          // slow inference accumulate stale JPEGs in the server's receive queue.
+          if (!sent) webcamFramePendingRef.current = false;
         }
       };
       socket.onopen = () => {
@@ -673,10 +679,16 @@ export default function Dashboard() {
       socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         if (message.type === 'prediction') {
+          webcamFramePendingRef.current = false;
           handlePrediction(message);
           setCameraFps(message.actual_fps ?? settings?.frameRate ?? targetFps);
+          // Send the freshest browser frame as soon as the previous inference
+          // completes. The backend's shared limiter still enforces its FPS cap.
+          void sendFrame();
         } else if (message.type === 'error') {
+          webcamFramePendingRef.current = false;
           setPrediction({ status: 'error', message: message.message });
+          void sendFrame();
         }
       };
       socket.onerror = () => {
@@ -689,6 +701,7 @@ export default function Dashboard() {
         socketRef.current = null;
         if (webcamFrameTimerRef.current) clearInterval(webcamFrameTimerRef.current);
         webcamFrameTimerRef.current = null;
+        webcamFramePendingRef.current = false;
         webcamStreamRef.current?.getTracks().forEach(item => item.stop());
         webcamStreamRef.current = null;
         setWebcamStream(null);

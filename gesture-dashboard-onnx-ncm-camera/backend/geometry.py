@@ -7,6 +7,9 @@ import numpy as np
 from .config import RuntimeConfig
 
 
+MINIMUM_PEACE_TIP_SEPARATION_RATIO = 0.04
+
+
 def _unit_direction(vector: np.ndarray, description: str) -> np.ndarray:
     norm = float(np.linalg.norm(vector))
     if norm < 1e-8:
@@ -55,11 +58,13 @@ def peace_finger_geometry(landmarks: np.ndarray) -> dict[str, float | bool]:
 
     Joint angles alone can call a short, folded index finger straight when the
     camera sees its joints edge-on. The middle finger by itself is not Peace.
-    The same check works with 2-D or MediaPipe's 3-D world landmarks.
+    A small nonzero tip gap rejects a collapsed duplicate track without
+    requiring the index and middle fingers to form a wide V. The same check
+    works with 2-D or MediaPipe's 3-D world landmarks.
     """
     points = np.asarray(landmarks, dtype=np.float32)
     if points.shape not in {(21, 2), (21, 3)} or not np.isfinite(points).all():
-        return {"valid": False, "index_extension": 0.0,
+        return {"valid": False, "strong_geometry": False, "index_extension": 0.0,
                 "middle_extension": 0.0, "index_reach_ratio": 0.0,
                 "index_forward_ratio": 0.0, "tip_separation_ratio": 0.0}
     index = points[8] - points[5]
@@ -86,16 +91,38 @@ def peace_finger_geometry(landmarks: np.ndarray) -> dict[str, float | bool]:
         (ring_extension > .65 and (ring_reach_ratio >= .65 or not near_parallel_pair))
         or (pinky_extension > .65 and (pinky_reach_ratio >= .65 or not near_parallel_pair))
     )
+    # In the reported side views curled ring/little fingers reach sideways,
+    # sometimes with straight projected joints. Measure their forward reach
+    # along the two raised fingers rather than their sideways displacement.
+    pair_axis = index / max(index_reach, 1e-8) + middle_unit
+    pair_axis /= max(float(np.linalg.norm(pair_axis)), 1e-8)
+    tip_forward = (points[[8, 12, 16, 20]] - points[0]) @ pair_axis / palm_scale
+    pair_lead = float(tip_forward[:2].min() - tip_forward[2:].max())
+    other_forward = (points[[16, 20]] - points[[13, 17]]) @ pair_axis / palm_scale
+    strong_geometry = bool(
+        index_extension >= .80 and middle_extension >= .80
+        and .70 <= index_reach_ratio <= 1.35
+        and index_forward_ratio >= .65
+        and min(index_reach, middle_reach) / palm_scale >= .80
+        and .015 <= tip_separation_ratio <= .55
+        and float(np.linalg.norm(points[5] - points[9])) / palm_scale >= .05
+        # Distinct PIP tracks distinguish two close fingers from a duplicated
+        # index track, even when their tips nearly overlap.
+        and float(np.linalg.norm(points[6] - points[10])) / palm_scale >= .05
+        and pair_lead >= .65 and float(other_forward.max()) <= .60
+    )
     valid = bool(
         index_extension >= .55
         and middle_extension >= .45
         and not raised_other_finger
         and .62 <= index_reach_ratio <= 1.45
         and index_forward_ratio >= .42
-        and tip_separation_ratio >= .22
+        and tip_separation_ratio >= MINIMUM_PEACE_TIP_SEPARATION_RATIO
     )
     return {
-        "valid": valid,
+        "valid": valid or strong_geometry,
+        "strong_geometry": strong_geometry,
+        "pair_lead_ratio": pair_lead,
         "index_extension": index_extension,
         "middle_extension": middle_extension,
         "index_reach_ratio": index_reach_ratio,
@@ -352,6 +379,18 @@ def foreshortened_fist_geometry(
         "maximum_tip_radius_ratio": maximum_tip_radius,
         "thumb_radius_ratio": thumb_radius,
     }
+
+
+def _mirrored_view_alignment(axis: np.ndarray, xy_degrees: float, zx_degrees: float) -> float:
+    """Compare a unit palm axis with a reported view or its horizontal mirror.
+
+    XY and ZX determine the 3-D direction; YZ is a redundant display angle.
+    These references describe camera views, not evidence of finger closure.
+    """
+    xy, zx = np.deg2rad([xy_degrees, zx_degrees])
+    reference = np.asarray([abs(np.cos(xy)), np.sin(xy), np.cos(xy) / np.tan(zx)])
+    reference /= np.linalg.norm(reference)
+    return float(np.dot([abs(axis[0]), axis[1], axis[2]], reference))
 
 
 def dorsal_geometry_support(geometry: dict) -> bool:
@@ -784,6 +823,7 @@ class GeometryResolver:
         handedness: str | None = None,
         handedness_confidence: float | None = None,
         world_landmarks: np.ndarray | None = None,
+        require_fist_depth: bool = False,
     ) -> tuple[np.ndarray, dict[str, float | int | bool | str | None]]:
         points = np.asarray(landmarks, dtype=np.float32).reshape(21, 2)
         adjusted = np.asarray(probabilities, dtype=np.float64).copy()
@@ -819,7 +859,7 @@ class GeometryResolver:
             and peace_image["middle_extension"] >= .65
             and .70 <= peace_image["index_reach_ratio"] <= 1.45
             and peace_image["index_forward_ratio"] >= .25
-            and peace_image["tip_separation_ratio"] >= .22
+            and peace_image["tip_separation_ratio"] >= MINIMUM_PEACE_TIP_SEPARATION_RATIO
             and min(extensions[3], extensions[4]) <= .65
             and max(extensions[3], extensions[4]) <= .85
         )
@@ -827,11 +867,14 @@ class GeometryResolver:
             peace_world["valid"] if peace_world is not None
             else (peace_image["valid"] or peace_model_geometry)
         )
-        # Recover clear V silhouettes when the camera-domain classifier is
-        # uncertain. Depth needs at least a small Peace score before it may
-        # relabel an unrelated command.
+        peace_pair_recovery = bool(
+            peace_image["strong_geometry"] and peace_geometry_supported
+        )
+        # The strongly verified pair can correct even a confident Up score.
+        # Ordinary/foreshortened shapes still need classifier support.
         if peace_geometry_supported and (
             raw == "peace"
+            or peace_pair_recovery
             or peace_support >= (0.05 if peace_world is not None else 0.15)
         ):
             adjusted = _set_probability_floor(
@@ -864,6 +907,24 @@ class GeometryResolver:
         palm_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
         palm_axis_norm = max(float(np.linalg.norm(palm_axis)), 1e-8)
         palm_up_alignment = float(-palm_axis[1] / palm_axis_norm)
+        # Match the HUD's signed XY angle (clockwise from screen-right).
+        # Use world XY when available, just as hand_plane_angles does.
+        dorsal_axis = palm_axis
+        if world_landmarks is not None:
+            world_points = np.asarray(world_landmarks, dtype=np.float32)
+            if world_points.shape == (21, 3) and np.isfinite(world_points).all():
+                world_xy = world_points[[5, 9, 13, 17], :2].mean(axis=0) - world_points[0, :2]
+                if float(np.linalg.norm(world_xy)) > 1e-8:
+                    dorsal_axis = world_xy
+        dorsal_xy = float(np.degrees(np.arctan2(dorsal_axis[1], dorsal_axis[0])))
+        dorsal_allowed_direction = bool(-1e-4 <= dorsal_xy <= 150.0 + 1e-4)
+        # Check finger shape in a palm-aligned frame so sideways/downward
+        # rotations retain the same extension/togetherness requirements.
+        dorsal_rotation = np.pi / 2 - np.arctan2(palm_axis[1], palm_axis[0])
+        c, s = np.cos(dorsal_rotation), np.sin(dorsal_rotation)
+        aligned_dorsal = return_main_pose_geometry(
+            (points - points[0]) @ np.asarray([[c, -s], [s, c]]).T
+        )
         palm_axis_dominance = float(np.max(np.abs(palm_axis)) / palm_axis_norm)
         open_palm_orientation_settings = (
             self.config.raw.get("open_palm_orientation") or {}
@@ -899,15 +960,26 @@ class GeometryResolver:
             ),
         )
         palm_visible = bool(surface["palm_visible"])
+        dorsal_range_recovery = bool(
+            dorsal_allowed_direction and surface["dorsal_visible"]
+            and dorsal_geometry_support(aligned_dorsal)
+            and float(np.linalg.norm(
+                points[[8, 12, 16, 20]] - points[[5, 9, 13, 17]], axis=1
+            ).min()) / palm_axis_norm >= .35
+        )
         dorsal_supported = bool(
-            dorsal_supported
+            (dorsal_supported or dorsal_range_recovery)
+            and dorsal_allowed_direction
             and (not surface_validation_active or bool(surface["dorsal_visible"]))
         )
         dorsal_valid = bool(
-            dorsal["score"] >= 0.76
-            and dorsal["downward_finger_count"] >= 4
-            and dorsal["minimum_extension_score"] >= 0.50
-            and (not surface_validation_active or bool(surface["dorsal_visible"]))
+            dorsal_range_recovery or (
+                dorsal_allowed_direction
+                and dorsal["score"] >= 0.76
+                and dorsal["downward_finger_count"] >= 4
+                and dorsal["minimum_extension_score"] >= 0.50
+                and (not surface_validation_active or bool(surface["dorsal_visible"]))
+            )
         )
         open_palm_valid = bool(
             extended_non_thumb_count == 4
@@ -1002,26 +1074,150 @@ class GeometryResolver:
             and float(non_thumb.mean()) <= .38
             and extensions[0] <= .85
         )
+        # A closed fist can show either its knuckles or the opposite side to
+        # the camera. The two observed NCM views below have different signed
+        # depth, so depth alone cannot veto a fist. Keep narrow 3-D cones for
+        # these views and still require the fingers and thumb to be tucked.
+        fist_depth_alignment = None
+        fist_side_view_alignment = None
+        reported_reverse_alignment = None
+        reported_side_alignment = None
+        tilted_side_alignment = None
+        rejected_view_alignment = None
+        if world_landmarks is not None:
+            world_points = np.asarray(world_landmarks, dtype=np.float32)
+            if world_points.shape == (21, 3) and np.isfinite(world_points).all():
+                world_axis = world_points[[5, 9, 13, 17]].mean(axis=0) - world_points[0]
+                world_axis_length = float(np.linalg.norm(world_axis))
+                if world_axis_length >= 1e-8:
+                    world_axis_unit = world_axis / world_axis_length
+                    fist_depth_alignment = float(world_axis_unit[2])
+                    # The reported side view has XY=+8, YZ=+68, ZX=+72.
+                    # These are projections of one 3-D axis. A cone around
+                    # that axis gives the requested 18-degree tolerance.
+                    side_axis = np.asarray([
+                        np.tan(np.deg2rad(72.0)),
+                        1.0 / np.tan(np.deg2rad(68.0)),
+                        1.0,
+                    ], dtype=np.float32)
+                    side_axis /= np.linalg.norm(side_axis)
+                    mirrored_axis = side_axis * [-1.0, 1.0, 1.0]
+                    fist_side_view_alignment = max(
+                        float(np.dot(world_axis_unit, side_axis)),
+                        float(np.dot(world_axis_unit, mirrored_axis)),
+                    )
+                    reported_reverse_alignment = _mirrored_view_alignment(
+                        world_axis_unit, -130.0, -132.0,
+                    )
+                    reported_side_alignment = _mirrored_view_alignment(
+                        world_axis_unit, -5.0, 80.0,
+                    )
+                    # The newly accepted side view has XY=-3, YZ=-99, ZX=107.
+                    tilted_side_alignment = _mirrored_view_alignment(
+                        world_axis_unit, -3.0, 107.0,
+                    )
+                    # Explicit negative examples take precedence over every
+                    # fist path, including a confident model or curl recovery.
+                    rejected_view_alignment = max(
+                        _mirrored_view_alignment(world_axis_unit, xy, zx)
+                        for xy, zx in (
+                            (-64.0, 126.0), (-68.0, 50.0), (-20.0, 102.0),
+                            # Latest webcam negatives. The first otherwise
+                            # overlaps the reverse-facing Fist exception.
+                            (-61.0, 142.0), (-64.0, 40.0),
+                            # The second HUD's XY/YZ also permits a +140 ZX
+                            # reading; retain rejection around that axis too.
+                            (-64.0, 140.0),
+                        )
+                    )
+        fist_orientation_settings = self.config.raw.get("fist_orientation") or {}
+        maximum_depth_alignment = float(
+            fist_orientation_settings.get("maximum_depth_alignment", .45)
+        )
+        # Permit the 0-20 degree transition just below either horizontal
+        # boundary while retaining the downward-fist exclusion.
+        horizontal_tolerance_degrees = float(
+            fist_orientation_settings.get("horizontal_tolerance_degrees", 20.0)
+        )
+        fist_xy_allowed = bool(
+            palm_up_alignment >=
+            -float(np.sin(np.deg2rad(horizontal_tolerance_degrees))) - 1e-6
+        )
+        reported_reverse_view = bool(
+            reported_reverse_alignment is not None
+            and reported_reverse_alignment >= float(np.cos(np.deg2rad(12.0)))
+        )
+        reported_side_view = bool(
+            reported_side_alignment is not None
+            and reported_side_alignment >= float(np.cos(np.deg2rad(18.0)))
+        )
+        tilted_side_view = bool(
+            tilted_side_alignment is not None
+            and tilted_side_alignment >= float(np.cos(np.deg2rad(10.0)))
+        )
+        rejected_fist_view = bool(
+            rejected_view_alignment is not None
+            # Keep this narrow: the second negative is close to an earlier
+            # accepted raised fist. A six-degree cone tolerates camera jitter
+            # without rejecting that positive reference.
+            and rejected_view_alignment >= float(np.cos(np.deg2rad(6.0)))
+        )
+        reported_side_fist_geometry = bool(
+            (reported_side_view or tilted_side_view)
+            and float(foreshortened_fist["maximum_tip_radius_ratio"]) <= .95
+            and float(foreshortened_fist["thumb_radius_ratio"]) <= 1.10
+            and float(np.linalg.norm(
+                points[[8, 12, 16, 20]] - points[[5, 9, 13, 17]], axis=1
+            ).max() / palm_axis_norm) <= .70
+            and float(non_thumb.max()) <= .62
+            and float(non_thumb.mean()) <= .42
+            and extensions[0] <= .85
+            and not thumb_down_valid
+            and not like_valid
+        )
+        fist_side_view_geometry = bool(
+            fist_side_view_alignment is not None
+            and fist_side_view_alignment >= float(np.cos(np.deg2rad(18.0))) - 1e-6
+            # At this edge-on view MediaPipe can place curled tips just past
+            # their MCPs. Joint bend plus tip proximity is more reliable than
+            # signed curlback in the image projection.
+            and float(foreshortened_fist["maximum_tip_radius_ratio"]) <= .85
+            and float(foreshortened_fist["thumb_radius_ratio"]) <= .85
+            and float(non_thumb.max()) <= .55
+            and float(non_thumb.mean()) <= .38
+            and not thumb_down_valid
+            and not like_valid
+        )
+        fist_depth_allowed = bool(
+            (fist_depth_alignment is not None or not require_fist_depth)
+            and (fist_depth_alignment is None
+                 or fist_depth_alignment >= -maximum_depth_alignment
+                 or reported_reverse_view)
+        )
         fist_allowed_direction = bool(
-            palm_up_alignment >= -.10
+            (fist_xy_allowed or reported_reverse_view or fist_side_view_geometry)
+            and fist_depth_allowed
+            and not rejected_fist_view
         )
         fist_valid = bool(
             fist_allowed_direction
-            and (fist_compact or foreshortened_fist["strong_geometry"])
+            and (fist_compact or foreshortened_fist["strong_geometry"]
+                 or fist_side_view_geometry or reported_side_fist_geometry)
         )
         fist_geometry_supported = bool(
             fist_allowed_direction
-            and (foreshortened_fist["strong_geometry"]
-            or (
-                fist_valid
-                and float(non_thumb.max()) <= .42
-                and float(non_thumb.mean()) <= .28
-            ))
+            and (reported_side_fist_geometry or fist_side_view_geometry
+                 or foreshortened_fist["strong_geometry"]
+                 or (
+                     fist_valid
+                     and float(non_thumb.max()) <= .42
+                     and float(non_thumb.mean()) <= .28
+                 ))
         )
         fist_foreshortened_relabel = bool(
             fist_allowed_direction
-            and
-            foreshortened_fist["strong_geometry"]
+            and (foreshortened_fist["strong_geometry"] or fist_side_view_geometry
+                 or reported_side_fist_geometry)
             # A projected Fist and the two thumb commands can share the same
             # four curled fingertips. Preserve a thumb command only when its
             # thumb geometry actually passes validation.
@@ -1083,8 +1279,19 @@ class GeometryResolver:
         valid = validators.get(raw, True)
         if valid:
             reason = "pose geometry accepted"
+        elif raw == "dorsal" and not dorsal_allowed_direction:
+            reason = "dorsal requires an XY angle from 0 to 150 degrees downward"
         elif raw == "open_palm" and not open_palm_allowed_direction:
             reason = "open_palm must not point downward"
+        elif raw == "fist" and require_fist_depth and fist_depth_alignment is None:
+            reason = "fist depth landmarks unavailable"
+        elif raw == "fist" and rejected_fist_view:
+            reason = "fist orientation matches a no-gesture pose"
+        elif raw == "fist" and not fist_depth_allowed:
+            reason = "fist points away from the camera"
+        elif raw == "fist" and not (fist_xy_allowed or reported_reverse_view
+                                    or fist_side_view_geometry):
+            reason = "fist points downward"
         elif raw == "like" and not like_finger_shape:
             reason = "like requires the thumb to lead and other fingers to stay folded"
         elif raw == "ok" and (closest_other_thumb_gap < .70 or closest_other_thumb_gap - gap < .25):
@@ -1117,6 +1324,10 @@ class GeometryResolver:
             "dorsal_score": float(dorsal["score"]),
             "dorsal_geometry_supported": dorsal_supported,
             "peace_geometry_supported": peace_geometry_supported,
+            "peace_pair_recovery": peace_pair_recovery,
+            "dorsal_range_recovery": dorsal_range_recovery,
+            "dorsal_xy_degrees": dorsal_xy,
+            "dorsal_allowed_direction": dorsal_allowed_direction,
             "peace_model_geometry": peace_model_geometry,
             "peace_image_geometry": peace_image,
             "peace_world_geometry": peace_world,
@@ -1125,6 +1336,15 @@ class GeometryResolver:
             "like_geometry_supported": like_geometry_supported,
             "fist_geometry_supported": fist_geometry_supported,
             "fist_allowed_direction": fist_allowed_direction,
+            "fist_depth_alignment": fist_depth_alignment,
+            "fist_side_view_alignment": fist_side_view_alignment,
+            "fist_side_view_geometry": fist_side_view_geometry,
+            "fist_reported_reverse_alignment": reported_reverse_alignment,
+            "fist_reported_side_alignment": reported_side_alignment,
+            "fist_reported_side_geometry": reported_side_fist_geometry,
+            "fist_tilted_side_alignment": tilted_side_alignment,
+            "fist_rejected_view_alignment": rejected_view_alignment,
+            "fist_rejected_view": rejected_fist_view,
             "fist_foreshortened_relabel": fist_foreshortened_relabel,
             "fist_retracted_finger_count": int(
                 foreshortened_fist["retracted_finger_count"]
@@ -1154,6 +1374,7 @@ class GeometryResolver:
         handedness: str | None = None,
         handedness_confidence: float | None = None,
         world_landmarks: np.ndarray | None = None,
+        require_fist_depth: bool = False,
     ) -> tuple[np.ndarray, dict[str, dict | None]]:
         adjusted, directional = self._directional(probabilities, landmarks)
         adjusted, shape = self._hand_shape(
@@ -1162,6 +1383,7 @@ class GeometryResolver:
             handedness=handedness,
             handedness_confidence=handedness_confidence,
             world_landmarks=world_landmarks,
+            require_fist_depth=require_fist_depth,
         )
         resolved = self.config.class_names[int(np.argmax(adjusted))]
         valid = bool(shape.get("valid", True))
@@ -1187,6 +1409,9 @@ class GeometryResolver:
                 "sideways_palm_recovery": bool(
                     resolved == "open_palm"
                     and shape.get("sideways_palm_recovery", False)
+                ),
+                "dorsal_range_recovery": bool(
+                    resolved == "dorsal" and shape.get("dorsal_range_recovery", False)
                 ),
             },
         }

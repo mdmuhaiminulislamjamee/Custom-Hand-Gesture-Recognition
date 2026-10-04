@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import time
 from pathlib import Path
 
 # Ensure thread limit for OpenBLAS on Windows
@@ -162,6 +161,119 @@ HAND_CONNECTIONS = [
 ]
 
 
+def _draw_axis_arrow(
+    frame: np.ndarray,
+    start: tuple[int, int],
+    end: tuple[int, int],
+    color: tuple[int, int, int],
+    label: str,
+    label_offset: tuple[int, int] = (4, -4),
+) -> None:
+    # Dark outline keeps the axes visible on both bright and dark camera frames.
+    cv2.arrowedLine(frame, start, end, (15, 15, 15), 6, cv2.LINE_AA, tipLength=0.24)
+    cv2.arrowedLine(frame, start, end, color, 3, cv2.LINE_AA, tipLength=0.24)
+    cv2.putText(
+        frame,
+        label,
+        (end[0] + label_offset[0], end[1] + label_offset[1]),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.42,
+        (15, 15, 15),
+        3,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        label,
+        (end[0] + label_offset[0], end[1] + label_offset[1]),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.42,
+        color,
+        1,
+        cv2.LINE_AA,
+    )
+
+
+def _unit_vector(vector: np.ndarray) -> np.ndarray | None:
+    length = float(np.linalg.norm(vector))
+    if length < 1e-6:
+        return None
+    return vector / length
+
+
+def _draw_hand_axes(
+    frame: np.ndarray,
+    points: list[tuple[int, int]],
+    world_landmarks: list | np.ndarray | None,
+) -> None:
+    """Draw a rotating hand-local XYZ triad with its origin on the wrist."""
+    origin = np.asarray(points[0], dtype=np.float32)
+    palm_center = np.asarray(
+        [points[index] for index in (5, 9, 13, 17)], dtype=np.float32
+    ).mean(axis=0)
+
+    # Local +Y follows the wrist toward the fingers. Local +X runs from the
+    # index-finger side toward the little-finger side of the palm.
+    y_axis = _unit_vector(palm_center - origin)
+    x_axis = _unit_vector(
+        np.asarray(points[17], dtype=np.float32)
+        - np.asarray(points[5], dtype=np.float32)
+    )
+    if x_axis is None or y_axis is None:
+        return
+
+    axis_length = float(np.clip(min(frame.shape[:2]) * 0.10, 36.0, 58.0))
+
+    def endpoint(axis: np.ndarray, scale: float = 1.0) -> tuple[int, int]:
+        target = origin + axis * axis_length * scale
+        return int(round(float(target[0]))), int(round(float(target[1])))
+
+    origin_px = int(round(float(origin[0]))), int(round(float(origin[1])))
+    _draw_axis_arrow(frame, origin_px, endpoint(x_axis), (0, 55, 255), "X")
+    _draw_axis_arrow(frame, origin_px, endpoint(y_axis), (40, 235, 40), "Y")
+
+    z_projection = None
+    z_depth = -1.0
+    if world_landmarks is not None:
+        world = np.asarray(world_landmarks, dtype=np.float32)
+        if world.shape == (21, 3) and np.isfinite(world).all():
+            world_y = _unit_vector(world[[5, 9, 13, 17]].mean(axis=0) - world[0])
+            world_x_raw = world[17] - world[5]
+            if world_y is not None:
+                world_x = _unit_vector(
+                    world_x_raw - float(np.dot(world_x_raw, world_y)) * world_y
+                )
+                if world_x is not None:
+                    world_z = _unit_vector(np.cross(world_x, world_y))
+                    if world_z is not None:
+                        z_projection = world_z[:2]
+                        z_depth = float(world_z[2])
+
+    # When the palm normal points mostly into/out of the image, use the usual
+    # circle-dot/circle-cross depth symbol rather than an unreadably short arrow.
+    z_color = (255, 110, 35)
+    if z_projection is None or float(np.linalg.norm(z_projection)) < 0.22:
+        cv2.circle(frame, origin_px, 12, (15, 15, 15), 5, cv2.LINE_AA)
+        cv2.circle(frame, origin_px, 12, z_color, 2, cv2.LINE_AA)
+        if z_depth <= 0.0:
+            cv2.circle(frame, origin_px, 3, z_color, -1, cv2.LINE_AA)
+        else:
+            cv2.line(frame, (origin_px[0] - 5, origin_px[1] - 5),
+                     (origin_px[0] + 5, origin_px[1] + 5), z_color, 2, cv2.LINE_AA)
+            cv2.line(frame, (origin_px[0] - 5, origin_px[1] + 5),
+                     (origin_px[0] + 5, origin_px[1] - 5), z_color, 2, cv2.LINE_AA)
+        cv2.putText(frame, "Z", (origin_px[0] + 14, origin_px[1] + 14),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (15, 15, 15), 3, cv2.LINE_AA)
+        cv2.putText(frame, "Z", (origin_px[0] + 14, origin_px[1] + 14),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, z_color, 1, cv2.LINE_AA)
+    else:
+        _draw_axis_arrow(frame, origin_px, endpoint(z_projection), z_color, "Z")
+
+    # Keep the requested yellow wrist point visible as the common origin.
+    cv2.circle(frame, origin_px, 5, (0, 165, 255), -1, cv2.LINE_AA)
+    cv2.circle(frame, origin_px, 6, (255, 255, 255), 1, cv2.LINE_AA)
+
+
 def _draw_corner_brackets(
     img: np.ndarray,
     x1: int,
@@ -192,8 +304,11 @@ def _draw_corner_brackets(
     cv2.line(img, (x_max, y_max), (x_max, y_max - c_len), color, thickness, cv2.LINE_AA)
 
 
-def _draw_overlay(frame: np.ndarray, result: dict) -> None:
-    """Draws targeting guide frame, hand bounding box, skeleton, and HUD banner."""
+def _draw_overlay(
+    frame: np.ndarray,
+    result: dict,
+) -> None:
+    """Draw targeting guide, hand skeleton, XYZ motion axes, and HUD banners."""
     h, w = frame.shape[:2]
     status = result.get("status", "")
     pred = result.get("runtime_prediction", "no_gesture")
@@ -203,6 +318,7 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
     mass = float(result.get("known_gesture_mass", 0.0))
     fps = float(result.get("actual_fps", 0.0))
     landmarks = result.get("landmarks")
+    world_landmarks = result.get("world_landmarks")
     distance_m = result.get("distance_m")
     plane_angles = result.get("plane_angles")
 
@@ -244,7 +360,7 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
             cv2.LINE_AA,
         )
 
-    # 2. Draw Hand Skeleton & Bounding Box if Hand is Detected
+    # 2. Draw Hand Skeleton, bounding box, and rotating local axes
     if landmarks and len(landmarks) == 21:
         pts = [(int(p[0] * w), int(p[1] * h)) for p in landmarks]
 
@@ -312,6 +428,9 @@ def _draw_overlay(frame: np.ndarray, result: dict) -> None:
             2,
             cv2.LINE_AA,
         )
+
+        # Rotating hand-local axes, anchored at landmark 0 (the yellow wrist).
+        _draw_hand_axes(frame, pts, world_landmarks)
 
     # 3. Top HUD Banner
     cv2.rectangle(frame, (0, 0), (w, 85), (20, 20, 20), -1)

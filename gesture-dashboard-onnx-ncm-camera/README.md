@@ -143,7 +143,7 @@ The supplied reference receiver replies to a heartbeat with packet type `0x03`. 
 
 `backend/model_runtime.py` decodes the JPEG, applies the configured `0.92` central square ROI for the NCM dashboard, preserves native detail up to a maximum analysis dimension of 960 pixels, and runs adaptive low-light analysis. Very dark/blank frames are rejected before hand detection. Underexposed usable frames receive bounded CLAHE/gamma enhancement without horizontal mirroring.
 
-`backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. It accepts one hand. `backend/face_guard.py` uses the bundled BlazeFace model to reject small false hand candidates overlapping the face/ear region.
+`backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. It accepts one hand. `backend/face_guard.py` uses the bundled BlazeFace model to reject small false hand candidates and real hands resting beside the face/ear. Finger proximity to the expanded face region vetoes classification in both tracking and recovery, even when the palm center is outside the face box. Face boxes persist through up to 0.5 seconds of missed detections. Present commands away from the face; much larger foreground hands remain eligible. This is a spatial policy, not a measurement of physical contact, and depends on face detection.
 
 Accepted landmarks are checked for clipping, scale, plausibility, and sudden jumps. `RuntimeSession` in `backend/model_runtime.py` keeps a velocity-adaptive EMA per client and reacquires persistent real motion instead of following a single-frame jump.
 

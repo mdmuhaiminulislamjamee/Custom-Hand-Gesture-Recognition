@@ -831,6 +831,7 @@ class InferenceEngine:
             "message": message,
             "runtime_prediction": reject_label,
             "runtime_action": "Wait / No Action",
+            "action_reason": (detector_quality.get("rejection_reason") or "no usable hand").replace("_", " "),
             "confidence": 0.0,
             "stable_frames": 0,
             "follow_object": asdict(follow),
@@ -1018,6 +1019,7 @@ class InferenceEngine:
                         "selected_handedness_confidence"
                     ),
                     world_landmarks=world_landmarks,
+                    require_fist_depth=True,
                 )
 
         raw_probabilities, classifier_ms, selected_quality = model_rows[selected_name]
@@ -1049,6 +1051,7 @@ class InferenceEngine:
             geometry_supported=geometry_supported,
             directional_recovery=directional_recovery,
             sideways_palm_recovery=bool(pose_validation.get("sideways_palm_recovery", False)),
+            dorsal_range_recovery=bool(pose_validation.get("dorsal_range_recovery", False)),
         )
 
         diagnostic_results: dict[str, dict[str, Any]] = {}
@@ -1078,6 +1081,7 @@ class InferenceEngine:
                         and model_direction.get("model_supported_pose", False)
                     ),
                     sideways_palm_recovery=bool(model_pose.get("sideways_palm_recovery", False)),
+                    dorsal_range_recovery=bool(model_pose.get("dorsal_range_recovery", False)),
                 )
             )
             diagnostic_results[name] = {

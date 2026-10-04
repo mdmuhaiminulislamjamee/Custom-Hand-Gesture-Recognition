@@ -63,5 +63,6 @@ def test_ios_geometry_and_temporal_sources_follow_the_twelve_class_contract() ->
     geometry = (PROJECT_ROOT / "swift" / "GestureGeometryResolver.swift").read_text()
     temporal = (PROJECT_ROOT / "swift" / "GestureTemporalGate.swift").read_text()
     assert 'raw == "peace" || raw == "rock"' in geometry
+    assert "minimumPeaceTipSeparationRatio: Float = 0.04" in geometry
     assert "fistAllowedDirection && (fistCompact || fist.strongGeometry)" in geometry
     assert "outside the twelve-gesture vocabulary" in temporal

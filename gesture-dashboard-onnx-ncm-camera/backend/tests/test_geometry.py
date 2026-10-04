@@ -98,6 +98,49 @@ def camera_facing_fist_pose() -> np.ndarray:
     ], dtype=np.float32)
 
 
+def fist_at_xy_angle(xy_degrees: float, depth_ratio: float, *, mirror: bool = False):
+    """Rotate one closed-hand silhouette while preserving its depth direction."""
+    points = camera_facing_fist_pose()
+    axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+    rotation = np.deg2rad(xy_degrees) - np.arctan2(axis[1], axis[0])
+    transform = np.asarray([
+        [np.cos(rotation), -np.sin(rotation)],
+        [np.sin(rotation), np.cos(rotation)],
+    ], dtype=np.float32)
+    points = (points - points[0]) @ transform.T + points[0]
+    rotated_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+    projected = (points - points[0]) @ (rotated_axis / np.linalg.norm(rotated_axis))
+    world = np.column_stack((points, depth_ratio * projected))
+    if mirror:
+        points[:, 0] = 1.0 - points[:, 0]
+        world[:, 0] = 1.0 - world[:, 0]
+    return points, world
+
+
+def compact_side_fist_pose(
+    xy_degrees: float, *, mirror: bool = False, thumb_down: bool = False,
+    tip_overshoot: float = 0.0, depth_ratio: float = .325,
+):
+    """A curled fist whose image curlback is weaker than the front-view rule."""
+    points = closed_hand_pose(thumb_down=thumb_down)
+    for mcp in (5, 9, 13, 17):
+        points[mcp + 3, 1] -= tip_overshoot
+    axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+    rotation = np.deg2rad(xy_degrees) - np.arctan2(axis[1], axis[0])
+    transform = np.asarray([
+        [np.cos(rotation), -np.sin(rotation)],
+        [np.sin(rotation), np.cos(rotation)],
+    ], dtype=np.float32)
+    points = (points - points[0]) @ transform.T + points[0]
+    rotated_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+    projected = (points - points[0]) @ (rotated_axis / np.linalg.norm(rotated_axis))
+    world = np.column_stack((points, depth_ratio * projected))
+    if mirror:
+        points[:, 0] = 1.0 - points[:, 0]
+        world[:, 0] = 1.0 - world[:, 0]
+    return points, world
+
+
 def side_on_like_pose() -> np.ndarray:
     """Landmark regression for the low-angle, side-on thumbs-up report."""
     return np.asarray([
@@ -647,6 +690,376 @@ def test_fist_rejects_downward_orientation_even_with_strong_model_score(mirror, 
     )
     assert decision.predicted_gesture == 'no_gesture'
     assert not decision.execute
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('xy_degrees', [-180, -90, -68, -20, 0, 20, 90, 180])
+def test_reverse_facing_fist_outside_reported_view_is_no_gesture(mirror, xy_degrees):
+    config = RuntimeConfig()
+    points, world = fist_at_xy_angle(xy_degrees, -.60, mirror=mirror)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    resolved, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world,
+    )
+    shape = details['hand_shape']
+    pose = details['pose_validation']
+    assert shape['fist_depth_alignment'] < -.45
+    assert shape['fist_allowed_direction'] is False
+    assert pose['gesture'] == 'fist'
+    assert pose['valid'] is False
+    assert pose['reason'] in {
+        'fist points away from the camera',
+        'fist orientation matches a no-gesture pose',
+    }
+
+    decision = TemporalGate(config).update(
+        resolved, now=1.0, known_gesture_mass=1.0,
+        pose_valid=pose['valid'], rejection_reason=pose['reason'],
+    )
+    assert decision.predicted_gesture == 'no_gesture'
+    assert not decision.execute
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+def test_reported_reverse_facing_closed_fist_is_accepted(mirror):
+    config = RuntimeConfig()
+    points, world = fist_at_xy_angle(-130, -.575, mirror=mirror)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    resolved, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    if not mirror:
+        from backend.model_runtime import hand_plane_angles
+        angles = hand_plane_angles(world)
+        assert angles['xy'] == pytest.approx(-130, abs=1)
+        assert angles['yz'] == pytest.approx(-143, abs=2)
+        assert angles['zx'] == pytest.approx(-132, abs=2)
+    assert details['hand_shape']['fist_reported_reverse_alignment'] > .95
+    assert details['pose_validation']['gesture'] == 'fist'
+    assert details['pose_validation']['valid'] is True
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        decision = gate.update(resolved, now=now, known_gesture_mass=1.0,
+                               pose_valid=True, geometry_supported=True)
+    assert decision.predicted_gesture == 'fist'
+    assert decision.execute is True
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+def test_reported_side_fist_recovers_invalid_thumb_down(mirror):
+    config = RuntimeConfig()
+    points, world = compact_side_fist_pose(-5, mirror=mirror, depth_ratio=.18)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+
+    resolved, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    if not mirror:
+        from backend.model_runtime import hand_plane_angles
+        angles = hand_plane_angles(world)
+        assert angles['xy'] == pytest.approx(-5, abs=1)
+        assert angles['yz'] == pytest.approx(117, abs=2)
+        assert angles['zx'] == pytest.approx(80, abs=2)
+    assert details['hand_shape']['fist_reported_side_geometry'] is True
+    assert details['pose_validation']['gesture'] == 'fist'
+    assert details['pose_validation']['valid'] is True
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        decision = gate.update(resolved, now=now, known_gesture_mass=1.0,
+                               pose_valid=True, geometry_supported=True)
+    assert decision.predicted_gesture == 'fist'
+    assert decision.execute is True
+
+
+def test_reported_reverse_view_still_rejects_partly_open_hand():
+    config = RuntimeConfig()
+    points, world = fist_at_xy_angle(-130, -.575)
+    for mcp in (5, 9, 13, 17):
+        points[mcp + 3] += [0.0, -.25]
+        world[mcp + 3, :2] = points[mcp + 3]
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    _, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+    assert details['pose_validation']['valid'] is False
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('xy,yz,zx', [
+    (-64, -161, 126), (-68, 161, 50), (-20, -150, 102),
+    (-61, -145, 142),
+    # The second screenshot's +40 ZX implies positive YZ. Its displayed
+    # -150 YZ instead implies +140 ZX. Cover both readings of the HUD.
+    (-64, 150, 40), (-64, -150, 140),
+])
+@pytest.mark.parametrize('jitter', [-2, 0, 2])
+@pytest.mark.parametrize('model_label', ['fist', 'thumb_down'])
+def test_user_rejected_fist_views_clear_a_previously_accepted_fist(
+    mirror, xy, yz, zx, jitter, model_label,
+):
+    """Reconstruct reported world axes; screenshots do not contain raw landmarks."""
+    from backend.model_runtime import hand_plane_angles
+
+    config = RuntimeConfig()
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+    resolver = GeometryResolver(config)
+    gate = TemporalGate(config)
+    accepted, accepted_world = fist_at_xy_angle(-130, -.575, mirror=mirror)
+    resolved, details = resolver.resolve(row, accepted, world_landmarks=accepted_world,
+                                         require_fist_depth=True)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        decision = gate.update(resolved, now=now, known_gesture_mass=1.0,
+                               pose_valid=details['pose_validation']['valid'])
+    assert decision.execute and decision.predicted_gesture == 'fist'
+
+    depth_ratio = np.cos(np.deg2rad(xy + jitter)) / np.tan(np.deg2rad(zx + jitter))
+    points, world = fist_at_xy_angle(xy + jitter, depth_ratio, mirror=mirror)
+    if not mirror and jitter == 0:
+        angles = hand_plane_angles(world)
+        assert angles['xy'] == pytest.approx(xy, abs=1)
+        assert angles['yz'] == pytest.approx(yz, abs=2)
+        assert angles['zx'] == pytest.approx(zx, abs=1)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx[model_label]] = .995
+    row[config.class_to_idx['left']] = .005
+    resolved, details = resolver.resolve(row, points, world_landmarks=world,
+                                         require_fist_depth=True)
+    pose = details['pose_validation']
+    assert details['hand_shape']['fist_rejected_view'] is True
+    assert details['hand_shape']['fist_foreshortened_relabel'] is False
+    assert pose['valid'] is False
+    assert pose['geometry_supported'] is False
+    decision = gate.update(resolved, now=1.4, known_gesture_mass=1.0,
+                           pose_valid=pose['valid'], rejection_reason=pose['reason'],
+                           geometry_supported=pose['geometry_supported'])
+    assert decision.predicted_gesture == 'no_gesture'
+    assert not decision.execute
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('jitter', [-2, 0, 2])
+def test_last_reported_side_fist_recovers_from_invalid_thumb_down(mirror, jitter):
+    from backend.model_runtime import hand_plane_angles
+
+    config = RuntimeConfig()
+    xy, zx = -3 + jitter, 107 + jitter
+    depth_ratio = np.cos(np.deg2rad(xy)) / np.tan(np.deg2rad(zx))
+    points, world = compact_side_fist_pose(xy, mirror=mirror, depth_ratio=depth_ratio)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+    if not mirror and jitter == 0:
+        angles = hand_plane_angles(world)
+        assert angles['xy'] == pytest.approx(-3, abs=1)
+        assert angles['yz'] == pytest.approx(-99, abs=2)
+        assert angles['zx'] == pytest.approx(107, abs=1)
+    resolved, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+    pose = details['pose_validation']
+    assert pose['gesture'] == 'fist'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        decision = gate.update(resolved, now=now, known_gesture_mass=1.0,
+                               pose_valid=pose['valid'], geometry_supported=pose['geometry_supported'])
+    assert decision.predicted_gesture == 'fist'
+    assert decision.execute is True
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('xy_degrees', [-180, -160, -135, -90, -72, -45, -20, -1, 0, 1, 18, 19, 20, 160, 180])
+def test_camera_facing_fist_accepts_requested_xy_range(mirror, xy_degrees):
+    config = RuntimeConfig()
+    points, world = fist_at_xy_angle(xy_degrees, .17, mirror=mirror)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    _, details = GeometryResolver(config).resolve(row, points, world_landmarks=world)
+
+    if xy_degrees == -72 and not mirror:
+        world_axis = world[[5, 9, 13, 17]].mean(axis=0) - world[0]
+        assert np.rad2deg(np.arctan2(world_axis[1], world_axis[0])) == pytest.approx(-72, abs=1)
+        assert np.rad2deg(np.arctan2(world_axis[2], world_axis[1])) == pytest.approx(170, abs=1)
+        assert np.rad2deg(np.arctan2(world_axis[0], world_axis[2])) == pytest.approx(61, abs=1)
+    assert details['hand_shape']['fist_depth_alignment'] > 0
+    assert details['pose_validation']['gesture'] == 'fist'
+    assert details['pose_validation']['valid'] is True
+
+
+@pytest.mark.parametrize('depth_ratio', [-.20, .60])
+def test_fist_depth_direction_keeps_valid_tilts(depth_ratio):
+    config = RuntimeConfig()
+    points, world = fist_at_xy_angle(-72, depth_ratio)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    _, details = GeometryResolver(config).resolve(row, points, world_landmarks=world)
+
+    assert details['pose_validation']['gesture'] == 'fist'
+    assert details['pose_validation']['valid'] is True
+
+
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('xy_degrees', [-10, 8, 26])
+def test_compact_side_fist_recovers_thumb_down_miss_within_18_degree_cone(
+    mirror, xy_degrees,
+):
+    config = RuntimeConfig()
+    points, world = compact_side_fist_pose(xy_degrees, mirror=mirror)
+    assert foreshortened_fist_geometry(points)['strong_geometry'] is False
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+
+    resolved, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    shape = details['hand_shape']
+    assert shape['fist_side_view_geometry'] is True
+    assert details['pose_validation']['gesture'] == 'fist'
+    assert details['pose_validation']['valid'] is True
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        decision = gate.update(
+            resolved, now=now, known_gesture_mass=1.0,
+            pose_valid=True, geometry_supported=True,
+        )
+    assert decision.predicted_gesture == 'fist'
+    assert decision.execute is True
+
+
+@pytest.mark.parametrize('xy_degrees', [-35, 45])
+def test_compact_side_fist_recovery_stays_inside_18_degree_cone(xy_degrees):
+    config = RuntimeConfig()
+    points, world = compact_side_fist_pose(xy_degrees)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+
+    _, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    assert details['hand_shape']['fist_side_view_geometry'] is False
+    assert details['hand_shape']['fist_reported_side_geometry'] is False
+    assert details['pose_validation']['valid'] is False
+
+
+def test_compact_side_fist_can_recover_when_projected_tips_pass_the_knuckles():
+    config = RuntimeConfig()
+    points, world = compact_side_fist_pose(8, tip_overshoot=.08)
+    assert foreshortened_fist_geometry(points)['retracted_finger_count'] == 0
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+
+    _, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    assert details['hand_shape']['fist_side_view_geometry'] is True
+    assert details['pose_validation']['gesture'] == 'fist'
+    assert details['pose_validation']['valid'] is True
+
+
+@pytest.mark.parametrize('world_mode', ['missing', 'reverse'])
+def test_compact_side_fist_recovery_needs_matching_world_orientation(world_mode):
+    config = RuntimeConfig()
+    points, world = compact_side_fist_pose(8)
+    if world_mode == 'missing':
+        world = None
+    else:
+        world[:, 2] *= -1
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+
+    _, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    assert details['hand_shape']['fist_side_view_geometry'] is False
+    assert details['pose_validation']['valid'] is False
+
+
+@pytest.mark.parametrize('shape', ['thumb_down', 'partly_open'])
+@pytest.mark.parametrize('xy,depth_ratio', [(8, .325), (-3, -.305)])
+def test_side_fist_recovery_requires_tucked_thumb_and_closed_fingers(shape, xy, depth_ratio):
+    config = RuntimeConfig()
+    points, world = compact_side_fist_pose(
+        xy, depth_ratio=depth_ratio, thumb_down=shape == 'thumb_down',
+    )
+    if shape == 'thumb_down':
+        assert foreshortened_fist_geometry(points)['thumb_radius_ratio'] > .85
+    else:
+        for mcp in (5, 9, 13, 17):
+            points[mcp + 3] = points[mcp] + [0.20, 0.0]
+            world[mcp + 3, :2] = points[mcp + 3]
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['thumb_down']] = .995
+    row[config.class_to_idx['fist']] = .005
+
+    _, details = GeometryResolver(config).resolve(
+        row, points, world_landmarks=world, require_fist_depth=True,
+    )
+
+    assert details['hand_shape']['fist_side_view_geometry'] is False
+    assert details['pose_validation']['gesture'] != 'fist'
+
+
+def test_live_fist_without_world_landmarks_is_no_gesture():
+    config = RuntimeConfig()
+    points = camera_facing_fist_pose()
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    resolved, details = GeometryResolver(config).resolve(
+        row, points, require_fist_depth=True,
+    )
+    pose = details['pose_validation']
+    assert pose['valid'] is False
+    assert pose['reason'] == 'fist depth landmarks unavailable'
+    decision = TemporalGate(config).update(
+        resolved, known_gesture_mass=1.0,
+        pose_valid=pose['valid'], rejection_reason=pose['reason'],
+    )
+    assert decision.predicted_gesture == 'no_gesture'
+
+
+@pytest.mark.parametrize('xy_degrees', [28, 90, 152])
+def test_fist_still_rejects_downward_xy_angles(xy_degrees):
+    config = RuntimeConfig()
+    points, world = fist_at_xy_angle(xy_degrees, .17)
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx['fist']] = .995
+    row[config.class_to_idx['left']] = .005
+
+    _, details = GeometryResolver(config).resolve(row, points, world_landmarks=world)
+
+    assert details['hand_shape']['fist_allowed_direction'] is False
+    assert details['pose_validation']['valid'] is False
+    assert details['pose_validation']['reason'] == 'fist points downward'
 
 
 @pytest.mark.parametrize('target_angle', [0.0, np.pi])

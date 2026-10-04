@@ -47,6 +47,13 @@ def _edge_on_peace_pose() -> np.ndarray:
     ], dtype=np.float32)
 
 
+def _close_finger_peace_pose() -> np.ndarray:
+    """Reported Peace shape with long, nearly parallel index/middle fingers."""
+    points = _edge_on_peace_pose()
+    points[6:9, 0] += 12
+    return points
+
+
 def test_requested_candidate_actions_are_mapped():
     contract = json.loads((PROJECT_ROOT / "artifacts/twelve_gesture/candidate_contract.json").read_text())
     assert contract["class_names"] == COMMANDS
@@ -110,6 +117,42 @@ def test_edge_on_peace_with_short_ring_finger_overrides_direction():
     assert pose["gesture"] == "peace"
     assert pose["valid"] and pose["geometry_supported"]
     assert COMMANDS[int(resolved.argmax())] == "peace"
+
+
+def test_close_parallel_index_and_middle_fingers_execute_peace():
+    config = load_runtime_config()
+    image = _close_finger_peace_pose()
+    world = np.pad(image, ((0, 0), (0, 1)))
+    geometry = peace_finger_geometry(world)
+    assert .04 < geometry["tip_separation_ratio"] < .22
+    assert geometry["valid"]
+
+    model = ModelManager(config)
+    probabilities, _, _, quality = model.predict_detailed(landmarks_to_feature(image))
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities, image, world_landmarks=world,
+    )
+    pose = details["pose_validation"]
+    assert pose["gesture"] == "peace"
+    assert pose["valid"] and pose["geometry_supported"]
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3, 1.4, 1.5):
+        decision = gate.update(
+            resolved, now=now,
+            known_gesture_mass=quality["known_gesture_mass"],
+            pose_valid=pose["valid"], geometry_supported=pose["geometry_supported"],
+        )
+    assert decision.predicted_gesture == "peace"
+    assert decision.execute
+
+
+def test_collapsed_duplicate_fingertips_are_not_peace():
+    image = _edge_on_peace_pose()
+    image[8] = image[12]
+    geometry = peace_finger_geometry(image)
+    assert geometry["tip_separation_ratio"] == 0.0
+    assert not geometry["valid"]
 
 
 def test_edge_on_peace_rejects_a_truly_raised_third_finger():

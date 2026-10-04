@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import numpy as np
-from .face_guard import FaceGuard, overlaps_face_as_small_hand
+from .face_guard import FaceGuard, face_context_rejection
 
 DETECTOR_SETTINGS = {
     "running_mode": "VIDEO with IMAGE recovery",
@@ -15,7 +15,7 @@ DETECTOR_SETTINGS = {
     "minimum_tracking_confidence": 0.60,
     "recovery_detection_confidence": 0.20,
     "recovery_presence_confidence": 0.30,
-    "face_guard": "BlazeFace small-hand overlap exclusion",
+    "face_guard": "BlazeFace face/ear proximity veto with 0.5-second occlusion hold",
     "recovery_confirmation_frames": 2,
     "minimum_palm_pixels": 8,
     "minimum_hand_span_pixels": 24,
@@ -236,11 +236,18 @@ class HandDetector:
         face_guard = getattr(self, "_face_guard", None)
         boxes = face_guard.detect(rgb_image) if face_guard else []
         self._last_diagnostics["face_guard_ready"] = bool(face_guard and face_guard.detector)
+        self._last_diagnostics["face_guard_error"] = getattr(face_guard, "error", None)
         self._last_diagnostics["face_count"] = len(boxes)
         selected = self._run_view(rgb_image, view, video=not self._recovery_tracking)
-        if selected is not None and overlaps_face_as_small_hand(selected[1], rgb_image.shape, boxes):
-            selected = None
-            self._last_diagnostics["rejection_reason"] = "hand_candidate_overlaps_face"
+        def guard(row):
+            if row is not None:
+                reason = face_context_rejection(row[1], rgb_image.shape, boxes)
+                if reason:
+                    self._last_diagnostics["rejection_reason"] = reason
+                    return None
+            return row
+
+        selected = guard(selected)
         def score(row):
             if row is None:
                 return -1.0
@@ -263,9 +270,7 @@ class HandDetector:
                 recovery_view = views[self._search_index % len(views)]
                 self._search_index += 1
             self._last_diagnostics["recovery_attempted"] = True
-            alternative = self._run_view(rgb_image, recovery_view, video=False)
-            if alternative is not None and overlaps_face_as_small_hand(alternative[1], rgb_image.shape, boxes):
-                alternative = None
+            alternative = guard(self._run_view(rgb_image, recovery_view, video=False))
             alternative_score = score(alternative)
             if alternative_score > selected_score:
                 selected, view, selected_score = alternative, recovery_view, alternative_score

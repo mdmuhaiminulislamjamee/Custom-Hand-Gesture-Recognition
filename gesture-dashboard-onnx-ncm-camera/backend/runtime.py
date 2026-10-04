@@ -176,6 +176,7 @@ class TemporalGate:
         geometry_supported: bool = False,
         directional_recovery: bool = False,
         sideways_palm_recovery: bool = False,
+        dorsal_range_recovery: bool = False,
     ) -> TemporalDecision:
         now = time.monotonic() if now is None else float(now)
         row = np.asarray(probabilities, dtype=np.float64).reshape(-1)
@@ -205,7 +206,8 @@ class TemporalGate:
             known_gesture_mass >= self.config.geometry_recovery_mass_floor
         )
         dorsal_fallback = bool(
-            geometry_supported and geometry_gesture == "dorsal" and recovery_mass_ok
+            geometry_supported and geometry_gesture == "dorsal"
+            and (recovery_mass_ok or dorsal_range_recovery)
         )
         directional_fallback = bool(
             directional_recovery and geometry_supported
@@ -279,7 +281,7 @@ class TemporalGate:
         held_seconds = max(0.0, now - label_started_at)
         required_hold = self.config.minimum_hold_seconds
         if dorsal_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.35)
+            required_hold = max(required_hold, 0.45 if dorsal_range_recovery else 0.35)
         if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.40)
         if supported_hand and known_gesture_mass < self.config.known_mass_floor:
