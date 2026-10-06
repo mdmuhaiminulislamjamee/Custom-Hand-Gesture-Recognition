@@ -704,6 +704,24 @@ class GeometryResolver:
             and deepest_edge_reach >= 1.20
             and deepest_edge_reach_advantage >= 1.30
         )
+        # In this NCM view the real index remains a long, straight downward
+        # chain while the three folded fingertips collapse into a tight row.
+        # Their projected joints can look locally straight, so rely on the
+        # index's palm-relative reach and lead instead of their angle scores.
+        prominent_index_down = bool(
+            gesture == "down"
+            and dominance >= .90
+            and index_extension >= .75
+            and index_straightness >= .90
+            and index_reach >= .90
+            and index_lead >= .40
+            and relative_index_reach >= .20
+            and palm_down_alignment >= .60
+            and deepest_finger_index == 0
+            and edge_tip_cluster_spread <= .45
+            and deepest_edge_tip_drop >= .45
+            and deepest_edge_reach_advantage >= 1.40
+        )
         ordered = np.sort(probabilities)
         model_agrees = bool(
             raw == gesture
@@ -729,6 +747,7 @@ class GeometryResolver:
             or curled_edge_down
             or clustered_edge_down
             or reverse_palm_edge_down
+            or prominent_index_down
         )
         settings = (self.config.raw.get("directional_resolution") or {})
         minimum_axis_dominance = float(settings.get("minimum_axis_dominance", 0.73))
@@ -740,6 +759,7 @@ class GeometryResolver:
                 or curled_edge_down
                 or clustered_edge_down
                 or reverse_palm_edge_down
+                or prominent_index_down
             )
         )
         strong_short_index = bool(
@@ -768,6 +788,7 @@ class GeometryResolver:
             "curled_edge_down": curled_edge_down,
             "clustered_edge_down": clustered_edge_down,
             "reverse_palm_edge_down": reverse_palm_edge_down,
+            "prominent_index_down": prominent_index_down,
             "palm_down_alignment": palm_down_alignment,
             "minimum_finger_down_alignment": float(finger_units[:, 1].min()),
             "finger_reach_ratios": finger_reaches.tolist(),
@@ -787,6 +808,7 @@ class GeometryResolver:
                     or curled_edge_down
                     or clustered_edge_down
                     or reverse_palm_edge_down
+                    or prominent_index_down
                     or (
                         model_agrees
                         and float(ordered[-1]) >= .95
@@ -1032,11 +1054,12 @@ class GeometryResolver:
         # A side-on thumbs-up can be outside the classifier's learned camera
         # angles even though its silhouette is unambiguous. Keep this recovery
         # deliberately stricter than ordinary Like validation: the thumb must
-        # be strongly extended/upward, lead every fingertip, and the other four
-        # fingers must all remain folded.
+        # be strongly extended/upward, protrude beyond the compact palm, lead
+        # every fingertip, and the other four fingers must all remain folded.
         like_geometry_supported = bool(
-            raw == "like"
+            raw in {"like", "fist"}
             and extensions[0] >= .70
+            and float(foreshortened_fist["thumb_radius_ratio"]) >= 1.10
             and float(non_thumb.max()) <= .50
             and float(non_thumb.mean()) <= .38
             and thumb_up_score >= .70
@@ -1385,6 +1408,13 @@ class GeometryResolver:
             world_landmarks=world_landmarks,
             require_fist_depth=require_fist_depth,
         )
+        # This tightly bounded single-index silhouette takes precedence over a
+        # Dorsal relabel. At this angle the three folded chains can appear
+        # parallel and downward even though only the index reaches past them.
+        if directional.get("prominent_index_down", False):
+            adjusted = _set_probability_floor(
+                adjusted, self.config.class_to_idx["down"], .98
+            )
         resolved = self.config.class_names[int(np.argmax(adjusted))]
         valid = bool(shape.get("valid", True))
         reason = str(shape.get("reason", "pose geometry accepted"))

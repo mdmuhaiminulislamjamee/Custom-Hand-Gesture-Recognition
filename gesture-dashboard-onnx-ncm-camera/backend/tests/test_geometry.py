@@ -153,6 +153,17 @@ def side_on_like_pose() -> np.ndarray:
     ], dtype=np.float32)
 
 
+def prominent_index_down_pose() -> np.ndarray:
+    """Landmark regression for the reported low-mass NCM Down view."""
+    return np.asarray([
+        [543, 365], [545, 398], [535, 435], [515, 469], [488, 486],
+        [466, 429], [459, 492], [452, 530], [443, 556],
+        [493, 456], [486, 470], [488, 481], [484, 488],
+        [516, 443], [504, 469], [498, 480], [488, 488],
+        [544, 398], [532, 444], [515, 474], [491, 486],
+    ], dtype=np.float32)
+
+
 def raised_middle_pose(*, thumb_leads: bool) -> np.ndarray:
     """A raised middle finger with a thumb track that can look straight in 2-D."""
     points = np.asarray([
@@ -286,6 +297,61 @@ def test_side_on_thumbs_up_recovers_like_below_classifier_confidence_floor():
     )
     assert decision.execute is True
     assert decision.predicted_gesture == 'like'
+
+
+def test_away_facing_side_on_thumbs_up_relabels_fist_as_like():
+    """The reported NCM view is Like even when the MLP calls it Fist.
+
+    The 3-D palm axis recreates the screenshot's approximately
+    XY=-151, YZ=-127, ZX=-126 degree view.  That direction is intentionally
+    invalid for Fist, but must not veto the unmistakable thumb-up silhouette.
+    """
+    config = RuntimeConfig()
+    points = side_on_like_pose()
+
+    palm_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+    rotation = np.deg2rad(-151.0) - np.arctan2(palm_axis[1], palm_axis[0])
+    transform = np.asarray([
+        [np.cos(rotation), -np.sin(rotation)],
+        [np.sin(rotation), np.cos(rotation)],
+    ], dtype=np.float32)
+    world_xy = (points - points[0]) @ transform.T
+    world_axis = world_xy[[5, 9, 13, 17]].mean(axis=0)
+    projected = world_xy @ (world_axis / np.linalg.norm(world_axis))
+    world_points = np.column_stack((world_xy, -.643 * projected))
+
+    probabilities = np.full(len(config.class_names), .001)
+    probabilities[config.class_to_idx['fist']] = .985
+    probabilities[config.class_to_idx['like']] = .004
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities,
+        points,
+        world_landmarks=world_points,
+        require_fist_depth=True,
+    )
+    shape = details['hand_shape']
+    pose = details['pose_validation']
+
+    assert shape['fist_depth_alignment'] < -.45
+    assert shape['like_geometry_supported'] is True
+    assert pose['gesture'] == 'like'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+    assert config.class_names[int(np.argmax(resolved))] == 'like'
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2):
+        decision = gate.update(
+            resolved,
+            now=now,
+            known_gesture_mass=1.0,
+            pose_valid=pose['valid'],
+            geometry_supported=pose['geometry_supported'],
+        )
+    assert decision.predicted_gesture == 'like'
+    assert decision.execute is True
 
 
 def test_side_on_like_recovery_requires_an_upward_thumb():
@@ -1220,6 +1286,65 @@ def test_steep_edge_on_pointing_pose_is_accepted_as_down():
     )
     assert decision.execute
     assert decision.predicted_gesture == 'down'
+
+
+def test_prominent_index_down_recovers_reported_low_mass_ncm_view():
+    config = RuntimeConfig()
+    probabilities = np.full(len(config.class_names), .001)
+    # At this camera angle the folded parallel chains can resemble Dorsal.
+    probabilities[config.class_to_idx['dorsal']] = .989
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities, prominent_index_down_pose()
+    )
+    direction = details['directional']
+    pose = details['pose_validation']
+
+    assert direction['gesture'] == 'down'
+    assert direction['prominent_index_down'] is True
+    assert direction['strong_geometry'] is True
+    assert direction['model_supported_pose'] is True
+    assert pose['gesture'] == 'down'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+    assert config.class_names[int(np.argmax(resolved))] == 'down'
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3):
+        decision = gate.update(
+            resolved,
+            now=now,
+            known_gesture_mass=.31,
+            pose_valid=pose['valid'],
+            geometry_supported=pose['geometry_supported'],
+            directional_recovery=True,
+        )
+        assert not decision.execute
+    decision = gate.update(
+        resolved,
+        now=1.41,
+        known_gesture_mass=.31,
+        pose_valid=pose['valid'],
+        geometry_supported=pose['geometry_supported'],
+        directional_recovery=True,
+    )
+    assert decision.predicted_gesture == 'down'
+    assert decision.execute is True
+
+
+def test_prominent_index_down_requires_the_index_to_clear_folded_tips():
+    config = RuntimeConfig()
+    points = prominent_index_down_pose()
+    points[8, 1] = 505
+    probabilities = np.full(len(config.class_names), .001)
+    probabilities[config.class_to_idx['dorsal']] = .989
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+
+    assert details['directional']['prominent_index_down'] is False
+    assert config.class_names[int(np.argmax(resolved))] != 'down'
 
 
 def test_curled_edge_on_pointing_pose_is_accepted_as_down():
