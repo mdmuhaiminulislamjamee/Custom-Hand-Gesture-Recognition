@@ -1,0 +1,20 @@
+NCM-only iOS contract verification, 8 October 2026 (Asia/Dhaka)
+
+Command:
+  python -m pytest backend/tests/test_ios_contract.py -q -o addopts=
+
+Result:
+  4 passed in 0.06s
+
+The added contract test confirms that:
+- IOS_INTEGRATION.md defines USB-NCM as the only iOS image source.
+- The iOS integration guide contains no AVCaptureVideoDataOutput path.
+- Info.plist.fragment contains local-network permission and no camera permission.
+- GestureNCMClient.swift contains NWConnection transport, 200 KiB payload
+  limiting, CRC32 validation, heartbeat handling and JPEG packet handling.
+
+Full repository suite after this change:
+  484 passed, 2 dependency deprecation warnings in 10.76s
+
+The same suite run with its working directory set to the staged standalone
+desktop_reference completed with 484 passed and the same two warnings.

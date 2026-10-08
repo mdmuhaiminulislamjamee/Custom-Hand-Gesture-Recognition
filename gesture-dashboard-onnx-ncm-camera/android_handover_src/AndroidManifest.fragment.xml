@@ -1,0 +1,5 @@
+<!-- Merge these permissions into the existing app manifest. The OS supplies the NCM network route. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

@@ -1,0 +1,9 @@
+exit_code=0
+ONNX artifact integrity: PASS | release fingerprint: e106e4819de5694d52480318a8015ab269dc71c600ba4dc28b3ac4d64049c03e
+Twelve-gesture runtime contract: PASS | 12 command outputs + no_gesture rejection | 10 FPS / 100 ms | unmirrored with calibrated Left/Right semantics
+ONNX graph/session load: PASS | provider: CPUExecutionProvider
+MediaPipe initialization: PASS
+Classifier smoke test: PASS | 76 float32 features -> 12 probabilities + known-mass score
+Offline qualification metadata: accepted_precision=0.99500 | macro_f1=0.99108 | not a live NCM-camera measurement
+Live Webcam and NCM validation: REQUIRED | test all twelve gestures, both hands, varied angles, low light, empty scenes, landmark jitter, unmirrored directions, and observed FPS
+

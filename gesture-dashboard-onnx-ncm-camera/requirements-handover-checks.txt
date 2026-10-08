@@ -1,0 +1,3 @@
+-r requirements.lock.txt
+scikit-learn==1.6.1
+threadpoolctl==3.7.0

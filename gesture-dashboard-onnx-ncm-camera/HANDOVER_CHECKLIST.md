@@ -1,4 +1,4 @@
-# Twelve-Gesture ONNX + Webcam/USB-NCM Camera Handover Checklist
+# Twelve-Gesture ONNX + USB-NCM Handover Checklist
 
 ## Release package
 
@@ -46,16 +46,17 @@ recognition accuracy.
 
 ## iOS package
 
-- Run `scripts/create_ios_handover.ps1 -Version v2026.10.03_ios_onnx_02` only
-  after the twelve-command artifacts qualify. The script must reject stale
-  output orders or hash-mismatched files.
-- Confirm `_02` is the current immutable package under `handover_04/`.
-- Confirm the package contains the matching ONNX, metadata, runtime JSON,
-  MediaPipe and BlazeFace assets, Swift extractor, reference runtime files,
-  mobile manifest, and checksums.
-- On a physical iOS device, verify both hands for Fist and Thumbs Down, verify
-  Open Palm and Fist accept up/sideways and reject downward poses, and verify
-  unmirrored Left/Right semantics.
+- Run `python scripts/create_final_handover.py` after qualification. It creates a new immutable final bundle and refuses to overwrite an existing version.
+- Current delivery: `handover_final/v2026.10.08_ios_ncm_final_03/`. It uses the NCM board exclusively on iOS; older handover folders are historical.
+- Verify with `python verify_package.py` from the extracted bundle; the optional `--onnx` check needs NumPy/ONNX Runtime.
+- Follow its `IOS_INTEGRATION.md` and `VALIDATION.md` for the native regression commands and pending Apple/device checks.
+- Include model/config, MediaPipe/BlazeFace, updated Swift core/adapters, comparison fixtures, complete Python reference, runnable Windows archive, hashes and run instructions.
+
+## Android package
+
+- Current delivery: `handover_android/v2026.10.08_android_ncm_03/`. Start with its `README.md` and `ANDROID_INTEGRATION.md`.
+- Verify the extracted delivery with `python verify_package.py`; `--onnx` also checks the 26 ONNX vectors when NumPy and ONNX Runtime are installed.
+- On Android, run the 294 feature and 26 ONNX debug parity cases, prove an OS-provided USB-NCM route on the target device, then port and qualify the remaining geometry, frame and action rules before dispatching actions.
 
 ## Required physical NCM acceptance
 

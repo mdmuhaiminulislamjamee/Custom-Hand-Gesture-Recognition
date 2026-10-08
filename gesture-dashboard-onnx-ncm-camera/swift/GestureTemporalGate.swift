@@ -52,6 +52,12 @@ public final class GestureTemporalGate {
         knownGestureMass: Float,
         timestamp: TimeInterval
     ) -> GestureTemporalDecision {
+        guard timestamp.isFinite else { return reject("invalid frame timestamp") }
+        guard resolution.probabilities.count == GestureFeatureExtractor.classNames.count,
+              resolution.probabilities.allSatisfy({ $0.isFinite && $0 >= 0 }),
+              resolution.probabilities.reduce(0, +) > 1e-12 else {
+            return reject("invalid classifier probabilities")
+        }
         guard knownGestureMass.isFinite else { return reject("invalid known-gesture mass") }
         guard resolution.valid else { return reject(resolution.reason) }
         let row = normalize(resolution.probabilities)
@@ -61,14 +67,17 @@ public final class GestureTemporalGate {
         let margin = rawConfidence - runnerUp
         let gesture = GestureFeatureExtractor.classNames[argmax(row)]
         let recoveryMassOK = knownGestureMass >= geometryRecoveryMassFloor
-        let dorsalFallback = resolution.geometrySupported && gesture == "dorsal" && recoveryMassOK
+        let dorsalFallback = resolution.geometrySupported && gesture == "dorsal"
+            && (recoveryMassOK || resolution.dorsalRangeRecovery)
         let directionalFallback = resolution.directionalRecovery
             && resolution.geometrySupported
             && ["left", "right", "up", "down"].contains(gesture)
             && (gesture == "down" || recoveryMassOK)
         let supportedHand = resolution.geometrySupported
             && ["open_palm", "like", "fist", "thumb_down"].contains(gesture)
-            && recoveryMassOK
+            && (gesture == "open_palm"
+                ? (knownGestureMass >= 0.12 || resolution.sidewaysPalmRecovery)
+                : recoveryMassOK)
 
         if knownGestureMass < knownMassFloor && !(dorsalFallback || directionalFallback || supportedHand) {
             return reject("outside the twelve-gesture vocabulary")

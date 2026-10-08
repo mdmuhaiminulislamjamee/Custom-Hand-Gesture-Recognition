@@ -1,0 +1,242 @@
+{
+  "android/AndroidManifest.fragment.xml": {
+    "bytes": 332,
+    "sha256": "25b7e53ca67641985f267f27419d107ecfd0fd6b73e4dc0780b7e4af540c01f5"
+  },
+  "android/kotlin/GestureFeatureExtractor.kt": {
+    "bytes": 4151,
+    "sha256": "8ea2a3314d9254e8d198621771251f71f49161837eec1f6db21bc9b1dab4d9a9"
+  },
+  "android/kotlin/GestureFrameAnalyzer.kt": {
+    "bytes": 3397,
+    "sha256": "e923fa15a651db13d56e44a3b3d583310ed7c577ebf465f70317ba6ab22c0666"
+  },
+  "android/kotlin/GestureHandLandmarker.kt": {
+    "bytes": 1637,
+    "sha256": "0ebc8eecc7e1539d0c80b71118c8f5f825e8e9cd0dd595a2a7b38f793af302f0"
+  },
+  "android/kotlin/GestureNcmClient.kt": {
+    "bytes": 6508,
+    "sha256": "4fd214d78262ea415650a01217d6b43ac800c6bab1f66a23f487a12f46faf180"
+  },
+  "android/kotlin/GestureOnnxClassifier.kt": {
+    "bytes": 3977,
+    "sha256": "7bcd1e4080d70d6442f7fc35c8f960a0b1dfb99eb151e96ee981be6f148c1af2"
+  },
+  "android/kotlin/GestureParity.kt": {
+    "bytes": 2653,
+    "sha256": "3a27cfd9f309a15abb45b0bc189bf7fa606d833b77f2b55e226c93f9f625bfd1"
+  },
+  "android/kotlin/NcmNetworkSelector.kt": {
+    "bytes": 1047,
+    "sha256": "f11d8d353c9984435adb01a0d63b70ee6d2377e6359e3442c8eaeb1a81c056b1"
+  },
+  "android/models/blaze_face_short_range.tflite": {
+    "bytes": 229746,
+    "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+  },
+  "android/models/gesture_mlp_onnx_metadata.json": {
+    "bytes": 19281,
+    "sha256": "c3baa6def2271dec888d2462b340ae808f33bc0813a8399322877e5ab59501ed"
+  },
+  "android/models/gesture_mlp_production.onnx": {
+    "bytes": 77529,
+    "sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
+  },
+  "android/models/gesture_mobile_runtime_config.json": {
+    "bytes": 8232,
+    "sha256": "ecb9ea9bd3544ab345024a2b37544d3b09f6a79e0e9b0bcc57601bec8a2eadfd"
+  },
+  "android/models/hand_landmarker.task": {
+    "bytes": 7819105,
+    "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+  },
+  "android/reference/backend/__init__.py": {
+    "bytes": 40,
+    "sha256": "fd823a1d5a6ad83af7d4d12bbaf0d90876f34e524f5a940d134fe55f8ebb857a"
+  },
+  "android/reference/backend/app.py": {
+    "bytes": 37582,
+    "sha256": "9e41219e3c82021b1abc2bcdb6ec9af498af48c4ecb68896882085dec5f98bc6"
+  },
+  "android/reference/backend/artifact_integrity.py": {
+    "bytes": 7926,
+    "sha256": "7045be6a36f32408d633b4cc664d7088d4ade6542c1e757a9ff2b32332ff67c1"
+  },
+  "android/reference/backend/config.py": {
+    "bytes": 12564,
+    "sha256": "9c306273921b569e121faedd465660109e9fc334f9233e1c394f3b1a0e77bbfa"
+  },
+  "android/reference/backend/data_collection.py": {
+    "bytes": 23109,
+    "sha256": "c96cbec3845033949e77d82b4a85370cc5cc3606f45dafa35b53f19314c6d877"
+  },
+  "android/reference/backend/face_guard.py": {
+    "bytes": 4709,
+    "sha256": "debfb4939d0d2d0c5c897e117014bbae588bab54788f8b2cd16b938ff2596f28"
+  },
+  "android/reference/backend/follow_object.py": {
+    "bytes": 5766,
+    "sha256": "fb60d3f6ed9f0b24cbf488774b66d3e01b9e4d650ee234359c3550293b1aa95d"
+  },
+  "android/reference/backend/geometry.py": {
+    "bytes": 70188,
+    "sha256": "889c2c750f18e2a54b9b8246eefeb3fd5a80709165f538bd47dba58daca6d9d0"
+  },
+  "android/reference/backend/hand_detection.py": {
+    "bytes": 18979,
+    "sha256": "af35262407593f2ccfaaa59ccd8ecd2edfbf4c74549b74aa087a60840f08d09e"
+  },
+  "android/reference/backend/model_runtime.py": {
+    "bytes": 56281,
+    "sha256": "c8e98ee96959a86dc4a0c3df8d5e980a839f70e72abf6456445ad2f986290c55"
+  },
+  "android/reference/backend/ncm_camera.py": {
+    "bytes": 18008,
+    "sha256": "bcea58b59babeaa6eaf0c2ed1ce51481db21f03944d4256027eadcfcb1f8f045"
+  },
+  "android/reference/backend/observability.py": {
+    "bytes": 7139,
+    "sha256": "e4970defa60d11f1ecb71d7d8a1a4bc3ad0d17f50d590a7385266952951fe757"
+  },
+  "android/reference/backend/online_learning.py": {
+    "bytes": 66952,
+    "sha256": "de034736efeb3153024c50965e8a98cddd529f595d46741590921e21ba8c8d3b"
+  },
+  "android/reference/backend/runtime.py": {
+    "bytes": 13230,
+    "sha256": "fb62d89951f298d3d59a11a41a14685ef6febc45a8adb2a85c8811e97d053b65"
+  },
+  "android/reference/backend/storage.py": {
+    "bytes": 8097,
+    "sha256": "ddba2d929cce41d04e1fe4565bfa6c85ab4d2f79079bd34c2f5fe9f4493d8624"
+  },
+  "android/reference/backend/tests/test_camera_stability.py": {
+    "bytes": 8583,
+    "sha256": "0e5dcb071c60fd0f8f75fd626755ecf121741e04d4fcc186acfd986bbf8bd3a9"
+  },
+  "android/reference/backend/tests/test_collection_and_rejection.py": {
+    "bytes": 18441,
+    "sha256": "1c86f09ee36e80a9d5c48e66121695da32648937939542ed891643a92be9e5c2"
+  },
+  "android/reference/backend/tests/test_face_context.py": {
+    "bytes": 7060,
+    "sha256": "ce1cbf1585bc355cd66a494d71faa4bca8b4ebe43d83f82bd61db22fea1e0f10"
+  },
+  "android/reference/backend/tests/test_follow_object.py": {
+    "bytes": 1361,
+    "sha256": "9d9f63b7aa1520b39d96c581ab2d9099ab11d7e898fdac0edb6246c36dde9da1"
+  },
+  "android/reference/backend/tests/test_geometry.py": {
+    "bytes": 67555,
+    "sha256": "7f67f3d78e855f5dab42ab4df0767e67ed208ecd8cc269f3ce1ba304015044b8"
+  },
+  "android/reference/backend/tests/test_hand_detection.py": {
+    "bytes": 7712,
+    "sha256": "ce45fec8ac96acc9dbb4f7dd7dd5c16c3203228ed4ccb2919474c10524c8782d"
+  },
+  "android/reference/backend/tests/test_ios_contract.py": {
+    "bytes": 3522,
+    "sha256": "90808ddc16811068234828b14d63898972519763ffa153b279998abcbe709c04"
+  },
+  "android/reference/backend/tests/test_multiview_training.py": {
+    "bytes": 6831,
+    "sha256": "645ed2bf58c962f2f15578872fcde119f982c8241e6cdfe4ef4888780bf2157a"
+  },
+  "android/reference/backend/tests/test_ncm_camera.py": {
+    "bytes": 6653,
+    "sha256": "f93982c1a3602e76b1dc59de093bfc47144187817b0d734aec7f4c95cecb7caf"
+  },
+  "android/reference/backend/tests/test_online_integration.py": {
+    "bytes": 6758,
+    "sha256": "e9c1d6d285d1cd3c846a699d70c000603d90f5382f805ea941eb29cb436d286f"
+  },
+  "android/reference/backend/tests/test_online_learning.py": {
+    "bytes": 9833,
+    "sha256": "2a23cac5f91bb7cf09498603bcea5b16c04064bd2b0578ead59f39008d96819b"
+  },
+  "android/reference/backend/tests/test_onnx_runtime.py": {
+    "bytes": 5960,
+    "sha256": "ef3f48251466494c1bf715b8b120bb374be150e1a319cd300562836c4e94b17b"
+  },
+  "android/reference/backend/tests/test_reported_fist_views.py": {
+    "bytes": 3309,
+    "sha256": "1e47ee4d17b78b89bd89fdea47b01887bda9b47568251aa9c2d03b54e7578a2f"
+  },
+  "android/reference/backend/tests/test_reported_peace_dorsal.py": {
+    "bytes": 11919,
+    "sha256": "f098f80a87c3e2d6f369195b72b923ebe517becff75ba10b66905a9d213c83c9"
+  },
+  "android/reference/backend/tests/test_runtime.py": {
+    "bytes": 12292,
+    "sha256": "38a24b26094a8a0cbd44d5aedce71a51cc43c8176270dd1e700e78d28abc1b7b"
+  },
+  "android/reference/backend/tests/test_ten_gesture_accuracy.py": {
+    "bytes": 3965,
+    "sha256": "d91cf1037dabc183beaf7a8fa9128c8ac4d08d4a195ab947f05ca58a958fb48c"
+  },
+  "android/reference/backend/tests/test_twelve_candidate.py": {
+    "bytes": 11570,
+    "sha256": "eb2eae825ad9508685d2cfb80e6e9cbb6e09897fbc2aa421d4839e8a48337924"
+  },
+  "android/reference/protocol/NcmCameraTester.cpp": {
+    "bytes": 39911,
+    "sha256": "d7fb869e990e259347324a0799143dbf177e82e1a054149573577a1dec51cbf3"
+  },
+  "android/reference/swift/GestureActionLatch.swift": {
+    "bytes": 2193,
+    "sha256": "20c6d339b2e2396f31387e419075972e5370b6930004f6d410f1c80aca9a720c"
+  },
+  "android/reference/swift/GestureDecisionPipeline.swift": {
+    "bytes": 2887,
+    "sha256": "65d707fa76a2aee09b5ee1e35f9bd4fb57adad19e2544aeff9c17adb04c7954c"
+  },
+  "android/reference/swift/GestureFeatureExtractor.swift": {
+    "bytes": 16971,
+    "sha256": "7a8e02fcb1992e532b819727f09e0e60f18eee347fd5282e69fd15837c4317bb"
+  },
+  "android/reference/swift/GestureGeometryResolver.swift": {
+    "bytes": 40061,
+    "sha256": "1bf6bde8ac362594d8fd34c99dffa352aea43afd86336c1cc79a28acdd0e1753"
+  },
+  "android/reference/swift/GestureTemporalGate.swift": {
+    "bytes": 7144,
+    "sha256": "d23d035d6d7696a40e35db7719e3d8f933acc71e835e35c8112702f2656078b6"
+  },
+  "android/tests/parity_vectors.json": {
+    "bytes": 2102936,
+    "sha256": "4b0fdb2f22bea2049aef317ebae36481121ede02b92487402b0f5da384b3777c"
+  },
+  "ANDROID_INTEGRATION.md": {
+    "bytes": 7297,
+    "sha256": "753a6d829b2d7af8190474e8e5b0bfd6077c3f490064e009936bbe3646f7b621"
+  },
+  "desktop_reference.zip": {
+    "bytes": 34036269,
+    "sha256": "c0fe37aa67070b5a5cce6e12b814e5f14c272c496f61f3e01f8221f668f1d587"
+  },
+  "MODEL_CARD.md": {
+    "bytes": 1468,
+    "sha256": "157348e3afa69c3c22e9e4e2118c7bc56cf81f5bdf1f51a34adf588af1f7959d"
+  },
+  "NCM_PROTOCOL.md": {
+    "bytes": 2700,
+    "sha256": "0ab8438c55dc4e95299d71c8b3dd600a22e3680d8245b42192c7e14ff0596ac0"
+  },
+  "README.md": {
+    "bytes": 6107,
+    "sha256": "418a5bf3f63aa6c04726a460a843fdff2be8d1a3a65cc1cd98531c5352170d6b"
+  },
+  "RELEASE_MANIFEST.json": {
+    "bytes": 2789,
+    "sha256": "70f2dbd2e428b084c3e6123d7105a8471dbfc772a551664279b35af9efd9fb09"
+  },
+  "VALIDATION.md": {
+    "bytes": 2201,
+    "sha256": "fca28d610df585e1cfd12e5da50bb6f7fb4c70384e93cc682ee73cfd312c3a9d"
+  },
+  "verify_package.py": {
+    "bytes": 4606,
+    "sha256": "82443b4da1b11c9921dc60721bf364df3c34128363833f0b456d3f0fef8ad682"
+  }
+}

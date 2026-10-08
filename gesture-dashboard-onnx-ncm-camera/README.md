@@ -1,6 +1,10 @@
 # Gesture Dashboard: ONNX + USB-NCM Camera
 
-This repository is the complete Windows reference implementation for a twelve-command, static hand-gesture system. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS.
+**Final NCM-only iOS app-team handover:** [README and run instructions](handover_final/v2026.10.08_ios_ncm_final_03/README.md). Build a fresh immutable delivery with `python scripts/create_final_handover.py --version vYYYY.MM.DD_ios_ncm_final_NN` using an unused version. Source guides live in [handover_docs](handover_docs/README.md).
+
+**Android NCM app-team handover:** [README and integration instructions](handover_android/v2026.10.08_android_ncm_03/README.md). This supplies native NCM/MediaPipe/ONNX diagnostic sources, model assets and behavior references. The complete Android decision port and physical USB-NCM acceptance are still required. Build a new immutable version with `python scripts/create_android_handover.py --version vYYYY.MM.DD_android_ncm_NN` using an unused version.
+
+This repository is the complete Windows reference implementation for a twelve-command, static hand-gesture system. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
 
 Current runtime model: **TwelveGestureBalancedMLP**. It passed offline
 holdout/ONNX checks, but low-resolution live-camera validation is still pending.
@@ -9,7 +13,7 @@ the active classifier. Peace maps to Turn 90 Degrees and Rock to Backup.
 The browser demo represents Backup
 as a smaller media target; it does not control physical hardware.
 
-> Important: the Windows application is runnable as delivered. The iOS material is an **integration package**, not a finished Xcode project. An iOS developer must still create the app shell, camera or NCM receiver, ONNX Runtime wrapper, decision state machine, and UI. See [Implementing the pipeline on iOS](#implementing-the-pipeline-on-ios).
+> Important: the Windows application is runnable as delivered. The iOS material is an **NCM-only integration package**, not a finished Xcode project. It supplies a Swift TCP/JLIP receiver, native ONNX/MediaPipe adapters, and updated decision sources. The app team must integrate decoded NCM JPEG preprocessing, the complete frame pipeline and UI, then validate on Apple hardware. The built-in iOS camera is not used. See [Implementing the pipeline on iOS](#implementing-the-pipeline-on-ios).
 
 ## Contents
 
@@ -74,7 +78,7 @@ The start script rebuilds the frontend on every launch, starts both processes in
 
 ## What the system does
 
-The application recognizes ten approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
+The application recognizes twelve approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
 
 ```text
 Development-board camera
@@ -91,7 +95,7 @@ JLIP stream parser and validated latest-JPEG buffer
 low-light checks -> MediaPipe 21-point hand landmarks -> landmark stabilization
         |
         v
-76-D feature extraction -> ten-output ONNX MLP + known-gesture-mass score
+76-D feature extraction -> twelve-output ONNX MLP + known-gesture-mass score
         |
         v
 pose geometry + open-set rejection + probability EMA + hold/release/cooldown
@@ -290,7 +294,7 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `public/gesture-guides/` | Images used by the guided collection UI |
 | `reference/` | Supplied C++ NCM/JLIP receiver used as the transport contract |
 | `swift/` | Swift feature extractor, geometry resolver, temporal gate, action latch, and pipeline |
-| `handover_04/` | Current immutable twelve-command iOS integration package |
+| `handover_04/` | Historical twelve-command iOS snapshots |
 | `handover_03/` | Historical ten-command iOS integration packages |
 | `handover_02/`, `handover/` | Historical iOS handovers; do not start a new integration from them |
 | `examples/` | Minimal ONNX inference example for an already prepared 76-D feature row |
@@ -827,279 +831,9 @@ The manifest proves file integrity/consistency, not real-camera accuracy.
 
 ## Implementing the pipeline on iOS
 
-### What is included and what is not
+The final handover is `handover_final/v2026.10.08_ios_ncm_final_03/`. Start with its README, then IOS_INTEGRATION.md and NCM_PROTOCOL.md. The maintained guide source is [handover_docs/IOS_INTEGRATION.md](handover_docs/IOS_INTEGRATION.md). It covers Xcode setup, assets, Swift NCM/JLIP transport, JPEG-to-MediaPipe/ONNX wiring, the updated Swift core, parity tests, and the remaining NCM frame-pipeline integration. The iPhone/iPad built-in camera is not part of this path.
 
-The current iOS handover contains the twelve-output model, matching Swift
-sources, Python reference, hashes, and an integration contract. Create it with:
-
-```powershell
-.\scripts\create_ios_handover.ps1 -Version v2026.10.03_ios_onnx_02
-```
-
-The script refuses an eight-output/stale model, verifies the ONNX hash and
-class/action contracts, and writes a new immutable release under:
-
-```text
-handover_04/v2026.10.03_ios_onnx_02/
-```
-
-It contains:
-
-- `ios/models/hand_landmarker.task`;
-- `ios/models/blaze_face_short_range.tflite` for the desktop-equivalent face
-  guard port;
-- `ios/swift/` with the five matching Swift decision sources;
-- `ios/models/gesture_mlp_production.onnx`;
-- matching model metadata/runtime JSON and a mobile-specific manifest;
-- desktop geometry/runtime reference files and an all-in-one ZIP.
-
-The root `swift/GestureFeatureExtractor.swift` is available for direct inspection. The current root runtime/config can evolve after a dated snapshot. **Do not mix files from the root and a handover package silently.** Use one internally consistent, versioned snapshot, compare its hashes/config, and publish a new iOS package when root behavior changes.
-
-Handover 04 generates a mobile-specific manifest and checksums for the exact
-files in the iOS bundle. Earlier handovers are historical snapshots.
-
-This repository does **not** contain an `.xcodeproj`, `.xcworkspace`, `Podfile`, `Info.plist`, Swift NCM/JLIP client, ONNX session wrapper, or finished iOS screen. The Swift decision sources still need physical-device integration and validation.
-
-There are two possible iOS targets:
-
-1. **Classifier demonstration:** MediaPipe -> supplied feature extractor -> ONNX -> basic thresholds/action. Faster, but not behaviorally equivalent to the Windows runtime.
-2. **Production-equivalent port:** integrate and test low-light policy, detector recovery, face guard, landmark smoothing, the supplied Swift decision sources, transport validation, and observability. This is required before claiming desktop/iOS parity. Handover 04 includes the desktop BlazeFace asset as a reference; its iOS preprocessing/inference path needs validation.
-
-### 1. Create the Xcode project and install libraries
-
-On a Mac with Xcode, create an iOS Swift app target. The official MediaPipe Tasks iOS guide distributes `MediaPipeTasksVision` through CocoaPods, and ONNX Runtime supplies the `onnxruntime-objc` CocoaPod.
-
-Example `Podfile`:
-
-```ruby
-target 'GestureApp' do
-  use_frameworks!
-  pod 'MediaPipeTasksVision'
-  pod 'onnxruntime-objc'
-end
-```
-
-Then run from the Xcode project directory:
-
-```bash
-pod install
-open GestureApp.xcworkspace
-```
-
-Pin versions and commit `Podfile.lock` after validating a working combination. Use the generated `.xcworkspace`, not the original `.xcodeproj`, after installing pods. ONNX Runtime's Objective-C API can be exposed to Swift with a bridging header containing:
-
-```objc
-#import <onnxruntime.h>
-```
-
-Official references:
-
-- [Google MediaPipe Hand Landmarker for iOS](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/ios)
-- [ONNX Runtime Objective-C setup](https://onnxruntime.ai/docs/get-started/with-obj-c.html)
-- [ONNX Runtime iOS deployment example](https://onnxruntime.ai/docs/tutorials/mobile/deploy-ios.html)
-
-### 2. Add the runtime assets
-
-Add these files to the app target with target membership enabled and confirm they appear under **Build Phases -> Copy Bundle Resources**:
-
-```text
-hand_landmarker.task
-gesture_mlp_production.onnx
-GestureFeatureExtractor.swift
-```
-
-Also keep `gesture_mlp_onnx_metadata.json` and `gesture_mobile_runtime_config.json` in the bundle if the app will validate the contract/read thresholds instead of duplicating them in Swift.
-
-Run the supplied smoke test in a unit test or debug launch:
-
-```swift
-let result = GestureFeatureExtractor.runParitySelfTest()
-precondition(result.passed, "76-D feature smoke test failed: \(result.maxFeatureDiff)")
-```
-
-This function compares only the first six features at a loose tolerance and returns a hard-coded sample label. It does not run ONNX. Add full 76-value golden fixtures and end-to-end model fixtures before treating parity as proven.
-
-### 3. Add permissions
-
-For the device's own camera, add `NSCameraUsageDescription` to `Info.plist` and request/check AVFoundation authorization.
-
-For a direct NCM connection, add `NSLocalNetworkUsageDescription`, for example:
-
-```xml
-<key>NSLocalNetworkUsageDescription</key>
-<string>This app connects to the local USB camera board for gesture recognition.</string>
-```
-
-Fixed-IP TCP and unicast UDP discovery do not use Bonjour, so `NSBonjourServices` is not needed unless the firmware/app later adopts Bonjour. The current discovery packet is unicast, so it does not require the multicast entitlement. Test local-network permission on a physical device, not only the simulator.
-
-References:
-
-- [Apple camera authorization](https://developer.apple.com/documentation/avfoundation/requesting-authorization-to-capture-and-save-media)
-- [Apple local-network usage description](https://developer.apple.com/documentation/bundleresources/information-property-list/nslocalnetworkusagedescription)
-- [Apple TN3179: local-network privacy](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)
-
-### 4. Configure MediaPipe
-
-Resolve `hand_landmarker.task` from `Bundle.main` and create a Hand Landmarker for `.liveStream` or `.video` mode. Match the desktop settings:
-
-```text
-numHands = 1
-minHandDetectionConfidence = 0.55
-minHandPresenceConfidence = 0.55
-minTrackingConfidence = 0.60
-```
-
-Use monotonic, increasing millisecond timestamps. In live-stream mode MediaPipe may discard a new frame while busy; this is acceptable when the app always prefers the newest observation.
-
-For the built-in iPhone/iPad camera:
-
-- keep analysis pixels unmirrored (`isVideoMirrored = false` where supported);
-- disable automatic mirroring before setting the flag when necessary;
-- convert `CMSampleBuffer`/`CVPixelBuffer` to `MPImage` with the correct physical orientation;
-- use normalized image landmarks 0 through 20, not world landmarks;
-- do not perform another Left/Right label swap.
-
-See [`AVCaptureConnection.isVideoMirrored`](https://developer.apple.com/documentation/avfoundation/avcaptureconnection/isvideomirrored).
-
-### 5. Convert landmarks and run ONNX
-
-From the first detected hand, convert the 21 normalized MediaPipe landmarks in their original index order:
-
-```swift
-let points = handLandmarkerResult.landmarks[0].map {
-    SIMD2<Float>(Float($0.x), Float($0.y))
-}
-let features = try GestureFeatureExtractor.landmarksToFeature(points)
-precondition(features.count == 76)
-```
-
-After ONNX inference, apply the supplied cross-platform pose guard before
-temporal confirmation:
-
-```swift
-let allowed = try GestureFeatureExtractor.runtimePoseAllowed(
-    predictedGesture: topClass,
-    modelConfidence: topProbability,
-    landmarksXY: points
-)
-guard allowed else {
-    // Publish no_gesture and reset the candidate hold.
-    return
-}
-```
-
-This rejects downward Open Palm and Fist and applies the handedness-neutral Fist and
-Thumbs Down geometry checks. It does not replace the other production geometry
-and temporal gates.
-
-Create a contiguous `float32` tensor with shape `[1, 76]` and input name `landmark_features`. Query outputs by exact name:
-
-```text
-probabilities       float32 [1, 12]
-known_gesture_mass  float32 [1, 1]
-```
-
-The correct name is `known_gesture_mass`. Query outputs by name, and do not add `no_gesture` to the probability vector. Validate finite values and normalize the twelve probabilities as the desktop runtime does. The exact order is `left`, `right`, `up`, `down`, `open_palm`, `like`, `dorsal`, `ok`, `fist`, `thumb_down`, `peace`, `rock`.
-
-`runtime_action` is not an ONNX output. The app derives it only after rejection, geometry, and temporal gates.
-
-### 6. Reproduce the decision state machine
-
-For a minimum compatible gate, in this order:
-
-1. no usable hand -> reset candidate history and return `no_gesture`;
-2. feature extraction failure -> reject;
-3. apply the ported pose/geometry vetoes from `backend/geometry.py`, including
-   up/sideways Open Palm with downward rejection and the Fist/Thumbs Down checks;
-4. require `known_gesture_mass >= 0.70`, except only explicitly ported/tested
-   geometry-supported recovery with mass `>= 0.15`; a clear Open Palm may
-   recover at `>= 0.12`, or below that for a verified sideways palmar hand;
-5. require top probability `>= 0.70`;
-6. require top-minus-second probability `>= 0.08`;
-7. apply probability EMA with alpha `0.45`;
-8. require the same EMA label for at least 3 frames and at least 0.18 seconds;
-9. after firing, require 3 release frames and a 0.80-second cooldown before repeating;
-10. map the final class index using the fixed table in this README.
-
-Use a monotonic clock for frame intervals, holds, and cooldowns. A label change or capture gap must start a fresh hold so stale EMA cannot execute an action for a new pose.
-
-The complete desktop resolver includes longer-hold geometry recovery and reviewed-negative veto behavior. Port the code/tests rather than approximating it if exact parity is required.
-
-### 7. Enforce 10 FPS on iOS
-
-Keep only the latest frame and admit at most one inference start every 100 ms. Make the timestamp reservation before MediaPipe/ONNX execution so failures cannot create a burst. Do not queue every camera frame; accumulated old frames cause latency and invalid temporal behavior.
-
-```text
-Camera/NCM producer -> atomic latest-frame slot -> 100 ms monotonic scheduler
-                   -> MediaPipe -> 76-D -> ONNX -> decision state -> main-thread UI
-```
-
-Run model work on a serial background queue or actor. Publish only UI state on the main actor. Measure performance using a Release build on a physical device.
-
-### 8. Use the USB-NCM board from iPhone/iPad
-
-If the target device/accessory exposes the board as Ethernet:
-
-1. connect the board through supported USB-C/Ethernet hardware;
-2. configure the device-side Ethernet interface as `192.168.50.1` with subnet mask `255.255.255.252` when the OS/accessory setup permits it;
-3. confirm the board answers at `192.168.50.2`;
-4. optionally send ASCII `JL-CAMERA-DISCOVER` by unicast UDP to `192.168.50.2:5001`;
-5. open an `NWConnection` TCP connection to `192.168.50.2:5000`;
-6. implement the incremental JLIP parser below;
-7. decode only validated `0x10` JPEG payloads and place the newest frame into the 10-FPS pipeline.
-
-Use the canonical `/30` mask. Older handover wording that also suggests `/24` is not the release network contract.
-
-JLIP header layout:
-
-| Byte offset | Size | Field |
-|---:|---:|---|
-| 0 | 4 | ASCII magic `JLIP` |
-| 4 | 1 | version (`1`) |
-| 5 | 1 | packet type |
-| 6 | 2 | header length (`24`), big-endian |
-| 8 | 4 | sequence, big-endian |
-| 12 | 4 | payload length, big-endian |
-| 16 | 4 | payload CRC32, big-endian |
-| 20 | 4 | timestamp milliseconds, big-endian |
-
-Parser rules:
-
-- append every `NWConnection.receive` chunk to a persistent buffer;
-- search/resynchronize on the four magic bytes;
-- wait until all 24 header bytes exist;
-- reject a wrong version/header length or a payload above the configured maximum;
-- wait until the full payload exists, even across many callbacks;
-- calculate standard CRC32 over the payload and compare it with the header;
-- track sequence gaps;
-- reply to type `0x03` heartbeats with a valid empty JLIP type `0x03` packet, matching the supplied receiver;
-- for type `0x10`, require JPEG start/end markers before decoding;
-- handle multiple complete packets in one callback;
-- reconnect with bounded delay and clear stale parser/session state after disconnect.
-
-Never call `UIImage(data:)` on an arbitrary TCP receive chunk. TCP is a byte stream, not a JPEG message transport. The short `NWConnection` example in the dated handover README is schematic and is not a correct JLIP receiver by itself.
-
-### 9. iOS acceptance tests
-
-Before calling the port complete, test on a physical device:
-
-- full 76-value feature fixtures and ONNX fixtures pass;
-- ONNX input/output names, shapes, types, class order, and SHA-256 match metadata;
-- all twelve gestures work with unmirrored pixels and correct Left/Right semantics;
-- Fist and Thumbs Down work with both hands across the qualified angle range;
-- Open Palm fires while pointing up, left, right, and at oblique side angles;
-  downward and diagonal-down palms are rejected;
-- Fist fires for left and right orientations with either hand, while downward
-  and partly bent open-hand poses produce `no_gesture`;
-- the retired thumb-and-little-finger sign produces `no_gesture`;
-- `no_gesture` produces no action for empty frames, faces/ears, relaxed hands, and other fingers;
-- low light, backgrounds, both hands, hand sizes, skin tones, distance, tilt, roll, partial hands, and motion are covered;
-- repeated held gestures do not retrigger until release/cooldown rules pass;
-- scheduling stays at or below 10 admitted starts/sec without a stale-frame queue;
-- JLIP fragmentation, coalescing, CRC failure, oversized payload, reconnect, heartbeat, and sequence-gap cases pass;
-- real NCM transport counters stay clean during a sustained run.
-
-The offline model metrics do not prove live iOS or board-camera accuracy.
+The Windows reference is runnable. This is an iOS integration delivery, not a signed app or a completed/validated Xcode project. Apple-platform compilation and physical-device acceptance remain required. Earlier dated handovers are historical snapshots.
 
 ## Verification and troubleshooting
 
@@ -1164,7 +898,7 @@ Before transfer:
 - review [HANDOVER_CHECKLIST.md](HANDOVER_CHECKLIST.md);
 - do not include local adapter state/backups, participant data, feedback images, secrets, or credentials unless deliberately reviewed and approved;
 - include the full `models/` release unit and
-  `handover_04/v2026.10.03_ios_onnx_02/` as the current iOS package;
+  `handover_final/v2026.10.07_ios_final_01/` as the current iOS package;
 - record the hardware/firmware version and physical board test result separately.
 
 The software preflight and offline metrics are necessary checks, but acceptance still requires all twelve commands and rejection cases on the actual target camera, lighting, mounting, and iOS/Windows hardware.

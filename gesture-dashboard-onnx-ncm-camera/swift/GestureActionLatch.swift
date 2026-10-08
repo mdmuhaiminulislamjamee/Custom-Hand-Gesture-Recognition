@@ -5,6 +5,7 @@ import Foundation
 public final class GestureActionLatch {
     public var cooldownSeconds: TimeInterval = 0.80
     public var releaseFramesRequired = 3
+    public var targetFPS: Double = 10
 
     private var lastActionGesture: String?
     private var lastActionAt = -TimeInterval.infinity
@@ -21,7 +22,8 @@ public final class GestureActionLatch {
     /// Returns the action string once when it should be dispatched.
     public func update(
         _ decision: GestureTemporalDecision,
-        timestamp: TimeInterval
+        timestamp: TimeInterval,
+        trackingGap: Bool = false
     ) -> String? {
         if decision.execute {
             let newEdge = decision.gesture != lastActionGesture
@@ -39,11 +41,11 @@ public final class GestureActionLatch {
         let current = decision.gesture == GestureFeatureExtractor.rejectLabel
             ? nil
             : decision.gesture
-        observeRelease(currentGesture: current)
+        observeRelease(currentGesture: current, trackingGap: trackingGap)
         return nil
     }
 
-    private func observeRelease(currentGesture: String?) {
+    private func observeRelease(currentGesture: String?, trackingGap: Bool = false) {
         guard let lastActionGesture else {
             releaseFrames = 0
             return
@@ -53,7 +55,8 @@ public final class GestureActionLatch {
             return
         }
         releaseFrames += 1
-        if releaseFrames >= max(1, releaseFramesRequired) {
+        let required = trackingGap ? max(releaseFramesRequired, Int(ceil(targetFPS * 0.6))) : releaseFramesRequired
+        if releaseFrames >= max(1, required) {
             self.lastActionGesture = nil
             releaseFrames = 0
         }

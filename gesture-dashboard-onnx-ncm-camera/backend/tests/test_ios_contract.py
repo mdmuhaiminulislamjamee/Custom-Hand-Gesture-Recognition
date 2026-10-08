@@ -64,5 +64,21 @@ def test_ios_geometry_and_temporal_sources_follow_the_twelve_class_contract() ->
     temporal = (PROJECT_ROOT / "swift" / "GestureTemporalGate.swift").read_text()
     assert 'raw == "peace" || raw == "rock"' in geometry
     assert "minimumPeaceTipSeparationRatio: Float = 0.04" in geometry
-    assert "fistAllowedDirection && (fistCompact || fist.strongGeometry)" in geometry
+    assert "fistAllowedDirection && (fistCompact || fist.strongGeometry || fistSideGeometry || reportedSideFistGeometry)" in geometry
     assert "outside the twelve-gesture vocabulary" in temporal
+
+
+def test_final_ios_handover_uses_ncm_frames_only() -> None:
+    integration = (PROJECT_ROOT / "handover_docs" / "IOS_INTEGRATION.md").read_text()
+    plist = (PROJECT_ROOT / "swift" / "ios" / "Info.plist.fragment").read_text()
+    ncm = (PROJECT_ROOT / "swift" / "ios" / "GestureNCMClient.swift").read_text()
+
+    assert "only image source is the USB-NCM board camera" in integration
+    assert "AVCaptureVideoDataOutput" not in integration
+    assert "NSCameraUsageDescription" not in plist
+    assert "NSLocalNetworkUsageDescription" in plist
+    assert "NWConnection" in ncm
+    assert "maximumPayload = 200 * 1024" in ncm
+    assert "crc32(payload) == expectedCRC" in ncm
+    assert "case 0x03" in ncm
+    assert "case 0x10" in ncm

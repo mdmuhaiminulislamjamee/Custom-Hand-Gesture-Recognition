@@ -1,0 +1,78 @@
+exit_code=0
+[34m[1/5] analyze client references...[39m
+[36mvite v8.0.13 [32mbuilding rsc environment for production...[36m[39m
+[2Ktransforming...✓ 211 modules transformed.
+rendering chunks...
+[32m✓ built in 2.63s[39m
+[34m[2/5] analyze server references...[39m
+[36mvite v8.0.13 [32mbuilding ssr environment for production...[36m[39m
+[2Ktransforming...✓ 74 modules transformed.
+rendering chunks...
+[32m✓ built in 139ms[39m
+[34m[3/5] build rsc environment...[39m
+[36mvite v8.0.13 [32mbuilding rsc environment for production...[36m[39m
+[2Ktransforming...✓ 209 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/_next/static/css/index.D4bt9qzg.css                                                                                             51.35 kB │ gzip: 10.86 kB
+dist/server/_next/static/page-hT23gzo3.js                                                                                                    0.35 kB │ gzip:  0.26 kB
+dist/server/_next/static/rolldown-runtime-DUnMT5BP.js                                                                                        0.69 kB │ gzip:  0.42 kB
+dist/server/_next/static/navigation-runtime-XgkkmOgf.js                                                                                      0.80 kB │ gzip:  0.39 kB
+dist/server/_next/static/app-static-generation-CYEczLKI.js                                                                                   0.91 kB │ gzip:  0.51 kB
+dist/server/_next/static/app-page-cache-render-DejR7WtS.js                                                                                   1.81 kB │ gzip:  0.84 kB
+dist/server/_next/static/seed-cache-C4P0kxBi.js                                                                                              1.94 kB │ gzip:  0.96 kB
+dist/server/_next/static/app-prerender-endpoints-DpamqnNh.js                                                                                 1.94 kB │ gzip:  0.83 kB
+dist/server/_next/static/headers-D2HFF2Nf.js                                                                                                 4.12 kB │ gzip:  1.76 kB
+dist/server/_next/static/app-page-cache-CI14e5xI.js                                                                                          5.31 kB │ gzip:  1.72 kB
+dist/server/_next/static/framework~index~layout~page~app-page-cache-render~app-page-cache~seed-cache~app-route-handl~beoizrd4-DoPf0EGh.js    6.12 kB │ gzip:  2.49 kB
+dist/server/_next/static/app-route-handler-dispatch-CuIwaFKS.js                                                                             25.96 kB │ gzip:  8.02 kB
+dist/server/_next/static/cache-headers-Dislx-3t.js                                                                                          44.25 kB │ gzip: 14.32 kB
+dist/server/_next/static/framework~index-Bg5rSgWb.js                                                                                        56.66 kB │ gzip: 16.93 kB
+dist/server/index.js                                                                                                                       229.71 kB │ gzip: 65.80 kB
+
+[32m✓ built in 1.08s[39m
+[34m[4/5] build client environment...[39m
+[36mvite v8.0.13 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 120 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/vinext-client-entry-manifest.json                         0.06 kB │ gzip:  0.08 kB
+dist/client/.vite/manifest.json                                       1.67 kB │ gzip:  0.42 kB
+dist/client/_next/static/css/index.D4bt9qzg.css                      51.35 kB │ gzip: 10.86 kB
+dist/client/_next/static/chunks/layout-segment-context-DD2g6o3Q.js    0.49 kB │ gzip:  0.33 kB
+dist/client/_next/static/chunks/rolldown-runtime-C60lm6uB.js          0.69 kB │ gzip:  0.42 kB
+dist/client/_next/static/chunks/dashboard-CXwQNmXf.js                92.94 kB │ gzip: 25.86 kB
+dist/client/_next/static/chunks/index-BZugAt_7.js                   177.79 kB │ gzip: 51.73 kB
+dist/client/_next/static/chunks/framework-BgSIrAUN.js               190.15 kB │ gzip: 59.78 kB
+
+[32m✓ built in 714ms[39m
+[34m[5/5] build ssr environment...[39m
+[36mvite v8.0.13 [32mbuilding ssr environment for production...[36m[39m
+[2Ktransforming...✓ 75 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/ssr/_next/static/app-prefetch-fetch-queue-DOPEQW2-.js   0.00 kB │ gzip:  0.02 kB
+dist/server/ssr/_next/static/layout-segment-context-6sYF5ZVQ.js     0.37 kB │ gzip:  0.27 kB
+dist/server/ssr/_next/static/app-router-scroll-BsCX3Zzg.js          2.54 kB │ gzip:  1.13 kB
+dist/server/ssr/_next/static/error-boundary-Bsn2jebO.js             5.32 kB │ gzip:  1.61 kB
+dist/server/ssr/index.js                                           73.70 kB │ gzip: 25.01 kB
+dist/server/ssr/_next/static/dashboard-a5h2Hqzm.js                 84.76 kB │ gzip: 25.44 kB
+
+[32m✓ built in 145ms[39m
+
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mapp/layout.tsx is dynamically imported by \0virtual:vinext-rsc-entry but also statically imported by \0virtual:vinext-rsc-entry, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/default-global-error.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-browser-entry.js, node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/error-boundary.js, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/error-boundary.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-browser-entry.js, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/app-router-scroll.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-browser-entry.js, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/slot.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-browser-entry.js, node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-browser-visible-commit.js, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/internal/app-prefetch-fetch-queue.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/navigation.js, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/default-global-error.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-ssr-entry.js, node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/error-boundary.js, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/shims/slot.js is dynamically imported by \0virtual:vite-rsc/client-references but also statically imported by node_modules/.pnpm/vinext@1.0.0-beta.3_@vitejs_680ed2bd7d9573b4f606a6c88a9676d1/node_modules/vinext/dist/server/app-ssr-entry.js, dynamic import will not move module into another chunk.
+[39m

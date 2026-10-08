@@ -27,10 +27,11 @@ public final class GestureDecisionPipeline {
         landmarks: [SIMD2<Float>]?,
         handedness: String? = nil,
         handednessConfidence: Float? = nil,
+        worldLandmarks: [SIMD3<Float>]? = nil,
         timestamp: TimeInterval
     ) -> GesturePipelineResult {
         guard let landmarks, landmarks.count == 21 else {
-            return rejected("no usable hand", timestamp: timestamp)
+            return rejected("no usable hand", timestamp: timestamp, trackingGap: true)
         }
         guard probabilities.count == GestureFeatureExtractor.classNames.count,
               probabilities.allSatisfy({ $0.isFinite && $0 >= 0 }),
@@ -43,7 +44,9 @@ public final class GestureDecisionPipeline {
                 probabilities: probabilities,
                 landmarks: landmarks,
                 handedness: handedness,
-                handednessConfidence: handednessConfidence
+                handednessConfidence: handednessConfidence,
+                worldLandmarks: worldLandmarks,
+                requireFistDepth: true
             )
             let decision = temporalGate.update(
                 resolved,
@@ -62,9 +65,9 @@ public final class GestureDecisionPipeline {
         }
     }
 
-    private func rejected(_ reason: String, timestamp: TimeInterval) -> GesturePipelineResult {
+    private func rejected(_ reason: String, timestamp: TimeInterval, trackingGap: Bool = false) -> GesturePipelineResult {
         let decision = temporalGate.reject(reason)
-        _ = actionLatch.update(decision, timestamp: timestamp)
+        _ = actionLatch.update(decision, timestamp: timestamp, trackingGap: trackingGap)
         return GesturePipelineResult(
             gesture: GestureFeatureExtractor.rejectLabel,
             action: nil,

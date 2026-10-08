@@ -1,0 +1,3 @@
+node node_modules/typescript/bin/tsc --noEmit
+exit_code=0
+Passed after removing obsolete generated .next/types/validator.ts from a previous Next.js build. The handover excludes generated caches.

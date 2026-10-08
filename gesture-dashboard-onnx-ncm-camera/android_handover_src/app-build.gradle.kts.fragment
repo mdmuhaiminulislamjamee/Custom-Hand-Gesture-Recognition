@@ -1,0 +1,12 @@
+// Merge these entries into the existing Android app module's build.gradle.kts.
+// Resolve and pin exact dependency versions after testing on the target device.
+android {
+    defaultConfig {
+        minSdk = 24
+    }
+}
+
+dependencies {
+    implementation("com.google.mediapipe:tasks-vision:latest.release")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:latest.release")
+}

@@ -1,0 +1,9 @@
+# Copy into your existing Xcode project folder and replace YourApp with its target.
+platform :ios, '15.0'
+target 'YourApp' do
+  use_frameworks!
+  pod 'MediaPipeTasksVision'
+  pod 'onnxruntime-objc'
+end
+# Resolve on the integration Mac, then commit Podfile.lock after device tests.
+# No Apple-platform dependency lock has been qualified on this Windows host.

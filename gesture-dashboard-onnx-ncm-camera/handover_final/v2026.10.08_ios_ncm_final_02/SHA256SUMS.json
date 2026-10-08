@@ -1,0 +1,294 @@
+{
+  "desktop_reference.zip": {
+    "bytes": 34034144,
+    "sha256": "462b20a0dee6aed1735dcc5938d432ac4e3aa29ebc81b12f10ca4744d16fe5bb"
+  },
+  "ios/models/blaze_face_short_range.tflite": {
+    "bytes": 229746,
+    "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+  },
+  "ios/models/gesture_mlp_onnx_metadata.json": {
+    "bytes": 19281,
+    "sha256": "c3baa6def2271dec888d2462b340ae808f33bc0813a8399322877e5ab59501ed"
+  },
+  "ios/models/gesture_mlp_production.onnx": {
+    "bytes": 77529,
+    "sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
+  },
+  "ios/models/gesture_mobile_runtime_config.json": {
+    "bytes": 8232,
+    "sha256": "ecb9ea9bd3544ab345024a2b37544d3b09f6a79e0e9b0bcc57601bec8a2eadfd"
+  },
+  "ios/models/hand_landmarker.task": {
+    "bytes": 7819105,
+    "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+  },
+  "ios/reference/backend/__init__.py": {
+    "bytes": 40,
+    "sha256": "fd823a1d5a6ad83af7d4d12bbaf0d90876f34e524f5a940d134fe55f8ebb857a"
+  },
+  "ios/reference/backend/app.py": {
+    "bytes": 37582,
+    "sha256": "9e41219e3c82021b1abc2bcdb6ec9af498af48c4ecb68896882085dec5f98bc6"
+  },
+  "ios/reference/backend/artifact_integrity.py": {
+    "bytes": 7926,
+    "sha256": "7045be6a36f32408d633b4cc664d7088d4ade6542c1e757a9ff2b32332ff67c1"
+  },
+  "ios/reference/backend/config.py": {
+    "bytes": 12564,
+    "sha256": "9c306273921b569e121faedd465660109e9fc334f9233e1c394f3b1a0e77bbfa"
+  },
+  "ios/reference/backend/data_collection.py": {
+    "bytes": 23109,
+    "sha256": "c96cbec3845033949e77d82b4a85370cc5cc3606f45dafa35b53f19314c6d877"
+  },
+  "ios/reference/backend/face_guard.py": {
+    "bytes": 4709,
+    "sha256": "debfb4939d0d2d0c5c897e117014bbae588bab54788f8b2cd16b938ff2596f28"
+  },
+  "ios/reference/backend/follow_object.py": {
+    "bytes": 5766,
+    "sha256": "fb60d3f6ed9f0b24cbf488774b66d3e01b9e4d650ee234359c3550293b1aa95d"
+  },
+  "ios/reference/backend/geometry.py": {
+    "bytes": 70188,
+    "sha256": "889c2c750f18e2a54b9b8246eefeb3fd5a80709165f538bd47dba58daca6d9d0"
+  },
+  "ios/reference/backend/hand_detection.py": {
+    "bytes": 18979,
+    "sha256": "af35262407593f2ccfaaa59ccd8ecd2edfbf4c74549b74aa087a60840f08d09e"
+  },
+  "ios/reference/backend/model_runtime.py": {
+    "bytes": 56281,
+    "sha256": "c8e98ee96959a86dc4a0c3df8d5e980a839f70e72abf6456445ad2f986290c55"
+  },
+  "ios/reference/backend/ncm_camera.py": {
+    "bytes": 18008,
+    "sha256": "bcea58b59babeaa6eaf0c2ed1ce51481db21f03944d4256027eadcfcb1f8f045"
+  },
+  "ios/reference/backend/observability.py": {
+    "bytes": 7139,
+    "sha256": "e4970defa60d11f1ecb71d7d8a1a4bc3ad0d17f50d590a7385266952951fe757"
+  },
+  "ios/reference/backend/online_learning.py": {
+    "bytes": 66952,
+    "sha256": "de034736efeb3153024c50965e8a98cddd529f595d46741590921e21ba8c8d3b"
+  },
+  "ios/reference/backend/runtime.py": {
+    "bytes": 13230,
+    "sha256": "fb62d89951f298d3d59a11a41a14685ef6febc45a8adb2a85c8811e97d053b65"
+  },
+  "ios/reference/backend/storage.py": {
+    "bytes": 8097,
+    "sha256": "ddba2d929cce41d04e1fe4565bfa6c85ab4d2f79079bd34c2f5fe9f4493d8624"
+  },
+  "ios/reference/backend/tests/test_camera_stability.py": {
+    "bytes": 8583,
+    "sha256": "0e5dcb071c60fd0f8f75fd626755ecf121741e04d4fcc186acfd986bbf8bd3a9"
+  },
+  "ios/reference/backend/tests/test_collection_and_rejection.py": {
+    "bytes": 18441,
+    "sha256": "1c86f09ee36e80a9d5c48e66121695da32648937939542ed891643a92be9e5c2"
+  },
+  "ios/reference/backend/tests/test_face_context.py": {
+    "bytes": 7060,
+    "sha256": "ce1cbf1585bc355cd66a494d71faa4bca8b4ebe43d83f82bd61db22fea1e0f10"
+  },
+  "ios/reference/backend/tests/test_follow_object.py": {
+    "bytes": 1361,
+    "sha256": "9d9f63b7aa1520b39d96c581ab2d9099ab11d7e898fdac0edb6246c36dde9da1"
+  },
+  "ios/reference/backend/tests/test_geometry.py": {
+    "bytes": 67555,
+    "sha256": "7f67f3d78e855f5dab42ab4df0767e67ed208ecd8cc269f3ce1ba304015044b8"
+  },
+  "ios/reference/backend/tests/test_hand_detection.py": {
+    "bytes": 7712,
+    "sha256": "ce45fec8ac96acc9dbb4f7dd7dd5c16c3203228ed4ccb2919474c10524c8782d"
+  },
+  "ios/reference/backend/tests/test_ios_contract.py": {
+    "bytes": 3522,
+    "sha256": "90808ddc16811068234828b14d63898972519763ffa153b279998abcbe709c04"
+  },
+  "ios/reference/backend/tests/test_multiview_training.py": {
+    "bytes": 6831,
+    "sha256": "645ed2bf58c962f2f15578872fcde119f982c8241e6cdfe4ef4888780bf2157a"
+  },
+  "ios/reference/backend/tests/test_ncm_camera.py": {
+    "bytes": 6653,
+    "sha256": "f93982c1a3602e76b1dc59de093bfc47144187817b0d734aec7f4c95cecb7caf"
+  },
+  "ios/reference/backend/tests/test_online_integration.py": {
+    "bytes": 6758,
+    "sha256": "e9c1d6d285d1cd3c846a699d70c000603d90f5382f805ea941eb29cb436d286f"
+  },
+  "ios/reference/backend/tests/test_online_learning.py": {
+    "bytes": 9833,
+    "sha256": "2a23cac5f91bb7cf09498603bcea5b16c04064bd2b0578ead59f39008d96819b"
+  },
+  "ios/reference/backend/tests/test_onnx_runtime.py": {
+    "bytes": 5960,
+    "sha256": "ef3f48251466494c1bf715b8b120bb374be150e1a319cd300562836c4e94b17b"
+  },
+  "ios/reference/backend/tests/test_reported_fist_views.py": {
+    "bytes": 3309,
+    "sha256": "1e47ee4d17b78b89bd89fdea47b01887bda9b47568251aa9c2d03b54e7578a2f"
+  },
+  "ios/reference/backend/tests/test_reported_peace_dorsal.py": {
+    "bytes": 11919,
+    "sha256": "f098f80a87c3e2d6f369195b72b923ebe517becff75ba10b66905a9d213c83c9"
+  },
+  "ios/reference/backend/tests/test_runtime.py": {
+    "bytes": 12292,
+    "sha256": "38a24b26094a8a0cbd44d5aedce71a51cc43c8176270dd1e700e78d28abc1b7b"
+  },
+  "ios/reference/backend/tests/test_ten_gesture_accuracy.py": {
+    "bytes": 3965,
+    "sha256": "d91cf1037dabc183beaf7a8fa9128c8ac4d08d4a195ab947f05ca58a958fb48c"
+  },
+  "ios/reference/backend/tests/test_twelve_candidate.py": {
+    "bytes": 11570,
+    "sha256": "eb2eae825ad9508685d2cfb80e6e9cbb6e09897fbc2aa421d4839e8a48337924"
+  },
+  "ios/reference/protocol/NcmCameraTester.cpp": {
+    "bytes": 39911,
+    "sha256": "d7fb869e990e259347324a0799143dbf177e82e1a054149573577a1dec51cbf3"
+  },
+  "ios/swift/GestureActionLatch.swift": {
+    "bytes": 2193,
+    "sha256": "20c6d339b2e2396f31387e419075972e5370b6930004f6d410f1c80aca9a720c"
+  },
+  "ios/swift/GestureDecisionPipeline.swift": {
+    "bytes": 2887,
+    "sha256": "65d707fa76a2aee09b5ee1e35f9bd4fb57adad19e2544aeff9c17adb04c7954c"
+  },
+  "ios/swift/GestureFeatureExtractor.swift": {
+    "bytes": 16971,
+    "sha256": "7a8e02fcb1992e532b819727f09e0e60f18eee347fd5282e69fd15837c4317bb"
+  },
+  "ios/swift/GestureGeometryResolver.swift": {
+    "bytes": 40061,
+    "sha256": "1bf6bde8ac362594d8fd34c99dffa352aea43afd86336c1cc79a28acdd0e1753"
+  },
+  "ios/swift/GestureTemporalGate.swift": {
+    "bytes": 7144,
+    "sha256": "d23d035d6d7696a40e35db7719e3d8f933acc71e835e35c8112702f2656078b6"
+  },
+  "ios/swift/ios/Gesture-Bridging-Header.h": {
+    "bytes": 36,
+    "sha256": "5110e75ce7c8a7c3e2aeead4aa4524b74746baf11f46dc5831b04e065e83f8f5"
+  },
+  "ios/swift/ios/GestureHandLandmarker.swift": {
+    "bytes": 1360,
+    "sha256": "879e0a388dcd340426007f44b2d4cfcf6367f45b4f9b4eb0999cb70f0381f881"
+  },
+  "ios/swift/ios/GestureLandmarkEngine.swift": {
+    "bytes": 1969,
+    "sha256": "7f97dad0a7c2d9c087a7196e58914e85bb9983984d312b98271609fe41474576"
+  },
+  "ios/swift/ios/GestureNCMClient.swift": {
+    "bytes": 10225,
+    "sha256": "3af8c2d786e0c2dbb408beca26f3c5312ab549a82679f4a665e4e4d263f48f8c"
+  },
+  "ios/swift/ios/GestureONNXClassifier.swift": {
+    "bytes": 5521,
+    "sha256": "d2fc602ea01d19f46d80a71d6320659b98ac44f0e9542e15669803c39baa725a"
+  },
+  "ios/swift/ios/GestureONNXParity.swift": {
+    "bytes": 1030,
+    "sha256": "b45b49df60a38768fa02ef93d4cf6386f8b5f5e86d24064474c210ced990056f"
+  },
+  "ios/swift/ios/Info.plist.fragment": {
+    "bytes": 296,
+    "sha256": "3675f4147ed1bce29b36460c7dde46126838f24bad54d111fdec01c6eeece589"
+  },
+  "ios/swift/ios/Podfile.example": {
+    "bytes": 358,
+    "sha256": "f5d427a7a3df1cf2d68265bdcdb678b5448937cc26bfe155585894ce6804a2ee"
+  },
+  "ios/swift/README.md": {
+    "bytes": 1482,
+    "sha256": "17750cf9da53e1ed7978e5dc20eb6ea0bdcec56f1818940daeb65561ac53a8ab"
+  },
+  "ios/swift/tests/main.swift": {
+    "bytes": 4042,
+    "sha256": "df35de2091f6935dda521fd668cc04f98d3f23a9026a169ae013b6d2a193ce64"
+  },
+  "ios/swift/tests/parity_vectors.json": {
+    "bytes": 2102936,
+    "sha256": "4b0fdb2f22bea2049aef317ebae36481121ede02b92487402b0f5da384b3777c"
+  },
+  "ios/swift/tests/verify_swift.sh": {
+    "bytes": 442,
+    "sha256": "7f6ce5f422ce690aee47e46bd5d580bfbf378ffeb1b8ed0ceae9eaa2cb3a26d2"
+  },
+  "IOS_INTEGRATION.md": {
+    "bytes": 13744,
+    "sha256": "e39792290ab560270795c66c55a268a3c83b7c121593fe32edd76ad6df14a0b2"
+  },
+  "MODEL_CARD.md": {
+    "bytes": 1468,
+    "sha256": "157348e3afa69c3c22e9e4e2118c7bc56cf81f5bdf1f51a34adf588af1f7959d"
+  },
+  "NCM_PROTOCOL.md": {
+    "bytes": 4102,
+    "sha256": "e2ad3488d1529d6b8ad319c7814c1610ca1284b8b3f27647e35c9363b83d6556"
+  },
+  "README.md": {
+    "bytes": 7403,
+    "sha256": "41a06cf5fc448ef199dff3ccf61c94f043b9436f696545c84493a51d71fa2951"
+  },
+  "RELEASE_MANIFEST.json": {
+    "bytes": 6122,
+    "sha256": "45aed6fc5d969468cbf877bcf9c27e0b77f447bb165a961096a401be68f61a3e"
+  },
+  "validation/backend-tests.txt": {
+    "bytes": 1473,
+    "sha256": "0d55ff3762539ed42b16f963a6b75cf289b1219452b7cb6c99145b1435134141"
+  },
+  "validation/eslint.txt": {
+    "bytes": 13,
+    "sha256": "f13e49ac866416a925994aabf9e3244c61e851b51f0991cf67d1816bc546a778"
+  },
+  "validation/frontend-build.txt": {
+    "bytes": 8921,
+    "sha256": "b6fa41f1dcae692149635e799e1cc7d9000cceca84ca98423bff82ac16193a20"
+  },
+  "validation/isolated-desktop-tests.txt": {
+    "bytes": 1640,
+    "sha256": "36681406654c447ed3e73c635b3c117d88c0cd6c0c6a8e4fef3195ce85545c24"
+  },
+  "validation/ncm-only-contract.txt": {
+    "bytes": 828,
+    "sha256": "40155eb095f9488a79e3f0c18573630fd7b3b4891ccf2c717f0b561b3774a343"
+  },
+  "validation/onnx-preflight.txt": {
+    "bytes": 763,
+    "sha256": "3b4bc685bb07588f08186200f5c51a3965ac34cfa6adee7a2cc052af53958cdc"
+  },
+  "validation/parity-export.txt": {
+    "bytes": 531,
+    "sha256": "37ff7404b3472c9faa84405cf0a85ac9dd375261323f2eacd0a89bb39ca63658"
+  },
+  "validation/pip-check.txt": {
+    "bytes": 44,
+    "sha256": "f1f0dd057140b46e7bf99aa441038cd3538d968aa59925626592dd224983dbec"
+  },
+  "validation/typescript.txt": {
+    "bytes": 195,
+    "sha256": "e1737ecbe9a02c65cadabf31ceb825765317ca53a44bee004f3a7d463ffe5326"
+  },
+  "VALIDATION.md": {
+    "bytes": 4315,
+    "sha256": "45ea74343726445d636781edad034bfb75f686e507578e839293744bf0f82644"
+  },
+  "verify_package.py": {
+    "bytes": 4641,
+    "sha256": "01cfcb6f1a069c586c1bcf041ab283d371cf85e0d0793f4d9eaec80fa801fe63"
+  },
+  "WINDOWS_RUN.md": {
+    "bytes": 3436,
+    "sha256": "ef4e777fe2492a4b25e109ee59d3f09291f708bccab2b4631c944da530a4283f"
+  }
+}
