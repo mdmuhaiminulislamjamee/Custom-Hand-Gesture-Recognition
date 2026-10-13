@@ -145,9 +145,9 @@ The supplied reference receiver replies to a heartbeat with packet type `0x03`. 
 
 ### 2. Image preparation and hand detection
 
-`backend/model_runtime.py` decodes the JPEG, applies the configured `0.92` central square ROI for the NCM dashboard, preserves native detail up to a maximum analysis dimension of 960 pixels, and runs adaptive low-light analysis. Very dark/blank frames are rejected before hand detection. Underexposed usable frames receive bounded CLAHE/gamma enhancement without horizontal mirroring.
+`backend/model_runtime.py` decodes the JPEG, analyses the full camera frame in the live BAT viewer and dashboard, preserves native detail up to a maximum analysis dimension of 960 pixels, and runs adaptive low-light analysis. Very dark/blank frames are rejected before hand detection. Underexposed usable frames receive bounded CLAHE/gamma enhancement without horizontal mirroring.
 
-`backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. It accepts one hand. `backend/face_guard.py` uses the bundled BlazeFace model to reject small false hand candidates and real hands resting beside the face/ear. Finger proximity to the expanded face region vetoes classification in both tracking and recovery, even when the palm center is outside the face box. Face boxes persist through up to 0.5 seconds of missed detections. Present commands away from the face; much larger foreground hands remain eligible. This is a spatial policy, not a measurement of physical contact, and depends on face detection.
+`backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. Live inference observes up to two hands and `backend/hand_selection.py` selects a qualified hand automatically. `backend/face_guard.py` records face proximity for diagnostics; a clear listed gesture beside the face can pass the classifier, pose validation and temporal hold. Unknown shapes still depend on the runtime's vocabulary and geometry checks. `backend/body_guard.py` uses the bundled Pose Landmarker Lite model to treat dorsal below the waist, including a relaxed hanging hand beside the thigh, as `no_gesture` when the body landmarks are reliable. The posture rule does not measure contact with clothing.
 
 Accepted landmarks are checked for clipping, scale, plausibility, and sudden jumps. `RuntimeSession` in `backend/model_runtime.py` keeps a velocity-adaptive EMA per client and reacquires persistent real motion instead of following a single-frame jump.
 
@@ -323,8 +323,10 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `backend/config.py` | Fixed classes/actions/feature names plus runtime and operational environment loading |
 | `backend/ncm_camera.py` | UDP discovery, TCP/JLIP parser, heartbeat, reconnect, latest validated JPEG, transport metrics |
 | `backend/model_runtime.py` | ONNX loading, image preprocessing, landmark stabilization, inference orchestration, result/timing payload |
-| `backend/hand_detection.py` | MediaPipe VIDEO tracker and bounded recovery passes |
-| `backend/face_guard.py` | BlazeFace-based small false-hand exclusion near faces/ears |
+| `backend/hand_detection.py` | Two-hand MediaPipe VIDEO tracker and bounded recovery passes |
+| `backend/hand_selection.py` | Automatic qualification, hand ownership and relative-closeness selection |
+| `backend/face_guard.py` | BlazeFace face-proximity diagnostics |
+| `backend/body_guard.py` | Standing waist and relaxed-hand context for dorsal rejection |
 | `backend/geometry.py` | Exact 76-D feature construction and gesture pose/direction resolution |
 | `backend/runtime.py` | Hard rate limiter, probability EMA, temporal decision gate |
 | `backend/follow_object.py` | Open-Palm object-tracking demo state machine |

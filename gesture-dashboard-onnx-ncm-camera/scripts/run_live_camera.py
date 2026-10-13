@@ -321,6 +321,8 @@ def _draw_overlay(
     world_landmarks = result.get("world_landmarks")
     distance_m = result.get("distance_m")
     plane_angles = result.get("plane_angles")
+    selection = result.get("hand_selection") or {}
+    hands = result.get("hands") or []
 
     if distance_m is None and landmarks and len(landmarks) == 21:
         pts_arr = np.asarray(landmarks) * np.array([w, h])
@@ -347,7 +349,7 @@ def _draw_overlay(
         # Prompting guide frame when waiting for hand
         guide_color = (180, 180, 180)
         _draw_corner_brackets(frame, gx1, gy1, gx2, gy2, guide_color, thickness=2, corner_len=28)
-        prompt_text = "Place Hand Inside Frame"
+        prompt_text = "Hold a clear gesture" if hands else "Place Hand Inside Frame"
         (tw, th), _ = cv2.getTextSize(prompt_text, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 1)
         cv2.putText(
             frame,
@@ -360,7 +362,30 @@ def _draw_overlay(
             cv2.LINE_AA,
         )
 
-    # 2. Draw Hand Skeleton, bounding box, and rotating local axes
+    # Show every observed hand, including blocked/ambiguous candidates. Only the
+    # selected hand receives the existing gesture overlay and motion axes.
+    for hand in hands:
+        if hand.get("selected") and landmarks:
+            continue
+        points = hand.get("landmarks") or []
+        if len(points) != 21:
+            continue
+        pixels = [(int(point[0] * w), int(point[1] * h)) for point in points]
+        color = (160, 160, 160)
+        for start, end in HAND_CONNECTIONS:
+            cv2.line(frame, pixels[start], pixels[end], color, 1, cv2.LINE_AA)
+        for point in pixels:
+            cv2.circle(frame, point, 2, color, -1, cv2.LINE_AA)
+        identifier = f" #{hand['track_id']}" if hand.get("track_id") else ""
+        state_label = ("dorsal below waist / no gesture" if hand.get("reason") == "dorsal_below_waist"
+                       else "resting / no gesture" if hand.get("reason") == "relaxed_hand_near_hip_or_thigh"
+                       else "observed")
+        label = f"{hand.get('handedness') or 'Hand'}{identifier} | {state_label}"
+        x = max(5, min(w - 230, min(point[0] for point in pixels)))
+        y = max(100, min(h - 65, min(point[1] for point in pixels) - 8))
+        cv2.putText(frame, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, .45, color, 1, cv2.LINE_AA)
+
+    # 2. Draw selected Hand Skeleton, bounding box, and rotating local axes
     if landmarks and len(landmarks) == 21:
         pts = [(int(p[0] * w), int(p[1] * h)) for p in landmarks]
 
@@ -413,6 +438,8 @@ def _draw_overlay(
             tag_label = f"DETECTING...{dist_suffix}"
         else:
             tag_label = f"HAND{dist_suffix}"
+        if selection.get("selected_track_id") is not None:
+            tag_label = f"#{selection['selected_track_id']} SELECTED | {tag_label}"
         (lw, lh), _ = cv2.getTextSize(tag_label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
         tag_y1 = max(90, by1 - lh - 10)
         tag_y2 = tag_y1 + lh + 8
@@ -466,9 +493,15 @@ def _draw_overlay(
     cv2.putText(frame, stats_text, (max(20, w - sw - 20), 34), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (200, 200, 200), 1, cv2.LINE_AA)
 
     # 4. Bottom HUD Banner: 3D Palm Angles (XY, YZ, ZX) and Distance
-    bar_h = 36
+    bar_h = 60
     cv2.rectangle(frame, (0, h - bar_h), (w, h), (18, 18, 18), -1)
     cv2.line(frame, (0, h - bar_h), (w, h - bar_h), (45, 45, 45), 1)
+    selection_text = selection.get("message", "Automatic hand selection")
+    label = f"{len(hands)} hand(s) | {selection_text}"
+    text_width = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, .45, 1)[0][0]
+    text_scale = min(.45, .45 * max(100, w - 24) / max(text_width, 1))
+    cv2.putText(frame, label, (12, h - 39), cv2.FONT_HERSHEY_SIMPLEX,
+                text_scale, (220, 200, 140), 1, cv2.LINE_AA)
 
     if plane_angles:
         xy_val = plane_angles.get("xy", 0.0)

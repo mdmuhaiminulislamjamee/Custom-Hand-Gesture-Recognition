@@ -199,7 +199,7 @@ h2 { margin: 0; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -.04em; }
 .camera-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s ease; }
 .camera-video.active { opacity: 1; }
 .ncm-camera-video { object-fit: contain; transform: none !important; background: #050912; }
-.webcam-camera-video { object-fit: cover; transform: none !important; background: #050912; }
+.webcam-camera-video { object-fit: contain; transform: none !important; background: #050912; }
 .live-guide { z-index: 2; position: absolute; bottom: 4%; width: auto; height: 92%; max-width: 92%; }
 .capture-canvas { position: absolute; width: 1px; height: 1px; pointer-events: none; opacity: 0; }
 .guide-box { position: relative; width: min(62%, 420px); aspect-ratio: 1; display: grid; place-items: center; }
@@ -388,6 +388,7 @@ h2 { margin: 0; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -.04em; }
 .qualification-strip.fail { border-color: rgba(255, 180, 84, .44); background: rgba(255, 180, 84, .065); }
 .qualification-strip.fail strong { color: var(--orange); }
 .landmark-canvas { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; pointer-events: none; }
+.live-hand-overlay { z-index: 7; }
 .landmark-state { position: absolute; z-index: 8; right: 7px; bottom: 7px; padding: 5px 7px; border: 1px solid rgba(255,180,84,.45); border-radius: 6px; background: rgba(4,9,16,.84); color: #ffcf8a; font-size: 7px; font-weight: 850; letter-spacing: .08em; pointer-events: none; }
 .landmark-state.classified { border-color: rgba(73,217,209,.45); color: var(--mint); }
 .metric-grid-wide { grid-template-columns: 1fr 1fr; }

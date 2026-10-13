@@ -18,6 +18,8 @@ from .follow_object import FollowObjectStateMachine
 from .geometry import GeometryResolver, landmarks_to_feature
 from .runtime import TemporalGate
 from .hand_detection import HandDetector, DETECTOR_SETTINGS
+from .body_guard import dorsal_body_rejection
+from .hand_selection import AutomaticHandSelector, gate_arguments
 
 
 MIN_HAND_AREA_RATIO = 0.0001
@@ -33,6 +35,8 @@ class RuntimeSession:
     config: RuntimeConfig
     temporal_gate: TemporalGate = field(init=False)
     follow_object: FollowObjectStateMachine = field(init=False)
+    hand_selector: AutomaticHandSelector = field(init=False)
+    selected_track_id: int | None = field(default=None, init=False)
     diagnostic_gates: dict[str, TemporalGate] = field(default_factory=dict)
     frame_times: deque[float] = field(default_factory=lambda: deque(maxlen=30))
     last_action_gesture: str | None = None
@@ -53,6 +57,7 @@ class RuntimeSession:
 
     def __post_init__(self) -> None:
         self.temporal_gate = TemporalGate(self.config)
+        self.hand_selector = AutomaticHandSelector(self.config)
         self.follow_object = FollowObjectStateMachine(
             timeout_seconds=self.config.follow_timeout_seconds,
             hold_seconds=self.config.follow_hold_seconds,
@@ -61,6 +66,8 @@ class RuntimeSession:
 
     def reset(self) -> None:
         self.temporal_gate.reset()
+        self.hand_selector.reset()
+        self.selected_track_id = None
         self.follow_object.reset()
         self.diagnostic_gates.clear()
         self.frame_times.clear()
@@ -744,7 +751,7 @@ class InferenceEngine:
         self.model_manager = ModelManager(
             config, models_directory, load_models=load_models
         )
-        self.detector = HandDetector(models_directory / "hand_landmarker.task")
+        self.detector = HandDetector(models_directory / "hand_landmarker.task", use_body_context=True)
         self.resolver = GeometryResolver(config)
         self._lock = threading.Lock()
 
@@ -839,6 +846,8 @@ class InferenceEngine:
             "world_landmarks": [],
             "plane_angles": None,
             "distance_m": None,
+            "hands": detector_quality.get("hands", []),
+            "hand_selection": detector_quality.get("selection"),
             "quality": self._quality_payload(
                 image_quality,
                 detector_quality,
@@ -910,6 +919,7 @@ class InferenceEngine:
 
         if not image_quality["usable_for_detection"]:
             landmark_quality = session.observe_missing_landmarks(now)
+            session.hand_selector.update([], image.shape, now)
             landmark_quality["reason"] = "near_blank_frame"
             detector_quality = {
                 "running_mode": getattr(self.detector, "running_mode", "VIDEO"),
@@ -932,32 +942,55 @@ class InferenceEngine:
 
         with self._lock:
             landmark_started = time.perf_counter()
-            # Track the observed hand even if the gesture classifier rejects it.
-            # Searching for a high classifier score on every rejected frame can
-            # replace a real palm with a hallucinated hand on the background.
-            def candidate_score(points):
-                # Use a pose contradiction to recover drifted finger identities.
-                # Low vocabulary mass alone must NOT restart a real hand track.
+            def candidate_score(row):
+                # Score each candidate with its OWN handedness and world points.
+                # Only a geometry contradiction requests an extra detector view;
+                # low classifier mass alone does not chase background detections.
                 try:
-                    probabilities, _, _, _ = self.model_manager.predict_detailed(
-                        landmarks_to_feature(points), model_name)
-                    _, details = self.resolver.resolve(probabilities, points)
+                    probabilities, _, _, quality = self.model_manager.predict_detailed(
+                        landmarks_to_feature(row["points"]), model_name)
+                    resolved, details = self.resolver.resolve(
+                        probabilities, row["points"], handedness=row["handedness"],
+                        handedness_confidence=row["handedness_confidence"],
+                        world_landmarks=row["world_landmarks"], require_fist_depth=True)
+                    row["probabilities"] = resolved
+                    row["gate_args"] = gate_arguments(details, quality)
+                    row["resolved_label"] = self.config.class_names[int(np.argmax(resolved))]
                     return 1.0 if details["pose_validation"]["valid"] else 0.0
                 except ValueError:
                     return -0.5
-            raw_landmarks = (self.detector.detect(rgb, candidate_score=candidate_score)
-                             if isinstance(self.detector, HandDetector) else self.detector.detect(rgb))
-            world_landmarks = (
-                self.detector.world_landmarks()
-                if hasattr(self.detector, "world_landmarks")
-                else None
-            )
+            if isinstance(self.detector, HandDetector):
+                candidates = self.detector.detect_candidates(
+                    rgb, state=session.hand_selector.detector_state, candidate_score=candidate_score)
+                chosen, selection, hands = session.hand_selector.update(candidates, rgb.shape, now)
+                raw_landmarks = None if chosen is None else chosen["points"]
+                world_landmarks = None if chosen is None else chosen["world_landmarks"]
+                detector_quality = self.detector.diagnostics()
+                detector_quality.update(selection=selection, hands=hands)
+                if chosen is None:
+                    detector_quality["rejection_reason"] = detector_quality.get("rejection_reason") or selection["reason"]
+                else:
+                    detector_quality.update(chosen["metrics"])
+                    track_id = chosen["track_id"]
+                    detector_quality.update(
+                        selected_handedness=chosen["handedness"],
+                        selected_handedness_confidence=chosen["handedness_confidence"],
+                        selected_body_context=chosen.get("body_context"),
+                        selected_face_context=chosen.get("face_context"),
+                        selected_track_id=track_id, selected_bbox_area=chosen["area"],
+                        reacquired=track_id != session.selected_track_id,
+                        detection_rotation_degrees=int(chosen["view"][4] * 90),
+                        detection_view=list(chosen["view"][:4]),
+                        small_hand=chosen["metrics"]["palm_scale_px"] < 24,
+                        rejection_reason=None)
+                    session.selected_track_id = track_id
+            else:
+                # Lightweight detector adapters used by offline integrations.
+                raw_landmarks = self.detector.detect(rgb)
+                world_landmarks = self.detector.world_landmarks() if hasattr(self.detector, "world_landmarks") else None
+                detector_quality = (self.detector.diagnostics() if hasattr(self.detector, "diagnostics")
+                                    else {"candidate_count": int(raw_landmarks is not None)})
             mediapipe_ms = (time.perf_counter() - landmark_started) * 1000
-            detector_quality = (
-                self.detector.diagnostics()
-                if hasattr(self.detector, "diagnostics")
-                else {"candidate_count": int(raw_landmarks is not None)}
-            )
             if raw_landmarks is None:
                 landmark_quality = session.observe_missing_landmarks(now)
                 return self._no_hand_result(
@@ -970,11 +1003,13 @@ class InferenceEngine:
                     image_quality=image_quality,
                     detector_quality=detector_quality,
                     landmark_quality=landmark_quality,
-                    message="No usable hand was found inside the guide.",
+                    message=(detector_quality.get("selection") or {}).get(
+                        "message", "No usable hand was found inside the guide."),
                 )
             if detector_quality.get("reacquired"):
                 session.reset_landmark_tracking()
                 session.temporal_gate.reset()
+                session.diagnostic_gates.clear()
             landmarks, landmark_quality = session.stabilize_landmarks(
                 raw_landmarks, now
             )
@@ -1021,6 +1056,21 @@ class InferenceEngine:
                     world_landmarks=world_landmarks,
                     require_fist_depth=True,
                 )
+                # Smoothing can change the resolved label after hand selection.
+                # Apply the dorsal information floor to that final label too.
+                if (self.config.class_names[int(np.argmax(resolved_rows[name]))] == "dorsal"
+                        and detector_quality.get("palm_scale_px", float("inf"))
+                        < session.hand_selector.policy.minimum_dorsal_palm_pixels):
+                    resolver_rows[name]["pose_validation"].update(
+                        valid=False, reason="Move closer: dorsal hand has insufficient finger detail")
+                # Final smoothed landmarks can change the label from the one
+                # used to select the hand. Keep the waist rule on that output.
+                context_reason = dorsal_body_rejection(
+                    detector_quality.get("selected_body_context"),
+                    self.config.class_names[int(np.argmax(resolved_rows[name]))])
+                if context_reason:
+                    resolver_rows[name]["pose_validation"].update(
+                        valid=False, reason=context_reason)
 
         raw_probabilities, classifier_ms, selected_quality = model_rows[selected_name]
         resolved_probabilities = resolved_rows[selected_name]
@@ -1036,8 +1086,11 @@ class InferenceEngine:
             and direction_details.get("strong_geometry", False)
             and direction_details.get("model_supported_pose", False)
         )
-        if not pose_validation.get("valid", True) and hasattr(self.detector, "request_pose_recovery"):
-            self.detector.request_pose_recovery()
+        if not pose_validation.get("valid", True):
+            if isinstance(self.detector, HandDetector):
+                session.hand_selector.detector_state["pose_recovery_requested"] = True
+            elif hasattr(self.detector, "request_pose_recovery"):
+                self.detector.request_pose_recovery()
         decision = session.temporal_gate.update(
             resolved_probabilities,
             now=now,
@@ -1184,6 +1237,8 @@ class InferenceEngine:
             ),
             "plane_angles": hand_plane_angles(world_landmarks),
             "distance_m": estimate_hand_distance_m(detector_quality),
+            "hands": detector_quality.get("hands", []),
+            "hand_selection": detector_quality.get("selection"),
             "feature_vector": feature.round(7).tolist(),
             "actual_fps": actual_fps,
             "quality": self._quality_payload(

@@ -1,8 +1,7 @@
-"""Reject hallucinated hands and resting/touching hands beside a face or ear.
+"""Observe when a hand is near a detected face without vetoing gestures.
 
-BlazeFace supplies face boxes only; no identity or demographic inference.
-The face/ear zone is not a command area. Much larger foreground hands remain
-eligible; image coordinates alone cannot prove physical contact or intent.
+Face boxes describe image overlap, not whether a hand pose is intentional.
+Gesture validity is decided by the classifier, geometry, and temporal gate.
 """
 from pathlib import Path
 import time
@@ -11,6 +10,7 @@ import numpy as np
 
 
 def overlaps_face_as_small_hand(points, image_shape, boxes):
+    """Diagnostic size comparison; callers must not treat it as a veto."""
     pixels = np.asarray(points) * [image_shape[1], image_shape[0]]
     span = float(np.ptp(pixels, axis=0).max())
     palm = pixels[[0, 5, 9, 13, 17]].mean(axis=0)
@@ -22,32 +22,28 @@ def overlaps_face_as_small_hand(points, image_shape, boxes):
     return False
 
 
-def face_context_rejection(points, image_shape, boxes):
-    """Return a veto before classifier scoring, independent of gesture label.
-
-    Face boxes omit ears/hair and a resting hand's wrist/palm center can be
-    below or outside them. Use the finger joints around an expanded head zone
-    too, without letting a long wrist-to-finger span bypass the old check.
-    """
-    if overlaps_face_as_small_hand(points, image_shape, boxes):
-        return "hand_candidate_overlaps_face"
+def face_context_observation(points, image_shape, boxes):
+    """Report face proximity for diagnostics; never reject a pose from it."""
     pixels = np.asarray(points) * [image_shape[1], image_shape[0]]
     fingers = pixels[[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]]
     span = float(np.ptp(pixels, axis=0).max())
+    palm = pixels[[0, 5, 9, 13, 17]].mean(axis=0)
     for x, y, width, height in boxes:
         if width <= 0 or height <= 0:
             continue
-        # A nearby foreground command hand can project over a smaller face.
-        # Same-depth hands at the ear are generally no larger than the head.
+        palm_inside = (x - .30 * width <= palm[0] <= x + 1.30 * width
+                       and y - .10 * height <= palm[1] <= y + 1.05 * height)
+        # Keep the old ear zone as an observation. Its overlap cannot tell an
+        # open-palm command from a hand resting beside the head.
         if span > 1.5 * max(width, height):
             continue
         inside = ((fingers[:, 0] >= x - .55 * width)
                   & (fingers[:, 0] <= x + 1.55 * width)
                   & (fingers[:, 1] >= y - .20 * height)
                   & (fingers[:, 1] <= y + 1.15 * height))
-        if np.count_nonzero(inside) >= 6:
-            return "hand_near_face_or_ear"
-    return None
+        if palm_inside or np.count_nonzero(inside) >= 6:
+            return dict(near_face=True, hand_to_face_span_ratio=round(span / max(width, height), 3))
+    return dict(near_face=False)
 
 
 class FaceGuard:

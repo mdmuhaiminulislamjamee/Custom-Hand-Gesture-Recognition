@@ -216,6 +216,7 @@ def test_hand_detector_uses_video_mode_and_strict_monotonic_timestamps(
 
     assert detector.ready is True
     assert captured_options["running_mode"] is video_mode
+    assert captured_options["num_hands"] == 2
     assert captured_options["min_hand_detection_confidence"] == 0.55
     assert captured_options["min_tracking_confidence"] == 0.60
     assert first is not None and second is not None

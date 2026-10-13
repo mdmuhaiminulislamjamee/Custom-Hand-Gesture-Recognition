@@ -836,7 +836,6 @@ async def ncm_live_socket(websocket: WebSocket) -> None:
                     frame,
                     session,
                     selected_model,
-                    center_crop_ratio=runtime_config.roi_size_ratio,
                 )
             except Exception:
                 runtime_metrics.record_error("ncm_inference_exception")

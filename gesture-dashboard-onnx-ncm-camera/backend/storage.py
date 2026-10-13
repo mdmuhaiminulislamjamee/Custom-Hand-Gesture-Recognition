@@ -131,6 +131,7 @@ class FeedbackStore:
 def artifact_status(models_directory: Path = MODELS_DIRECTORY) -> list[dict[str, Any]]:
     expected = [
         ("MediaPipe hand detector", "hand_landmarker.task", True),
+        ("Relaxed-hand body pose guard", "pose_landmarker_lite.task", True),
         ("Runtime configuration", "gesture_mobile_runtime_config.json", True),
         ("Qualified ONNX classifier", "gesture_mlp_production.onnx", True),
         ("ONNX parity metadata", "gesture_mlp_onnx_metadata.json", True),

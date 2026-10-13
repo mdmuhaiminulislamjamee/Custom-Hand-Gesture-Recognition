@@ -1,14 +1,12 @@
 """Face/ear regressions use approximate screenshot joints, not pixel replays."""
-import threading
 from types import SimpleNamespace
 
-import cv2
 import numpy as np
 import pytest
 
 from backend.config import RuntimeConfig
-from backend.face_guard import FaceGuard, face_context_rejection, overlaps_face_as_small_hand
-from backend.model_runtime import InferenceEngine, RuntimeSession
+from backend.face_guard import FaceGuard, face_context_observation, overlaps_face_as_small_hand
+from backend.model_runtime import RuntimeSession
 from backend.tests.test_hand_detection import simulated_detector
 from backend.tests.test_camera_stability import representative_hand
 
@@ -46,7 +44,7 @@ def reported_resting_hand(index):
 @pytest.mark.parametrize("index", range(4))
 @pytest.mark.parametrize("mirror", [False, True])
 @pytest.mark.parametrize("scale", [.5, 1., 1.5])
-def test_reported_face_ear_poses_rejected_at_each_scale_and_mirror(index, mirror, scale):
+def test_reported_face_ear_poses_observed_at_each_scale_and_mirror(index, mirror, scale):
     points, (x, y, w, h) = reported_resting_hand(index)
     if mirror:
         points[:, 0] = 960 - points[:, 0]
@@ -54,69 +52,57 @@ def test_reported_face_ear_poses_rejected_at_each_scale_and_mirror(index, mirror
     shape = (round(750 * scale), round(960 * scale), 3)
     boxes = [tuple(value * scale for value in (x, y, w, h))]
     normalized = points / [960, 750]
-    assert face_context_rejection(normalized, shape, boxes) is not None
+    assert face_context_observation(normalized, shape, boxes)["near_face"] is True
 
 
-def test_fingers_at_ear_rejected_even_when_palm_center_is_outside_old_guard():
+def test_fingers_at_ear_are_observed_even_when_palm_center_is_outside_face():
     points, box = reported_resting_hand(3)
     normalized = points / [960, 750]
     assert not overlaps_face_as_small_hand(normalized, (750, 960, 3), [box])
-    assert face_context_rejection(normalized, (750, 960, 3), [box]) == "hand_near_face_or_ear"
+    assert face_context_observation(normalized, (750, 960, 3), [box])["near_face"] is True
 
 
 def test_separate_command_and_large_foreground_palm_remain_eligible():
     points, box = reported_resting_hand(3)
-    assert face_context_rejection((points - [260, 0]) / [960, 750], (750, 960, 3), [box]) is None
-    assert face_context_rejection(representative_hand(), (400, 400, 3), [(150,60,90,110)]) is None
-    assert face_context_rejection(points / [960, 750], (750, 960, 3), []) is None
-    # A distant background person's face must not veto a foreground hand.
-    assert face_context_rejection(points / [960, 750], (750, 960, 3), [(460,300,30,40)]) is None
+    assert not face_context_observation((points - [260, 0]) / [960, 750], (750, 960, 3), [box])["near_face"]
+    assert not face_context_observation(representative_hand(), (400, 400, 3), [(150,60,90,110)])["near_face"]
+    assert not face_context_observation(points / [960, 750], (750, 960, 3), [])["near_face"]
+    assert not face_context_observation(points / [960, 750], (750, 960, 3), [(460,300,30,40)])["near_face"]
 
 
-@pytest.mark.parametrize("recovery_only", [False, True])
-@pytest.mark.parametrize("prior_label", ["fist", "like", "rock"])
-def test_face_veto_clears_held_command_before_classifier_and_recovery(monkeypatch, recovery_only, prior_label):
+@pytest.mark.parametrize("known_mass,expected", [(1.0, "open_palm"), (.01, "no_gesture")])
+def test_face_observation_allows_listed_pose_but_unknown_mass_is_rejected(monkeypatch, known_mass, expected):
     import backend.hand_detection as detection_module
-    # Keep recovery deterministic, independent of CI execution speed.
     monkeypatch.setattr(detection_module.time, "perf_counter", lambda: 10.)
     points, box = reported_resting_hand(3)
     detector = simulated_detector()
     detector._face_guard = SimpleNamespace(detector=True, detect=lambda rgb: [box])
-    calls = []
-
-    def run(rgb, view, *, video):
-        calls.append(video)
-        if video and recovery_only:
-            return None
-        return (.1, points / [960,750], None)
-
-    detector._run_view = run
+    detector._run_candidates = lambda rgb, view, *, video: [(.1, points / [960,750], None, None)]
     config = RuntimeConfig()
     session = RuntimeSession(config)
-    row = np.eye(len(config.class_names))[config.class_to_idx[prior_label]]
-    for now in np.arange(1., 2., .1):
-        decision = session.temporal_gate.update(row, now=now)
-    assert decision.execute
+    detector._multi_context = session.hand_selector.detector_state
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx["open_palm"]]
+    scored = []
 
-    engine = InferenceEngine.__new__(InferenceEngine)
-    engine.config = config
-    engine._lock = threading.Lock()
-    engine.detector = detector
-    # Any classifier call is a test failure: a confident label cannot bypass
-    # scene context, including through candidate scoring or IMAGE recovery.
-    engine.model_manager = SimpleNamespace(ready=True)
-    ok, encoded = cv2.imencode('.jpg', np.full((750,960,3), 145, dtype=np.uint8))
-    assert ok
-    for _ in range(8):
-        result = engine.process_frame(encoded.tobytes(), session)
-        assert result['runtime_prediction'] == 'no_gesture'
-        assert result['runtime_action'] == 'Wait / No Action'
-        assert result['confidence'] == 0.
-        assert result['action_reason'] == 'hand near face or ear'
-        assert result['quality']['classification_allowed'] is False
-    assert calls == [True, False] * 8
-    # Returning to an eligible pose must start a fresh hold.
-    assert not session.temporal_gate.update(row, now=3.).execute
+    def score(row):
+        scored.append(True)
+        row["resolved_label"] = "open_palm"
+        row["probabilities"] = probabilities
+        row["gate_args"] = dict(known_gesture_mass=known_mass)
+        return 1.
+
+    decisions = []
+    for frame in range(8):
+        rows = detector.detect_candidates(
+            np.full((750,960,3), 145, dtype=np.uint8),
+            state=session.hand_selector.detector_state, candidate_score=score)
+        assert rows[0]["rejection_reason"] is None
+        assert rows[0]["face_context"]["near_face"] is True
+        assert detector.diagnostics()["near_face_candidate_count"] >= 1
+        _, _, previews = session.hand_selector.update(rows, (750,960,3), 1 + frame * .1)
+        decisions.append(previews[0]["gesture"])
+    assert scored
+    assert decisions[-1] == expected
 
 
 def test_face_occlusion_hold_expires_and_resets_on_resolution_change(monkeypatch):

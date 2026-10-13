@@ -193,7 +193,25 @@ type NcmStatus = {
     discovery_payload: string;
   };
 };
+type TrackedHand = {
+  track_id: number | null;
+  selected: boolean;
+  landmarks: number[][];
+  handedness?: string;
+  palm_scale_px: number;
+  gesture: string;
+  eligible: boolean;
+  reason?: string;
+};
 type Prediction = RangePrediction & {
+  hands?: TrackedHand[];
+  hand_selection?: {
+    selected_track_id: number | null;
+    active_track_id: number | null;
+    candidate_count: number;
+    reason: string;
+    message: string;
+  };
   status: string;
   message?: string;
   model?: string;
@@ -447,34 +465,78 @@ export default function Dashboard() {
     );
   }, [prediction.distance_m, prediction.quality?.detector]);
 
-  const drawLandmarksOnCanvas = useCallback((canvas: HTMLCanvasElement | null, landmarks?: number[][], classified = false) => {
+  const drawLandmarksOnCanvas = useCallback((canvas: HTMLCanvasElement | null, landmarks?: number[][], classified = false, hands?: TrackedHand[]) => {
     if (!canvas) return;
-    const size = Math.max(1, Math.round(canvas.clientWidth || 400));
-    canvas.width = size;
-    canvas.height = size;
+    const width = Math.max(1, Math.round(canvas.clientWidth || 400));
+    const height = Math.max(1, Math.round(canvas.clientHeight || 300));
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) return;
-    context.clearRect(0, 0, size, size);
-    if (!landmarks || landmarks.length !== 21) return;
-    context.lineWidth = Math.max(2, size / 180);
-    context.strokeStyle = classified ? 'rgba(73, 217, 209, .92)' : 'rgba(255, 180, 84, .88)';
+    context.clearRect(0, 0, width, height);
+    // Both camera paths now analyze the full frame. Match the preview's contain
+    // fit, including letterboxing and the optional picture-in-picture position.
+    const surface = canvas.parentElement?.querySelector<HTMLVideoElement | HTMLImageElement>('.camera-video');
+    const canvasRect = canvas.getBoundingClientRect();
+    const surfaceRect = surface?.getBoundingClientRect() ?? canvasRect;
+    const sourceWidth = surface instanceof HTMLVideoElement ? surface.videoWidth
+      : surface instanceof HTMLImageElement ? surface.naturalWidth : width;
+    const sourceHeight = surface instanceof HTMLVideoElement ? surface.videoHeight
+      : surface instanceof HTMLImageElement ? surface.naturalHeight : height;
+    const fit = Math.min(surfaceRect.width / (sourceWidth || width), surfaceRect.height / (sourceHeight || height));
+    const frameWidth = (sourceWidth || width) * fit;
+    const frameHeight = (sourceHeight || height) * fit;
+    const left = surfaceRect.left - canvasRect.left + (surfaceRect.width - frameWidth) / 2;
+    const top = surfaceRect.top - canvasRect.top + (surfaceRect.height - frameHeight) / 2;
+    const size = Math.min(frameWidth, frameHeight);
+    const project = ([x, y]: number[]) => [left + x * frameWidth, top + y * frameHeight];
+    context.save();
     context.beginPath();
-    HAND_CONNECTIONS.forEach(([from, to]) => {
-      context.moveTo(landmarks[from][0] * size, landmarks[from][1] * size);
-      context.lineTo(landmarks[to][0] * size, landmarks[to][1] * size);
-    });
-    context.stroke();
-    landmarks.forEach(([x, y], index) => {
+    context.rect(left, top, frameWidth, frameHeight);
+    context.clip();
+    const rows = hands?.length ? hands : (landmarks?.length === 21 ? [{
+      landmarks, selected: true, track_id: null, handedness: undefined, reason: undefined,
+    }] : []);
+    rows.forEach(hand => {
+      const points = hand.selected && landmarks?.length === 21 ? landmarks : hand.landmarks;
+      if (points.length !== 21) return;
+      const selected = hand.selected && landmarks?.length === 21;
+      const color = selected ? (classified ? '#49d9d1' : '#ffb454') : '#a5adbf';
+      context.lineWidth = Math.max(selected ? 2 : 1, size / 180);
+      context.strokeStyle = color;
       context.beginPath();
-      context.fillStyle = classified ? (index === 0 ? '#ffb454' : '#f4f7ff') : '#ffcf8a';
-      context.arc(x * size, y * size, Math.max(2.4, size / 120), 0, Math.PI * 2);
-      context.fill();
+      HAND_CONNECTIONS.forEach(([from, to]) => {
+        const a = project(points[from]);
+        const b = project(points[to]);
+        context.moveTo(a[0], a[1]);
+        context.lineTo(b[0], b[1]);
+      });
+      context.stroke();
+      points.map(project).forEach(([x, y]) => {
+        context.beginPath();
+        context.fillStyle = color;
+        context.arc(x, y, Math.max(2, size / 130), 0, Math.PI * 2);
+        context.fill();
+      });
+      const handState = selected ? 'selected'
+        : hand.reason === 'dorsal_below_waist' ? 'dorsal below waist / no gesture'
+        : hand.reason === 'relaxed_hand_near_hip_or_thigh' ? 'resting / no gesture' : 'observed';
+      const label = `${hand.handedness ?? 'Hand'}${hand.track_id ? ` #${hand.track_id}` : ''} · ${handState}`;
+      context.font = `${Math.max(11, size / 34)}px sans-serif`;
+      const labelWidth = context.measureText(label).width;
+      const x = Math.max(left + 4, Math.min(left + frameWidth - labelWidth - 8, left + Math.min(...points.map(p => p[0])) * frameWidth));
+      const y = Math.max(top + 22, Math.min(top + frameHeight - 8, top + Math.min(...points.map(p => p[1])) * frameHeight - 10));
+      context.fillStyle = 'rgba(10, 15, 24, .85)';
+      context.fillRect(x - 3, y - 16, labelWidth + 6, 21);
+      context.fillStyle = color;
+      context.fillText(label, x, y);
     });
+    context.restore();
   }, []);
 
-  const drawLandmarks = useCallback((landmarks?: number[][], classified = false) => {
-    drawLandmarksOnCanvas(landmarkCanvasRef.current, landmarks, classified);
-    drawLandmarksOnCanvas(feedbackLandmarkCanvasRef.current, landmarks, classified);
+  const drawLandmarks = useCallback((landmarks?: number[][], classified = false, hands?: TrackedHand[]) => {
+    drawLandmarksOnCanvas(landmarkCanvasRef.current, landmarks, classified, hands);
+    drawLandmarksOnCanvas(feedbackLandmarkCanvasRef.current, landmarks, classified, hands);
   }, [drawLandmarksOnCanvas]);
 
   const hasRawLandmarks = prediction.landmarks?.length === 21;
@@ -482,8 +544,8 @@ export default function Dashboard() {
   useEffect(() => {
     // Landmark visibility is diagnostic only.  Gesture actions continue to use
     // the backend's confidence, geometry, stability, hold, and cooldown gates.
-    drawLandmarks(hasRawLandmarks ? prediction.landmarks : undefined, hasClassifiedLandmarks);
-  }, [prediction.landmarks, hasRawLandmarks, hasClassifiedLandmarks, activeTab, drawLandmarks]);
+    drawLandmarks(hasRawLandmarks ? prediction.landmarks : undefined, hasClassifiedLandmarks, prediction.hands);
+  }, [prediction.landmarks, prediction.hands, hasRawLandmarks, hasClassifiedLandmarks, activeTab, drawLandmarks]);
 
   const captureWebcamFrame = useCallback(async () => {
     const video = webcamVideoRef.current;
@@ -1340,7 +1402,7 @@ export default function Dashboard() {
             <article className="camera-card panel">
               <div className="panel-header">
                 <div><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> {demoVideo ? 'UPLOADED MEDIA ACTION STAGE' : 'LIVE CAMERA PREVIEW'}</div>
-                <span>{demoVideo ? `${cameraSource === 'webcam' ? 'Webcam' : 'NCM camera'} + landmarks in upper-right` : cameraSource === 'webcam' ? 'Browser webcam · unmirrored JPEG frames' : 'JLIP JPEG stream · central 92% ROI'}</span>
+                <span>{demoVideo ? `${cameraSource === 'webcam' ? 'Webcam' : 'NCM camera'} + landmarks in upper-right` : cameraSource === 'webcam' ? 'Browser webcam · full unmirrored frames' : 'JLIP JPEG stream · full-frame hand detection'}</span>
               </div>
               <div className={`camera-stage live-stage ${demoVideo ? 'has-demo-video' : ''}`}>
                 {demoVideo && <div className="demo-video-viewport">
@@ -1372,6 +1434,7 @@ export default function Dashboard() {
                   className="camera-video active ncm-camera-video"
                 />}
                 {cameraActive && cameraSource === 'webcam' && <WebcamVideo stream={webcamStream} className="camera-video active webcam-camera-video" />}
+                <canvas ref={landmarkCanvasRef} className="landmark-canvas live-hand-overlay" />
                 {demoVideo && <div className="demo-live-action" aria-live="polite">
                   <span>CONFIRMED LIVE ACTION</span>
                   <strong>{prediction.runtime_action && prediction.runtime_action !== 'Wait / No Action' ? mappedLabel : 'Wait / No Action'}</strong>
@@ -1389,14 +1452,13 @@ export default function Dashboard() {
                 <div className="guide-box live-guide">
                   <span className="corner top-left" /><span className="corner top-right" />
                   <span className="corner bottom-left" /><span className="corner bottom-right" />
-                  <canvas ref={landmarkCanvasRef} className="landmark-canvas" />
-                  {cameraActive && hasRawLandmarks && <div className={`landmark-state ${hasClassifiedLandmarks ? 'classified' : 'unconfirmed'}`}>
-                    {hasClassifiedLandmarks ? 'HAND TRACKED · GESTURE CANDIDATE' : 'HAND TRACKED · CHECKING GESTURE'}
+                  {cameraActive && (hasRawLandmarks || !!prediction.hands?.length) && <div className={`landmark-state ${hasClassifiedLandmarks ? 'classified' : 'unconfirmed'}`}>
+                    {prediction.hands?.length ?? 1} HAND(S) · {hasClassifiedLandmarks ? 'GESTURE CANDIDATE' : 'CHECKING GESTURE'}
                   </div>}
                   {demoVideo && <div className="webcam-pip-label"><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> {cameraSource === 'webcam' ? 'PC WEBCAM' : 'NCM BOARD CAMERA'} + LANDMARKS</div>}
                   {!cameraActive && <div className="camera-empty">
                     <span className="hand-orbit" /><strong>Camera is ready</strong>
-                    <p>{demoVideo ? `Connect the ${cameraSource === 'webcam' ? 'webcam' : 'board camera'} to control the uploaded media.` : `Connect the ${cameraSource === 'webcam' ? 'PC webcam' : 'USB-NCM camera'} and keep one complete hand and wrist inside the large guide.`}</p>
+                    <p>{demoVideo ? `Connect the ${cameraSource === 'webcam' ? 'webcam' : 'board camera'} to control the uploaded media.` : `Connect the ${cameraSource === 'webcam' ? 'PC webcam' : 'USB-NCM camera'} and show a clear gesture. Either hand is selected automatically.`}</p>
                   </div>}
                 </div>
                 <canvas ref={demoRecordingCanvasRef} className="capture-canvas" />
@@ -1428,6 +1490,14 @@ export default function Dashboard() {
             </article>
 
             <aside className="result-stack">
+              <article className="result-card">
+                <p>AUTOMATIC HAND SELECTION</p>
+                <strong>{prediction.hand_selection?.selected_track_id != null
+                  ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
+                <span>{prediction.hand_selection?.message ?? 'Show either hand. A clearly closer gesture hand is preferred when both qualify.'}</span>
+                <span>Closeness uses apparent palm size; camera depth is not measured.</span>
+                <span>Dorsal below the waist is treated as no gesture when body posture is visible. Clear listed gestures can qualify beside the face.</span>
+              </article>
               <article className="result-card accent-mint">
                 <p>RUNTIME PREDICTION</p><strong>{humanize(runtimeGesture)}</strong>
                 <span>{prediction.message ?? `${percent(prediction.confidence)} confidence · ${prediction.stable_frames ?? 0}/${stableRequired} stable`}</span>
@@ -1545,10 +1615,10 @@ export default function Dashboard() {
                   className="camera-video active ncm-camera-video feedback-camera-video"
                 />}
                 {cameraActive && cameraSource === 'webcam' && <WebcamVideo stream={webcamStream} className="camera-video active webcam-camera-video feedback-camera-video" />}
+                <canvas ref={feedbackLandmarkCanvasRef} className="landmark-canvas live-hand-overlay" />
                 <div className="guide-box live-guide feedback-live-guide">
                   <span className="corner top-left" /><span className="corner top-right" />
                   <span className="corner bottom-left" /><span className="corner bottom-right" />
-                  <canvas ref={feedbackLandmarkCanvasRef} className="landmark-canvas" />
                   {cameraActive && hasRawLandmarks && <div className={`landmark-state ${hasClassifiedLandmarks ? 'classified' : 'unconfirmed'}`}>
                     {hasClassifiedLandmarks ? 'HAND TRACKED · GESTURE CANDIDATE' : 'HAND TRACKED · CHECKING GESTURE'}
                   </div>}

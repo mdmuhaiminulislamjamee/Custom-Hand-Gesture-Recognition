@@ -15,6 +15,7 @@ MANIFEST_SCHEMA_VERSION = 1
 RUNTIME_PATTERNS = (
     "hand_landmarker.task",
     "blaze_face_short_range.tflite",
+    "pose_landmarker_lite.task",
     "gesture_mobile_runtime_config.json",
     "gesture_mlp_production.onnx",
     "gesture_mlp_onnx_metadata.json",

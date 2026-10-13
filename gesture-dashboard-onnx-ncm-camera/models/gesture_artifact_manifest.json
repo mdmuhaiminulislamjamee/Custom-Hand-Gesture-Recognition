@@ -31,6 +31,10 @@
     "hand_landmarker.task": {
       "bytes": 7819105,
       "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+    },
+    "pose_landmarker_lite.task": {
+      "bytes": 5777746,
+      "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
     }
   },
   "class_names": [
@@ -47,8 +51,8 @@
     "peace",
     "rock"
   ],
-  "created_utc": "2026-10-03T03:59:53.931778+00:00",
+  "created_utc": "2026-10-12T08:07:23.038254+00:00",
   "feature_count": 76,
-  "release_fingerprint": "e106e4819de5694d52480318a8015ab269dc71c600ba4dc28b3ac4d64049c03e",
+  "release_fingerprint": "658b7e0c34247c8d8c30597bfc01525873adbf6ab1ae694ace201edbc36476bd",
   "schema_version": 1
 }

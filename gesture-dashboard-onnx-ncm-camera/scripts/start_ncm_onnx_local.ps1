@@ -21,7 +21,8 @@ New-Item -ItemType Directory -Force -Path $RuntimeDirectory | Out-Null
 $MatplotlibCache = Join-Path $RuntimeDirectory "matplotlib"
 New-Item -ItemType Directory -Force -Path $MatplotlibCache | Out-Null
 $env:MPLCONFIGDIR = $MatplotlibCache
-$env:NODE_OPTIONS = "--max-old-space-size=512 --max-semi-space-size=4"
+$env:NODE_OPTIONS = "--max-old-space-size=384 --max-semi-space-size=2"
+$env:RAYON_NUM_THREADS = if ($env:RAYON_NUM_THREADS) { $env:RAYON_NUM_THREADS } else { "1" }
 $env:OPENBLAS_NUM_THREADS = if ($env:OPENBLAS_NUM_THREADS) { $env:OPENBLAS_NUM_THREADS } else { "1" }
 $env:OMP_NUM_THREADS = if ($env:OMP_NUM_THREADS) { $env:OMP_NUM_THREADS } else { "1" }
 $env:NEXT_PUBLIC_GESTURE_API_URL = "http://127.0.0.1:8200"

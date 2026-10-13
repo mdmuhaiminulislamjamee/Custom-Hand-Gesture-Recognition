@@ -6,16 +6,25 @@ import time
 from pathlib import Path
 
 import numpy as np
-from .face_guard import FaceGuard, face_context_rejection
+from .face_guard import FaceGuard, face_context_observation
+from .body_guard import (BodyGuard, POSE_MODEL_NAME, RESTING_HAND_REASON,
+                         DORSAL_BELOW_WAIST_REASON, body_hand_context, dorsal_body_rejection)
 
 DETECTOR_SETTINGS = {
+    "maximum_hands": 2,
+    "live_hand_selection": "automatic gesture qualification, apparent closeness, and persistent ownership",
+    "live_minimum_palm_pixels": 18,
+    "live_minimum_dorsal_palm_pixels": 24,
     "running_mode": "VIDEO with IMAGE recovery",
     "minimum_detection_confidence": 0.55,
     "minimum_presence_confidence": 0.55,
     "minimum_tracking_confidence": 0.60,
     "recovery_detection_confidence": 0.20,
     "recovery_presence_confidence": 0.30,
-    "face_guard": "BlazeFace face/ear proximity veto with 0.5-second occlusion hold",
+    "face_guard": "BlazeFace face proximity observation; listed gestures remain eligible",
+    "body_guard": "Pose Lite standing below-waist dorsal veto before automatic selection",
+    "body_pose_refresh_ms": 150,
+    "body_pose_occlusion_hold_ms": 400,
     "recovery_confirmation_frames": 2,
     "minimum_palm_pixels": 8,
     "minimum_hand_span_pixels": 24,
@@ -75,7 +84,7 @@ def normalized_hand_shape(points):
 
 
 class HandDetector:
-    def __init__(self, model_path: Path):
+    def __init__(self, model_path: Path, *, use_body_context=False):
         self.ready = False
         self.error = None
         self.running_mode = "VIDEO"
@@ -95,6 +104,7 @@ class HandDetector:
         self._accepted_view = None
         self._last_world_landmarks = None
         self._face_guard = None
+        self._body_guard = None
         if not model_path.exists():
             self.error = f"Missing MediaPipe hand model: {model_path.name}"
             return
@@ -102,7 +112,7 @@ class HandDetector:
             import mediapipe as mp
             self._mp = mp
             common = dict(base_options=mp.tasks.BaseOptions(model_asset_path=str(model_path)),
-                          num_hands=1,
+                          num_hands=2,
                           min_tracking_confidence=0.60)
             self._landmarker = mp.tasks.vision.HandLandmarker.create_from_options(
                 mp.tasks.vision.HandLandmarkerOptions(
@@ -112,6 +122,10 @@ class HandDetector:
                 mp.tasks.vision.HandLandmarkerOptions(
                     **common, min_hand_detection_confidence=0.20, min_hand_presence_confidence=0.30,
                     running_mode=mp.tasks.vision.RunningMode.IMAGE))
+            if use_body_context:
+                self._body_guard = BodyGuard(model_path.with_name(POSE_MODEL_NAME))
+                if self._body_guard.detector is None:
+                    raise RuntimeError(self._body_guard.error)
             self.ready = True
             if model_path.with_name("blaze_face_short_range.tflite").exists():
                 self._face_guard = FaceGuard(model_path.with_name("blaze_face_short_range.tflite"))
@@ -119,7 +133,7 @@ class HandDetector:
             self.error = f"MediaPipe initialization failed: {error}"
             self.close()
 
-    def _run_view(self, rgb, view, *, video):
+    def _run_candidates(self, rgb, view, *, video):
         x, y, width, height, turns, enhance = view
         crop = rgb[y:y + height, x:x + width]
         if not video:
@@ -158,7 +172,141 @@ class HandDetector:
                 if candidate_world.shape == (21, 3) and np.isfinite(candidate_world).all():
                     world = restore_world_points(candidate_world, view[4])
             candidates.append((float(np.prod(np.ptp(points, axis=0))), points, category, world))
+        return candidates
+
+    def _run_view(self, rgb, view, *, video):
+        # Legacy single-image collection helpers still consume one observation.
+        candidates = self._run_candidates(rgb, view, video=video)
         return max(candidates, key=lambda row: row[0]) if candidates else None
+
+    def detect_candidates(self, rgb_image, *, state, candidate_score):
+        """Live path: always scan the full frame before bounded crop recovery.
+
+        Recovery state belongs to the caller's session. A crop can improve one
+        hand, but can never hide the other from the next full-frame observation.
+        """
+        if not self.ready:
+            return []
+        started = time.perf_counter()
+        height, width = rgb_image.shape[:2]
+        if state.get("shape") != (height, width):
+            state.clear()
+            state["shape"] = (height, width)
+        state["frames"] = state.get("frames", 0) + 1
+        full = (0, 0, width, height, 0, 0)
+        same_context = getattr(self, "_multi_context", None) is state
+        self._multi_context = state
+        self._last_diagnostics = dict(running_mode="VIDEO" if same_context else "IMAGE",
+                                      candidate_count=0, analysis_width=width, analysis_height=height,
+                                      recovery_attempted=False, rejection_reason=None)
+        face_guard = getattr(self, "_face_guard", None)
+        boxes = face_guard.detect(rgb_image) if face_guard else []
+        self._last_diagnostics.update(face_guard_ready=bool(face_guard and face_guard.detector),
+                                      face_guard_error=getattr(face_guard, "error", None), face_count=len(boxes))
+        body_guard = getattr(self, "_body_guard", None)
+        poses = None
+        self._last_diagnostics["body_guard"] = dict(
+            ready=bool(body_guard and body_guard.detector), checked=False, body_count=0,
+            error=getattr(body_guard, "error", None))
+
+        def observations(view, video):
+            nonlocal poses
+            rows = []
+            for area, points, category, world in self._run_candidates(rgb_image, view, video=video):
+                metrics = hand_pixel_metrics(points, rgb_image.shape)
+                reason = None
+                if (metrics["palm_scale_px"] < 8 or metrics["hand_span_px"] < 24
+                        or metrics["hand_short_side_px"] < 10):
+                    reason = reason or "insufficient_hand_pixels"
+                inside = np.mean(np.all((points >= -.05) & (points <= 1.05), axis=1))
+                if inside < .90:
+                    reason = reason or "incomplete_hand"
+                face_context = face_context_observation(points, rgb_image.shape, boxes)
+                context = None
+                if not reason and body_guard is not None:
+                    if poses is None:
+                        poses, diagnostics = body_guard.detect(rgb_image, state=state)
+                        self._last_diagnostics["body_guard"] = dict(diagnostics, checked=True)
+                    if not self._last_diagnostics["body_guard"]["ready"]:
+                        reason = "body_context_unavailable"
+                    else:
+                        context = body_hand_context(points, rgb_image.shape, poses)
+                row = dict(points=points, world_landmarks=world, metrics=metrics, area=area, view=view,
+                           handedness=getattr(category, "category_name", None),
+                           handedness_confidence=float(getattr(category, "score", 0) or 0),
+                           rejection_reason=reason, face_context=face_context,
+                           body_context=context, recovered=view != full)
+                row["recovery_score"] = -1.0 if reason else float(candidate_score(row))
+                if not reason:
+                    reason = dorsal_body_rejection(context, row.get("resolved_label"))
+                    if reason:
+                        row["rejection_reason"] = reason
+                        row["recovery_score"] = -1.0
+                if reason:
+                    self._last_diagnostics["rejection_reason"] = reason
+                rows.append(row)
+            return rows
+
+        rows = observations(full, same_context)
+        requested = state.pop("pose_recovery_requested", False)
+        context_vetoes = {RESTING_HAND_REASON, DORSAL_BELOW_WAIST_REASON,
+                          "body_context_unavailable"}
+        needs_recovery = (requested or not rows or any(
+                              row["recovery_score"] < 1 and row["rejection_reason"] not in context_vetoes
+                              for row in rows)
+                          or state.get("view") is not None
+                          or (len(rows) < 2 and state["frames"] % 3 == 0))
+        if needs_recovery and time.perf_counter() - started < .055:
+            views = self._search_views(rgb_image.shape)
+            view = state.get("view")
+            if view is None:
+                index = state.get("search_index", 0)
+                view = views[index % len(views)]
+                state["search_index"] = index + 1
+            self._last_diagnostics["recovery_attempted"] = True
+            alternatives = observations(view, False)
+            improved = False
+            matched = set()
+            # Match across passes only. Never collapse two hands found together
+            # by one pass merely because they overlap on screen.
+            original_count = len(rows)
+            for alternative in alternatives:
+                center = alternative["points"][[0, 5, 9, 13, 17]].mean(axis=0)
+                distances = []
+                for i, row in enumerate(rows[:original_count]):
+                    if i in matched:
+                        continue
+                    other = row["points"][[0, 5, 9, 13, 17]].mean(axis=0)
+                    scale = max(row["metrics"]["palm_scale_px"], alternative["metrics"]["palm_scale_px"], 1)
+                    distances.append((float(np.linalg.norm((center - other) * [width, height]) / scale), i))
+                distance, index = min(distances) if distances else (float("inf"), -1)
+                if distance < .80:
+                    matched.add(index)
+                    # Changing the detector crop must not rescue a hand that
+                    # was explicitly resting beside the thigh in this frame.
+                    if rows[index]["rejection_reason"] in context_vetoes:
+                        continue
+                    if alternative["rejection_reason"] in context_vetoes:
+                        rows[index] = alternative
+                        improved = True
+                    elif alternative["recovery_score"] > rows[index]["recovery_score"]:
+                        rows[index] = alternative
+                        improved = True
+                elif not alternative["rejection_reason"]:
+                    rows.append(alternative)
+                    improved = True
+            if improved:
+                state["view"], state["view_misses"] = view, 0
+            else:
+                state["view_misses"] = state.get("view_misses", 0) + 1
+                if state["view_misses"] >= 2:
+                    state["view"] = None
+        self._last_diagnostics["candidate_count"] = len(rows)
+        self._last_diagnostics["near_face_candidate_count"] = sum(
+            bool(row["face_context"]["near_face"]) for row in rows)
+        if any(not row["rejection_reason"] for row in rows):
+            self._last_diagnostics["rejection_reason"] = None
+        return rows
 
     def _search_views(self, shape):
         height, width = shape[:2]
@@ -239,15 +387,6 @@ class HandDetector:
         self._last_diagnostics["face_guard_error"] = getattr(face_guard, "error", None)
         self._last_diagnostics["face_count"] = len(boxes)
         selected = self._run_view(rgb_image, view, video=not self._recovery_tracking)
-        def guard(row):
-            if row is not None:
-                reason = face_context_rejection(row[1], rgb_image.shape, boxes)
-                if reason:
-                    self._last_diagnostics["rejection_reason"] = reason
-                    return None
-            return row
-
-        selected = guard(selected)
         def score(row):
             if row is None:
                 return -1.0
@@ -270,7 +409,7 @@ class HandDetector:
                 recovery_view = views[self._search_index % len(views)]
                 self._search_index += 1
             self._last_diagnostics["recovery_attempted"] = True
-            alternative = guard(self._run_view(rgb_image, recovery_view, video=False))
+            alternative = self._run_view(rgb_image, recovery_view, video=False)
             alternative_score = score(alternative)
             if alternative_score > selected_score:
                 selected, view, selected_score = alternative, recovery_view, alternative_score
@@ -378,6 +517,8 @@ class HandDetector:
         self._pose_recovery_requested = True
 
     def close(self):
+        if getattr(self, "_body_guard", None) is not None:
+            self._body_guard.close()
         if getattr(self, "_face_guard", None) is not None:
             self._face_guard.close()
         for name in ("_landmarker", "_recovery"):
