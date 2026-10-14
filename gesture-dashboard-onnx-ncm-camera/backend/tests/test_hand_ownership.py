@@ -38,8 +38,11 @@ def test_farther_gesture_does_not_win_against_nearer_idle_hand():
     selector = AutomaticHandSelector(RuntimeConfig())
     far = observation(scale=.3)
     near_idle = observation(x=.75, scale=.6, hand="Left", mass=.01)
-    assert all(chosen is None for chosen, _, _ in feed(selector, [far, near_idle]))
-    assert selector.active_id is None
+    results = feed(selector, [far, near_idle])
+    assert results[-1][0] is near_idle
+    assert results[-1][2][0]["gesture"] == "no_gesture"
+    assert results[-1][2][1]["gesture"] == "no_gesture"
+    assert not results[-1][2][1]["eligible"]
 
 
 @pytest.mark.parametrize("owner_hand", ["Left", "Right"])
@@ -56,27 +59,30 @@ def test_only_qualified_nearer_hand_acquires_initial_ownership(owner_hand):
 
 
 @pytest.mark.parametrize("challenger_label", ["like", "left", "fist"])
-def test_late_closer_challenger_never_takes_a_successfully_selected_hand(challenger_label):
+def test_late_closer_challenger_takes_selection_after_confirmation(challenger_label):
     selector = AutomaticHandSelector(RuntimeConfig())
     active = observation(scale=.35, label="like")
     first = feed(selector, [active])[-1]
     owner = first[1]["selected_track_id"]
     challenger = observation(x=.75, scale=.65, hand="Left", label=challenger_label)
     results = feed(selector, [challenger, active], start=10, count=25)
-    assert all(chosen is active for chosen, _, _ in results)
-    assert all(selection["selected_track_id"] == owner for _, selection, _ in results)
-    assert selector.active_id == owner
+    assert results[0][0] is None
+    assert all(chosen is not active for chosen, _, _ in results)
+    assert results[-1][0] is challenger
+    assert results[-1][1]["selected_track_id"] != owner
+    assert selector.active_id == results[-1][1]["selected_track_id"]
 
 
-def test_previously_farther_peer_moving_forward_does_not_replace_owner():
+def test_previously_farther_peer_moving_forward_replaces_owner():
     selector = AutomaticHandSelector(RuntimeConfig())
     active = observation(scale=.6, label="left")
     peer = observation(x=.75, scale=.3, hand="Left", label="like")
     owner = feed(selector, [active, peer])[-1][1]["selected_track_id"]
     advanced = observation(x=.75, scale=.9, hand="Left", label="fist")
     results = feed(selector, [advanced, active], start=10, count=15)
-    assert all(chosen is active for chosen, _, _ in results)
-    assert all(selection["selected_track_id"] == owner for _, selection, _ in results)
+    assert results[0][0] is None
+    assert results[-1][0] is advanced
+    assert results[-1][1]["selected_track_id"] != owner
 
 
 @pytest.mark.parametrize("returning_hand", ["owner", "peer"])
@@ -147,9 +153,11 @@ def test_invalid_owner_remains_owned_and_other_hand_cannot_take_over():
     owner = feed(selector, [active, peer])[-1][1]["selected_track_id"]
     invalid = observation(scale=.6, mass=.01)
     results = feed(selector, [invalid, peer], start=10, count=25)
-    assert all(chosen is None for chosen, _, _ in results)
+    assert all(chosen is invalid for chosen, _, _ in results)
     assert selector.active_id == owner
     assert all(selection["active_track_id"] == owner for _, selection, _ in results)
+    assert all(not previews[0]["eligible"] and not previews[1]["eligible"]
+               for _, _, previews in results)
 
 
 def test_missing_owner_expires_and_visible_hand_requalifies():

@@ -27,26 +27,26 @@ Recalibrate any saved range calibration that was made with the old central crop.
   including idle hands and real hands blocked by a context rule. Their gesture
   labels do not affect the comparison. Face hallucinations and incomplete/tiny
   clouds do not count as another reliable physical hand.
-- With two hands present initially, coherent image/world landmarks can identify
-  a hand that projects at least **1.18 times** larger, even when palm rotation
+- With two hands present, coherent image/world landmarks can identify
+  a hand that projects at least **1.10 times** larger, even when palm rotation
   makes its four image palm segments look similar to the other hand's. This
   comparison applies to every gesture label and either hand. If coherent world
-  landmarks are unavailable, the closer palm must appear at least **1.35 times**
+  landmarks are unavailable, the closer palm must appear at least **1.15 times**
   larger with consistent ratios across four palm segments.
-  Only that nearer hand may qualify; a farther gesture cannot beat a nearer
-  idle or blocked hand. Choice must persist for at least **3 observations and
-  0.25 seconds**, in addition to the normal gesture hold.
-- Similar projected scales (within **1.10 times**) or, on fallback, similar
+  Only that nearer hand is passed to gesture recognition; a farther gesture
+  cannot beat a nearer idle or blocked hand. Choice must persist for at least
+  **3 observations and 0.25 seconds**. The gesture has its own hold.
+- Similar projected scales (within **1.05 times**) or, on fallback, similar
   apparent palm sizes immediately stop recognition from both hands,
   clear ownership and all holds, and require fresh confirmation afterward.
   This uses current measurements; filtered size history cannot delay the stop
   when the selected hand moves back beside the other.
-- The first successfully qualified hand remains the owner while distances
-  differ. A newcomer, a different/identical gesture, or a closer challenger
-  cannot transfer ownership. Only the selected hand's gesture is shown as a
-  recognized gesture; inactive previews remain `no_gesture`.
-- An invalid but physically tracked owner pauses recognition without losing
-  ownership. If the owner disappears for **0.80 seconds**, selection resets
+- When the other hand moves in front, the previous gesture stops immediately.
+  The new foreground hand takes ownership after the distance hold, even if its
+  gesture is still being checked. Only the selected hand can show a recognized
+  gesture; inactive previews remain `no_gesture`.
+- An invalid but physically tracked foreground hand remains selected but does
+  not produce an action. If it disappears for **0.80 seconds**, selection resets
   even when another hand remains visible. That hand must complete a fresh
   gesture hold before it can act. No output uses stale landmarks, and a
   high-confidence opposite handedness cannot inherit the owner's track.
@@ -58,10 +58,10 @@ Recalibrate any saved range calibration that was made with the old central crop.
 - Selection uses the same temporal gap policy as gesture confirmation. Valid
   observations arriving 350–499 ms apart no longer reset the selection hold on
   every frame.
-- An intermediate projected scale difference (**1.10–1.18 times**), inconsistent
-  segment ratios, strong overlap or uncertain track assignment
-  pause recognition without transferring the lock. Uncertain distance does
-  not establish equality, so an existing owner is retained until comparison
+- An intermediate projected scale difference (**1.05–1.10 times**), inconsistent
+  segment ratios, or uncertain track assignment
+  pause recognition without transferring selection. Uncertain distance does
+  not establish equality, so an existing track is retained until comparison
   becomes reliable or the equal-distance reset/owner-absence timeout occurs.
 - Live selection requires at least **18 palm pixels**, **40 hand-span pixels**,
   and **12 pixels along the short side** of the hand. Dorsal additionally requires
@@ -84,9 +84,9 @@ cloth/skin contact.
 Suggested live checks, in both the BAT camera and dashboard:
 
 1. Hold each gesture with either hand alone; confirm the selected hand and action.
-2. Add a larger idle hand after ownership is established. The original owner
-   should keep control while distances differ. At startup, a nearer idle hand
-   should prevent a farther gesture from taking control.
+2. Move the other hand in front after selection. The old gesture should stop,
+   then the new foreground hand should be selected. A nearer idle hand should
+   prevent a farther gesture from taking control.
 3. Start with both hands at similar apparent sizes, including identical gestures
    or one idle hand. Expect no gesture from either hand.
 4. Bring one hand clearly forward and hold. Expect selection after confirmation.
@@ -96,8 +96,8 @@ Suggested live checks, in both the BAT camera and dashboard:
    immediate stop and cleared ownership, then a fresh hold after separation.
 7. Hide the selected hand while the peer stays visible. Expect a brief pause,
    then a fresh selection and gesture hold after 0.80 seconds. If the selected
-   hand remains physically tracked but its gesture is invalid, expect its
-   ownership to remain locked.
+   hand remains physically tracked but its gesture is invalid, expect it to
+   remain selected without an action.
 8. Check Dorsal with a straight or slightly bent hanging arm below the waist,
    and with a folded arm resting beside a desk while the hand hangs downward;
    expect no gesture. Raise the arm and hold a deliberate Dorsal; expect

@@ -1053,7 +1053,12 @@ class InferenceEngine:
                     message="Hand landmarks were rejected as unstable or incomplete.",
                 )
             feature_started = time.perf_counter()
-            feature = landmarks_to_feature(landmarks)
+            # The detector scores each candidate from its current landmarks.
+            # Classify that same pose after the temporal filter accepts it:
+            # coordinate smoothing can blend two distinct finger poses and make
+            # the final label disagree with the correctly detected hand.
+            classification_landmarks = raw_landmarks if isinstance(self.detector, HandDetector) else landmarks
+            feature = landmarks_to_feature(classification_landmarks)
             feature_ms = (time.perf_counter() - feature_started) * 1000
             follow_was_active = session.follow_object.active
             selected_name = self.model_manager.resolve_name(model_name)
@@ -1067,7 +1072,7 @@ class InferenceEngine:
             for name, (probabilities, _, _) in model_rows.items():
                 resolved_rows[name], resolver_rows[name] = self.resolver.resolve(
                     probabilities,
-                    landmarks,
+                    classification_landmarks,
                     handedness=detector_quality.get("selected_handedness"),
                     handedness_confidence=detector_quality.get(
                         "selected_handedness_confidence"
@@ -1265,8 +1270,8 @@ class InferenceEngine:
             "follow_object": asdict(follow),
             "diagnostics": diagnostic_results,
             "resolvers": resolver_details,
-            "landmarks": landmarks.round(6).tolist(),
-            "display_landmarks": (landmarks.round(6).tolist()
+            "landmarks": classification_landmarks.round(6).tolist(),
+            "display_landmarks": (classification_landmarks.round(6).tolist()
                                   if decision.predicted_gesture != self.config.reject_label else []),
             "world_landmarks": (
                 np.asarray(world_landmarks, dtype=np.float32).round(7).tolist()

@@ -136,7 +136,7 @@ def test_two_hands_choose_significantly_larger_palm_only_after_confirmation():
     selector = AutomaticHandSelector(RuntimeConfig())
     near, far = observation(scale=.6), observation(x=.75, scale=.3, hand="Left")
     results = feed(selector, [far, near])
-    assert all(result[0] is None for result in results[:5])
+    assert all(result[0] is None for result in results[:3])
     assert results[-1][0] is near
     assert results[-1][1]["selected_track_id"] == 2
 
@@ -145,7 +145,9 @@ def test_nearer_idle_hand_prevents_farther_gesture_acquisition():
     selector = AutomaticHandSelector(RuntimeConfig())
     idle = observation(x=.75, scale=.6, hand="Left", mass=.01)
     gesture = observation(scale=.35)
-    assert feed(selector, [idle, gesture])[-1][0] is None
+    chosen, _, previews = feed(selector, [idle, gesture])[-1]
+    assert chosen is idle
+    assert all(not preview["eligible"] for preview in previews)
 
 
 def test_equal_depth_valid_gestures_remain_ambiguous():
@@ -153,6 +155,40 @@ def test_equal_depth_valid_gestures_remain_ambiguous():
     results = feed(selector, [observation(), observation(x=.75, hand="Left")])
     assert all(result[0] is None for result in results)
     assert results[-1][1]["reason"] == "hands_same_distance"
+
+
+def test_moderate_forward_motion_selects_right_then_left_and_equal_pauses():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    right = observation(x=.27, scale=.48, label="like")
+    left = observation(x=.75, scale=.40, hand="Left", label="peace")
+    assert feed(selector, [right, left])[-1][0] is right
+
+    # The same hand stays selected while it remains in front, regardless of
+    # detection order and a small movement of the other hand.
+    left_behind = observation(x=.75, scale=.41, hand="Left", label="peace")
+    assert feed(selector, [left_behind, right], start=10, count=4)[-1][0] is right
+
+    left_front = observation(x=.75, scale=.56, hand="Left", label="peace")
+    switched = feed(selector, [left_front, right], start=14, count=8)
+    assert switched[0][0] is None
+    assert switched[-1][0] is left_front
+    assert switched[-1][2][0]["gesture"] == "peace"
+    assert switched[-1][2][1]["gesture"] == "no_gesture"
+
+    equal = observation(x=.75, scale=.48, hand="Left", label="peace")
+    chosen, selection, previews = selector.update([right, equal], SHAPE, 2.2)
+    assert chosen is None
+    assert selection["reason"] == "hands_same_distance"
+    assert all(not hand["eligible"] for hand in previews)
+
+
+def test_close_together_hands_still_select_the_foreground_when_tracks_are_distinct():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    right = observation(x=.42, scale=.60, label="like")
+    left = observation(x=.46, scale=.42, hand="Left", label="peace")
+    chosen, selection, _ = feed(selector, [right, left])[-1]
+    assert chosen is right
+    assert selection["reason"] in {"closer_hand_selected", "active_hand_locked"}
 
 
 def test_reordering_detections_preserves_selected_identity():
@@ -191,15 +227,16 @@ def test_missing_active_hand_does_not_immediately_select_other_hand():
     assert later[-1][1]["selected_track_id"] != owner
 
 
-def test_closer_challenger_never_switches_the_first_successful_owner():
+def test_closer_challenger_switches_the_first_successful_owner():
     selector = AutomaticHandSelector(RuntimeConfig())
     active = observation(scale=.35)
     original = feed(selector, [active])[-1]
     challenger = observation(x=.75, scale=.65, hand="Left")
     results = feed(selector, [active, challenger], start=10, count=9)
-    assert results[0][1]["selected_track_id"] == original[1]["selected_track_id"]
-    assert all(result[0] is active for result in results)
-    assert results[-1][1]["selected_track_id"] == original[1]["selected_track_id"]
+    assert results[0][0] is None
+    assert results[0][1]["ownership_reset"]
+    assert results[-1][0] is challenger
+    assert results[-1][1]["selected_track_id"] != original[1]["selected_track_id"]
 
 
 @pytest.mark.parametrize("label,scale", [("like", .10), ("dorsal", .16)])
@@ -275,7 +312,7 @@ def test_detector_keeps_full_frame_pass_and_deduplicates_recovery(monkeypatch):
     assert seen[0][0] == full and seen[2][0] == full
 
 
-def test_runtime_keeps_first_owner_when_closer_challenger_enters(monkeypatch):
+def test_runtime_switches_to_closer_challenger(monkeypatch):
     import cv2
     import backend.model_runtime as runtime_module
 
@@ -289,7 +326,10 @@ def test_runtime_keeps_first_owner_when_closer_challenger_enters(monkeypatch):
     manager.predict_detailed = lambda *args: (probabilities.copy(), "ONNX", .01, quality)
     manager.predict_many = lambda *args: {"ONNX": (probabilities.copy(), .01, quality)}
     engine.model_manager = manager
-    engine.resolver = SimpleNamespace(resolve=lambda p, points, **kwargs: (p, {"pose_validation": {"valid": True}}))
+    def resolve(p, points, **kwargs):
+        adjusted = observation(label="left" if points[0, 0] > .5 else "like")["probabilities"]
+        return adjusted, {"pose_validation": {"valid": True}}
+    engine.resolver = SimpleNamespace(resolve=resolve)
     engine.detector = simulated_detector()
     engine.detector._last_diagnostics = {}
     rows = [observation()]
@@ -312,10 +352,62 @@ def test_runtime_keeps_first_owner_when_closer_challenger_enters(monkeypatch):
     assert outputs[-1]["hand_selection"]["selected_track_id"] == 1
     assert any(r["runtime_action"] != "Wait / No Action" for r in outputs)
     rows.append(observation(x=.75, scale=.8, hand="Left"))
+    outputs = []
     for i in range(6, 20):
         clock[0] = 1 + i * .1
         output = engine.process_frame(encoded, session)
+        outputs.append(output)
         assert len(output["hands"]) == 2
-        assert output["hand_selection"]["selected_track_id"] == 1
-        assert output["quality"]["detector"]["reacquired"] is False
-        assert output["hands"][1]["gesture"] == "no_gesture"
+    assert outputs[0]["runtime_prediction"] == "no_gesture"
+    assert outputs[-1]["hand_selection"]["selected_track_id"] != 1
+    assert outputs[-1]["runtime_prediction"] == "left"
+    assert outputs[-1]["hands"][0]["gesture"] == "no_gesture"
+
+
+def test_runtime_classifies_current_finger_pose_after_landmark_filter_accepts_it(monkeypatch):
+    import cv2
+    import threading
+    import backend.model_runtime as runtime_module
+
+    config = RuntimeConfig()
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.config, engine._lock = config, threading.Lock()
+    like = observation(label="like")["probabilities"]
+    engine.model_manager = SimpleNamespace(
+        ready=True, models={"ONNX": object()}, resolve_name=lambda name: "ONNX",
+        predict_detailed=lambda *args: (like.copy(), "ONNX", .01, {"known_gesture_mass": 1.}),
+        predict_many=lambda *args: {"ONNX": (like.copy(), .01, {"known_gesture_mass": 1.})},
+    )
+
+    def resolve(probabilities, points, **kwargs):
+        label = "up" if points[8, 0] - points[5, 0] > .07 else "like"
+        return observation(label=label)["probabilities"], {"pose_validation": {"valid": True}}
+
+    engine.resolver = SimpleNamespace(resolve=resolve)
+    engine.detector = simulated_detector()
+    row = observation(scale=.4)
+    rows = [row]
+
+    def detect(rgb, *, state, candidate_score):
+        candidate_score(rows[0])
+        engine.detector._last_diagnostics = {"candidate_count": 1}
+        return rows
+
+    monkeypatch.setattr(engine.detector, "detect_candidates", detect)
+    clock = [0.]
+    monkeypatch.setattr(runtime_module.time, "monotonic", lambda: clock[0])
+    frame = cv2.imencode(".jpg", np.full(SHAPE, 140, np.uint8))[1].tobytes()
+    session = RuntimeSession(config)
+    for index in range(10):
+        clock[0] = 1 + index * .1
+        output = engine.process_frame(frame, session)
+    assert output["runtime_prediction"] == "like"
+
+    changed = observation(scale=.4)
+    changed["points"][8, 0] += .08
+    changed["metrics"] = hand_pixel_metrics(changed["points"], SHAPE)
+    rows[0] = changed
+    clock[0] = 2.
+    output = engine.process_frame(frame, session)
+    assert output["runtime_prediction"] == "up"
+    assert output["landmarks"][8][0] == pytest.approx(changed["points"][8, 0], abs=1e-6)

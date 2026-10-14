@@ -13,7 +13,7 @@ from .body_guard import (BodyGuard, POSE_MODEL_NAME, RESTING_HAND_REASON,
 
 DETECTOR_SETTINGS = {
     "maximum_hands": 2,
-    "live_hand_selection": "nearer-hand acquisition; first-success ownership lock; equal-distance reset",
+    "live_hand_selection": "foreground-hand tracking; hand switch on distance reversal; equal-distance reset",
     "live_minimum_palm_pixels": 18,
     "live_minimum_dorsal_palm_pixels": 24,
     "running_mode": "VIDEO with IMAGE recovery",

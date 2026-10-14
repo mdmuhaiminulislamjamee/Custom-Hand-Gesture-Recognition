@@ -1,9 +1,9 @@
 """Automatic hand ownership for a single RGB camera, local to each session.
 
-Apparent hand scale is a relative closeness cue, never a metric depth measurement. Compare
-both physical hands before gesture qualification. A qualified nearer hand owns
-recognition until a reliable equal-distance comparison or the owner's absence
-resets ownership. A new hand must then qualify from a fresh temporal hold.
+Apparent hand scale is a relative closeness cue, never a metric depth measurement.
+Compare both physical hands before gesture qualification. The foreground hand
+owns recognition after a brief distance hold; equality pauses both hands, and a
+change of foreground hand clears the previous gesture history.
 """
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ class SelectionPolicy:
     minimum_span_pixels: float = 40.0
     minimum_short_side_pixels: float = 12.0
     minimum_dorsal_palm_pixels: float = 24.0
-    closer_palm_ratio: float = 1.35
-    closer_projected_world_ratio: float = 1.18
-    equal_projected_world_ratio: float = 1.10
+    closer_palm_ratio: float = 1.15
+    closer_projected_world_ratio: float = 1.10
+    equal_projected_world_ratio: float = 1.05
     choice_hold_seconds: float = 0.25
     choice_frames: int = 3
     track_expiry_seconds: float = 0.80
@@ -290,6 +290,10 @@ class AutomaticHandSelector:
         for row in rows:
             row["identity_reacquired"] = False
         keys, ambiguous = self._associate([rows[i] for i in trackable], dimensions)
+        if (len(physical) == 2
+                and all(rows[i].get("handedness_confidence", 0) >= .75 for i in physical)
+                and rows[physical[0]].get("handedness") == rows[physical[1]].get("handedness")):
+            ambiguous = True
         for i, key in zip(trackable, () if ambiguous else keys):
             row = rows[i]
             metrics = row["metrics"]
@@ -364,14 +368,6 @@ class AutomaticHandSelector:
             for track in self.tracks.values():
                 track.gate.reset()
             return result(None, "too_many_candidates", "Hand tracks are unclear. Separate your hands.")
-        if len(physical) == 2:
-            a, b = (rows[i] for i in physical)
-            separation = np.linalg.norm((palm_center(a) - palm_center(b)) * dimensions)
-            if separation < .85 * max(a["metrics"]["palm_scale_px"], b["metrics"]["palm_scale_px"]):
-                self._clear_pending()
-                for track in self.tracks.values():
-                    track.gate.reset()
-                return result(None, "hands_overlap", "Separate your hands so both palms can be tracked.")
         if ambiguous:
             self._clear_pending()
             for track in self.tracks.values():
@@ -406,8 +402,13 @@ class AutomaticHandSelector:
                 track.gate.reset()
 
         ready = [key for key, decision in decisions.items() if decision.execute]
-        # Ownership stays latched while its hand is physically observed. A
-        # different visible hand cannot transfer control before owner expiry.
+        # Distance takes precedence over the previous owner and over gesture
+        # confidence. A nearer hand with an unclear pose may pause its own
+        # command, but must never leave the farther hand in control.
+        nearer_key = next((key for key, i in current.items() if i == nearer_index), None)
+        if (nearer_index is not None and not ambiguous and self.active_id is not None
+                and self.active_id != nearer_key):
+            self._release_ownership()
         if self.active_id is not None:
             active = self.tracks[self.active_id]
             if self.active_id not in current:
@@ -415,18 +416,19 @@ class AutomaticHandSelector:
                 return result(None, "active_hand_missing", "Selected hand hidden; waiting briefly to reacquire it.")
             elif active.invalid_since is not None:
                 self._clear_pending()
-                return result(None, "active_hand_releasing", "Selected hand has no clear gesture; its selection is retained.")
+                return result(current[self.active_id], "active_hand_unrecognized",
+                              "Following the closer hand; checking its gesture.")
             else:
                 self._clear_pending()
-                return result(current[self.active_id], "active_hand_locked", "Following the selected hand while it remains visible.")
+                return result(current[self.active_id], "active_hand_locked", "Following the closer hand.")
 
         if nearer_index is not None:
-            # A farther valid gesture cannot win while the nearer physical hand
-            # is idle, occluded, or blocked by a face/trouser context rule.
-            nearer_key = next((key for key, i in current.items() if i == nearer_index), None)
-            if nearer_key not in ready:
+            # Select the physical foreground hand after a short, stable depth
+            # comparison. The main classifier then receives its landmarks even
+            # while the gesture gate is still building a hold.
+            if nearer_key is None:
                 self._clear_pending()
-                return result(None, "nearer_hand_not_ready", "The closer hand needs a clear eligible gesture.")
+                return result(None, "nearer_hand_unusable", "The closer hand is not fully visible.")
             chosen = nearer_key
         elif len(ready) == 1:
             chosen = ready[0]
@@ -455,5 +457,5 @@ class AutomaticHandSelector:
         self.active_id = chosen
         self._clear_pending()
         return result(current[chosen], "closer_hand_selected" if nearer_index is not None else "gesture_hand_selected",
-                      "Selected and locked the clearly closer gesture hand." if nearer_index is not None
+                      "Following the closer hand." if nearer_index is not None
                       else "Following the first hand with a clear gesture.")

@@ -1491,10 +1491,10 @@ export default function Dashboard() {
             <aside className="result-stack">
               <article className="result-card">
                 <p>AUTOMATIC HAND SELECTION</p>
-                <strong>{(prediction.hand_selection?.selected_track_id ?? prediction.hand_selection?.active_track_id) != null
-                  ? `Hand #${prediction.hand_selection?.selected_track_id ?? prediction.hand_selection?.active_track_id}` : 'Waiting for a clear hand'}</strong>
-                <span>{prediction.hand_selection?.message ?? 'Bring one clear hand forward. Selection resets when its hand disappears.'}</span>
-                <span>Closeness uses apparent palm size; camera depth is not measured.</span>
+                <strong>{prediction.hand_selection?.selected_track_id != null
+                  ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
+                <span>{prediction.hand_selection?.message ?? 'Bring either hand forward. Selection follows the hand in front.'}</span>
+                <span>Closeness uses image and hand landmark scale; camera depth is not measured.</span>
                 <span>Matching hand distances pause both gestures. Dorsal pauses only below the waist with a relaxed hanging arm. Raised or deliberately bent arms remain eligible.</span>
               </article>
               <article className="result-card accent-mint">
