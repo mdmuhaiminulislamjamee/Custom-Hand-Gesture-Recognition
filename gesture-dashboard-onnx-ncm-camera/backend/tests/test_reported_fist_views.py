@@ -16,11 +16,11 @@ from backend.tests.test_geometry import fist_at_xy_angle
 
 @pytest.mark.parametrize('xy,zx', [(-61, 142), (-64, 40), (-64, 140)])
 @pytest.mark.parametrize('confidence', [.96, .995, 1.0])
-def test_webcam_rejects_reported_view_after_a_held_fist(monkeypatch, xy, zx, confidence):
+def test_webcam_keeps_a_held_fist_when_only_its_world_view_changes(monkeypatch, xy, zx, confidence):
     config = load_runtime_config()
     points, accepted_world = fist_at_xy_angle(-130, -.575)
     depth_ratio = np.cos(np.deg2rad(xy)) / np.tan(np.deg2rad(zx))
-    _, rejected_world = fist_at_xy_angle(xy, depth_ratio)
+    _, rotated_world = fist_at_xy_angle(xy, depth_ratio)
     row = np.zeros(len(config.class_names))
     row[config.class_to_idx['fist']] = confidence
     row[config.class_to_idx['left']] = 1 - confidence
@@ -30,8 +30,8 @@ def test_webcam_rejects_reported_view_after_a_held_fist(monkeypatch, xy, zx, con
     engine._lock = threading.Lock()
     engine.resolver = GeometryResolver(config)
     detector = SimpleNamespace(ready=True, current_world=accepted_world)
-    # Hold the image track fixed to exercise a lagging landmark smoother:
-    # current world orientation must still veto a previously accepted Fist.
+    # Hold the closed image track fixed to exercise a lagging smoother. The
+    # latest policy accepts a verified closed fist at every world orientation.
     detector.detect = lambda image: points
     detector.world_landmarks = lambda: detector.current_world
     detector.diagnostics = lambda: {}
@@ -52,20 +52,22 @@ def test_webcam_rejects_reported_view_after_a_held_fist(monkeypatch, xy, zx, con
     assert results[-1]['runtime_prediction'] == 'fist'
     assert any(result['runtime_action'] == config.gesture_to_action['fist'] for result in results)
 
-    detector.current_world = rejected_world
+    detector.current_world = rotated_world
     for now in (1.6, 1.7, 1.8, 1.9, 2.0):
         monkeypatch.setattr(runtime_module.time, 'monotonic', lambda: now)
         result = engine.process_frame(frame, session)
         assert result['raw_prediction'] == 'fist'
-        assert result['runtime_prediction'] == 'no_gesture'
+        assert result['runtime_prediction'] == 'fist'
         assert result['runtime_action'] == 'Wait / No Action'
-        assert result['display_landmarks'] == []
-        assert result['action_reason'] == 'fist orientation matches a no-gesture pose'
-        assert result['diagnostics']['ONNX']['prediction'] == 'no_gesture'
+        assert len(result['display_landmarks']) == 21
+        assert result['action_reason'] == 'duplicate command suppressed'
+        assert result['diagnostics']['ONNX']['prediction'] == 'fist'
 
-    # Rejection clears the old Fist state, so returning to a valid view must
-    # satisfy the ordinary hold again before a new command can execute.
+    # Changing back preserves the held Fist and its command suppression. A
+    # camera angle change does not count as releasing and reissuing a command.
     detector.current_world = accepted_world
     monkeypatch.setattr(runtime_module.time, 'monotonic', lambda: 2.1)
     result = engine.process_frame(frame, session)
+    assert result['runtime_prediction'] == 'fist'
     assert result['runtime_action'] == 'Wait / No Action'
+    assert result['action_reason'] == 'duplicate command suppressed'

@@ -33,6 +33,105 @@ def feed(selector, rows, start=0, count=10):
     return results
 
 
+def projected_world(row, pixels_per_metre):
+    pixels = row["points"] * [SHAPE[1], SHAPE[0]]
+    world = np.zeros((21, 3), dtype=np.float32)
+    world[:, :2] = (pixels - pixels[0]) / pixels_per_metre
+    row["world_landmarks"] = world
+    return row
+
+
+def turned_foreground(label, hand="Right"):
+    # Foreground palm is foreshortened, so its raw palm is only about 1.2x
+    # the background palm. Projected world/image scale still shows it as 1.33x.
+    near = observation(x=.27, scale=.4, label=label, hand=hand)
+    near["points"][:, 0] = .27 + (near["points"][:, 0] - .27) * .55
+    near["metrics"] = hand_pixel_metrics(near["points"], SHAPE)
+    far = observation(x=.75, scale=.3, hand="Left" if hand == "Right" else "Right", mass=.01)
+    projected_world(near, 1600.)
+    projected_world(far, 1200.)
+    return near, far
+
+
+@pytest.mark.parametrize("label", RuntimeConfig().class_names)
+def test_rotated_foreground_hand_can_be_selected_for_every_gesture(label):
+    selector = AutomaticHandSelector(RuntimeConfig())
+    near, far = turned_foreground(label)
+    assert near["metrics"]["palm_scale_px"] < far["metrics"]["palm_scale_px"] * selector.policy.closer_palm_ratio
+    result = feed(selector, [far, near])[-1]
+    assert result[0] is near
+    assert result[1]["distance_method"] == "projected world landmarks"
+    assert result[1]["distance_scale_ratio"] > 1.3
+
+
+def test_projected_world_scale_respects_distance_even_when_raw_palm_order_reverses():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    near, far = turned_foreground("up")
+    far["points"][:, 0] = .75 + (far["points"][:, 0] - .75) * 1.3
+    far["metrics"] = hand_pixel_metrics(far["points"], SHAPE)
+    projected_world(far, 1200.)
+    assert far["metrics"]["palm_scale_px"] > near["metrics"]["palm_scale_px"]
+    assert feed(selector, [far, near])[-1][0] is near
+
+
+def test_same_distance_world_scale_blocks_pose_based_palm_size_difference():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    near, far = turned_foreground("left")
+    projected_world(near, 1200.)
+    result = feed(selector, [near, far])[-1]
+    assert result[0] is None
+    assert result[1]["reason"] == "hands_same_distance"
+
+
+def test_incoherent_world_landmarks_fall_back_to_conservative_palm_comparison():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    near, far = turned_foreground("left")
+    near["world_landmarks"][5] = np.nan
+    result = feed(selector, [near, far])[-1]
+    assert result[0] is None
+    assert result[1]["distance_method"] == "apparent palm size"
+
+
+@pytest.mark.parametrize("label", ["left", "up"])
+def test_runtime_reports_foreground_gesture_with_two_rotated_hands(monkeypatch, label):
+    import threading
+    import cv2
+    import backend.model_runtime as runtime_module
+
+    config = RuntimeConfig()
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.config, engine._lock = config, threading.Lock()
+    probabilities = observation(label=label)["probabilities"]
+    quality = {"known_gesture_mass": 1.0}
+    engine.model_manager = SimpleNamespace(
+        ready=True, models={"ONNX": object()}, resolve_name=lambda name: "ONNX",
+        predict_detailed=lambda *args: (probabilities.copy(), "ONNX", .01, quality),
+        predict_many=lambda *args: {"ONNX": (probabilities.copy(), .01, quality)},
+    )
+    engine.resolver = SimpleNamespace(resolve=lambda p, points, **kwargs: (
+        p, {"pose_validation": {"valid": True}}))
+    engine.detector = simulated_detector()
+    near, far = turned_foreground(label)
+
+    def detect(rgb, *, state, candidate_score):
+        for row in (far, near):
+            candidate_score(row)
+        engine.detector._last_diagnostics = {"candidate_count": 2}
+        return [far, near]
+
+    monkeypatch.setattr(engine.detector, "detect_candidates", detect)
+    clock = [0.]
+    monkeypatch.setattr(runtime_module.time, "monotonic", lambda: clock[0])
+    frame = cv2.imencode(".jpg", np.full(SHAPE, 140, np.uint8))[1].tobytes()
+    session = RuntimeSession(config)
+    for index in range(16):
+        clock[0] = index * .1
+        output = engine.process_frame(frame, session)
+    assert output["runtime_prediction"] == label
+    assert output["hand_selection"]["distance_method"] == "projected world landmarks"
+    assert output["hand_selection"]["selected_track_id"] is not None
+
+
 def test_two_hands_choose_significantly_larger_palm_only_after_confirmation():
     selector = AutomaticHandSelector(RuntimeConfig())
     near, far = observation(scale=.6), observation(x=.75, scale=.3, hand="Left")
@@ -42,18 +141,18 @@ def test_two_hands_choose_significantly_larger_palm_only_after_confirmation():
     assert results[-1][1]["selected_track_id"] == 2
 
 
-def test_larger_idle_hand_does_not_beat_smaller_gesture_hand():
+def test_nearer_idle_hand_prevents_farther_gesture_acquisition():
     selector = AutomaticHandSelector(RuntimeConfig())
     idle = observation(x=.75, scale=.6, hand="Left", mass=.01)
     gesture = observation(scale=.35)
-    assert feed(selector, [idle, gesture])[-1][0] is gesture
+    assert feed(selector, [idle, gesture])[-1][0] is None
 
 
 def test_equal_depth_valid_gestures_remain_ambiguous():
     selector = AutomaticHandSelector(RuntimeConfig())
     results = feed(selector, [observation(), observation(x=.75, hand="Left")])
     assert all(result[0] is None for result in results)
-    assert results[-1][1]["reason"] == "ambiguous_hands"
+    assert results[-1][1]["reason"] == "hands_same_distance"
 
 
 def test_reordering_detections_preserves_selected_identity():
@@ -71,7 +170,7 @@ def test_overlap_suppresses_actions_without_transferring_identity():
     rows = [observation(x=.4), observation(x=.41, hand="Left")]
     overlapped = selector.update(rows, SHAPE, 1.0)
     assert overlapped[0] is None
-    assert overlapped[1]["reason"] == "hands_overlap"
+    assert overlapped[1]["reason"] == "hands_same_distance"
     assert all(not hand["selected"] for hand in overlapped[2])
     returned = selector.update([observation()], SHAPE, 1.1)
     assert returned[1]["selected_track_id"] == first[1]["selected_track_id"]
@@ -81,22 +180,26 @@ def test_overlap_suppresses_actions_without_transferring_identity():
 def test_missing_active_hand_does_not_immediately_select_other_hand():
     selector = AutomaticHandSelector(RuntimeConfig())
     near, far = observation(scale=.6), observation(x=.75, scale=.3, hand="Left")
-    feed(selector, [near, far])
+    owner = feed(selector, [near, far])[-1][1]["selected_track_id"]
     results = feed(selector, [far], start=10, count=3)
     assert all(result[0] is None for result in results)
     assert results[-1][1]["reason"] == "active_hand_missing"
-    assert feed(selector, [far], start=13, count=7)[-1][0] is far
+    later = feed(selector, [far], start=13, count=10)
+    assert any(selection["reason"] == "active_hand_expired" and selection["ownership_reset"]
+               for _, selection, _ in later)
+    assert later[-1][0] is far
+    assert later[-1][1]["selected_track_id"] != owner
 
 
-def test_closer_challenger_requires_sustained_margin_before_switch():
+def test_closer_challenger_never_switches_the_first_successful_owner():
     selector = AutomaticHandSelector(RuntimeConfig())
     active = observation(scale=.35)
     original = feed(selector, [active])[-1]
     challenger = observation(x=.75, scale=.65, hand="Left")
     results = feed(selector, [active, challenger], start=10, count=9)
     assert results[0][1]["selected_track_id"] == original[1]["selected_track_id"]
-    assert any(result[1]["reason"] == "confirming_closer_hand" for result in results)
-    assert results[-1][0] is challenger
+    assert all(result[0] is active for result in results)
+    assert results[-1][1]["selected_track_id"] == original[1]["selected_track_id"]
 
 
 @pytest.mark.parametrize("label,scale", [("like", .10), ("dorsal", .16)])
@@ -113,7 +216,7 @@ def test_foreshortened_palm_ratios_are_not_treated_as_reliable_depth():
     far["metrics"]["palm_segments_px"] = [35., 35., 35., 35.]
     result = feed(selector, [near, far])[-1]
     assert result[0] is None
-    assert result[1]["reason"] == "ambiguous_hands"
+    assert result[1]["reason"] == "hand_distance_uncertain"
 
 
 def test_sessions_and_reset_do_not_share_selection_history():
@@ -172,7 +275,7 @@ def test_detector_keeps_full_frame_pass_and_deduplicates_recovery(monkeypatch):
     assert seen[0][0] == full and seen[2][0] == full
 
 
-def test_runtime_resets_confirmation_when_selection_changes_and_reports_both_hands(monkeypatch):
+def test_runtime_keeps_first_owner_when_closer_challenger_enters(monkeypatch):
     import cv2
     import backend.model_runtime as runtime_module
 
@@ -213,10 +316,6 @@ def test_runtime_resets_confirmation_when_selection_changes_and_reports_both_han
         clock[0] = 1 + i * .1
         output = engine.process_frame(encoded, session)
         assert len(output["hands"]) == 2
-        if output["hand_selection"]["selected_track_id"] == 2:
-            assert output["stable_frames"] == 1
-            assert output["runtime_action"] == "Wait / No Action"
-            assert output["quality"]["detector"]["reacquired"] is True
-            break
-    else:
-        pytest.fail("The sustained closer hand was never selected")
+        assert output["hand_selection"]["selected_track_id"] == 1
+        assert output["quality"]["detector"]["reacquired"] is False
+        assert output["hands"][1]["gesture"] == "no_gesture"

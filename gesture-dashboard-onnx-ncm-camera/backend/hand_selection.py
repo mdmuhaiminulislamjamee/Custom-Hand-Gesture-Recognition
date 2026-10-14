@@ -1,8 +1,9 @@
 """Automatic hand ownership for a single RGB camera, local to each session.
 
-Palm size is a relative closeness cue, never a metric depth measurement. Gesture
-qualification precedes that cue, and a track's evidence never transfers to a
-different hand. No finger motion is required for a held static gesture.
+Apparent hand scale is a relative closeness cue, never a metric depth measurement. Compare
+both physical hands before gesture qualification. A qualified nearer hand owns
+recognition until a reliable equal-distance comparison or the owner's absence
+resets ownership. A new hand must then qualify from a fresh temporal hold.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ import numpy as np
 
 from .config import RuntimeConfig
 from .runtime import TemporalGate
-from .body_guard import RESTING_HAND_REASON, DORSAL_BELOW_WAIST_REASON
+from .body_guard import RESTING_HAND_REASON
 
 
 @dataclass(frozen=True)
@@ -23,11 +24,10 @@ class SelectionPolicy:
     minimum_short_side_pixels: float = 12.0
     minimum_dorsal_palm_pixels: float = 24.0
     closer_palm_ratio: float = 1.35
-    switch_palm_ratio: float = 1.60
+    closer_projected_world_ratio: float = 1.18
+    equal_projected_world_ratio: float = 1.10
     choice_hold_seconds: float = 0.25
     choice_frames: int = 3
-    release_seconds: float = 0.35
-    missing_hold_seconds: float = 0.60
     track_expiry_seconds: float = 0.80
 
 
@@ -62,6 +62,8 @@ def gate_arguments(details, quality):
                                   and direction.get("model_supported_pose", False)),
         sideways_palm_recovery=bool(pose.get("sideways_palm_recovery", False)),
         dorsal_range_recovery=bool(pose.get("dorsal_range_recovery", False)),
+        expanded_thumb_direction_recovery=bool(supported and pose.get("expanded_thumb_direction_recovery", False)),
+        continued_direction_recovery=bool(supported and direction.get("continued_direction", False)),
     )
 
 
@@ -80,6 +82,8 @@ class AutomaticHandSelector:
         self._pending_since = 0.0
         self._pending_frames = 0
         self._image_shape = None
+        self._empty_since = None
+        self._ownership_reset = False
 
     def _clear_pending(self):
         self._pending_id = None
@@ -107,6 +111,10 @@ class AutomaticHandSelector:
         shape = float(np.median(np.linalg.norm(old_shape - new_shape, axis=1)))
         mismatch = bool(track.handedness and row.get("handedness")
                         and track.handedness != row["handedness"])
+        if mismatch and track.id == self.active_id and row.get("handedness_confidence", 0) >= .75:
+            # A newcomer at the missing owner's screen position must not
+            # inherit its identity simply because its palm has a similar shape.
+            return 100.0
         return distance + 0.35 * shape + 0.25 * abs(np.log(ratio)) + (0.65 if mismatch else 0)
 
     def _associate(self, rows, dimensions):
@@ -123,21 +131,112 @@ class AutomaticHandSelector:
             assignments.append((cost, keys))
         assignments.sort(key=lambda item: item[0])
         best = assignments[0]
+        # A locked hand can return at another screen position after a pose
+        # rejection or a quick movement. Reacquire its unique confident side
+        # without transferring control to the opposite/previously tracked hand.
+        if self.active_id in self.tracks and self.active_id not in best[1]:
+            owner = self.tracks[self.active_id]
+            returning = [i for i, row in enumerate(rows)
+                         if owner.handedness and row.get("handedness") == owner.handedness
+                         and row.get("handedness_confidence", 0) >= .70]
+            if len(returning) == 1 and best[1][returning[0]] is None:
+                i = returning[0]
+                keys = list(best[1])
+                keys[i] = self.active_id
+                rows[i]["identity_reacquired"] = True
+                return tuple(keys), False
         ambiguous = (len(rows) == 2 and len(assignments) > 1
                      and all(key is not None for key in best[1])
                      and all(key is not None for key in assignments[1][1])
                      and assignments[1][0] - best[0] < 0.20)
         return best[1], ambiguous
 
-    def _closer(self, near, far, ratio):
+    def _closer_metrics(self, near, far, ratio):
         """Require agreement between palm segments to reduce orientation bias."""
-        segment_ratios = near.segments / np.maximum(far.segments, 1.0)
+        near_segments = np.asarray(near["palm_segments_px"])
+        far_segments = np.asarray(far["palm_segments_px"])
+        segment_ratios = near_segments / np.maximum(far_segments, 1.0)
         spread = float(np.percentile(segment_ratios, 80) / max(np.percentile(segment_ratios, 20), .01))
-        return (near.palm_size >= far.palm_size * ratio
-                and np.min(near.segments) >= 8 and np.min(far.segments) >= 8
+        return (near["palm_scale_px"] >= far["palm_scale_px"] * ratio
+                and np.min(near_segments) >= 8 and np.min(far_segments) >= 8
                 and spread <= 1.40)
 
+    def _distance_is_consistent(self, near, far):
+        ratios = np.asarray(near["palm_segments_px"]) / np.maximum(far["palm_segments_px"], 1.)
+        return bool(float(np.percentile(ratios, 80) / max(np.percentile(ratios, 20), .01)) <= 1.40)
+
+    @staticmethod
+    def _projected_world_scale(row, dimensions):
+        """Estimate image pixels per world-landmark unit, independent of pose.
+
+        World Z is relative to each hand and cannot give camera distance. The
+        corresponding image and world XY segments can, however, reveal how
+        large each hand projects after its rotation and finger pose are removed.
+        Reject incoherent landmarks rather than treating them as depth evidence.
+        """
+        world = row.get("world_landmarks")
+        if world is None:
+            return None
+        image = np.asarray(row["points"], dtype=float)
+        world = np.asarray(world, dtype=float)
+        if (image.shape != (21, 2) or world.shape != (21, 3)
+                or not np.isfinite(image).all() or not np.isfinite(world).all()):
+            return None
+        pairs = ((0, 5), (0, 9), (0, 13), (0, 17), (5, 9), (9, 13),
+                 (13, 17), (5, 17), (5, 6), (6, 7), (7, 8), (9, 10),
+                 (10, 11), (11, 12), (13, 14), (14, 15), (17, 18))
+        ratios = []
+        for a, b in pairs:
+            world_length = float(np.linalg.norm(world[a, :2] - world[b, :2]))
+            pixel_length = float(np.linalg.norm((image[a] - image[b]) * dimensions))
+            if world_length >= .006 and pixel_length >= 5:
+                ratios.append(pixel_length / world_length)
+        if len(ratios) < 7:
+            return None
+        low, middle, high = np.percentile(ratios, (20, 50, 80))
+        if low <= 0 or high / low > 1.45:
+            return None
+        return float(middle)
+
+    def _compare_two_hands(self, rows, physical, dimensions):
+        """Return (nearer index, reason, relative scale, measurement method)."""
+        a, b = physical
+        scales = [self._projected_world_scale(rows[i], dimensions) for i in physical]
+        if all(scale is not None for scale in scales):
+            near, far = sorted(range(2), key=lambda i: scales[i], reverse=True)
+            ratio = scales[near] / scales[far]
+            if ratio >= self.policy.closer_projected_world_ratio:
+                return physical[near], None, ratio, "projected world landmarks"
+            reason = "hands_same_distance" if ratio <= self.policy.equal_projected_world_ratio else "hand_distance_uncertain"
+            return None, reason, ratio, "projected world landmarks"
+        ordered = sorted(physical, key=lambda i: rows[i]["metrics"]["palm_scale_px"], reverse=True)
+        near, far = (rows[i]["metrics"] for i in ordered)
+        ratio = near["palm_scale_px"] / max(far["palm_scale_px"], 1.)
+        if self._closer_metrics(near, far, self.policy.closer_palm_ratio):
+            return ordered[0], None, ratio, "apparent palm size"
+        similar = ratio < self.policy.closer_palm_ratio and self._distance_is_consistent(near, far)
+        return None, "hands_same_distance" if similar else "hand_distance_uncertain", ratio, "apparent palm size"
+
+    def _physical_hand(self, row):
+        """Idle/context-blocked hands still count for the distance comparison."""
+        if row.get("rejection_reason") in {"face_detected_as_hand", "incomplete_hand", "insufficient_hand_pixels"}:
+            return False
+        metrics = row["metrics"]
+        values = np.asarray(metrics["palm_segments_px"], dtype=float)
+        return bool(values.shape == (4,) and np.isfinite(values).all() and values.min() >= 8
+                    and metrics["palm_scale_px"] >= self.policy.minimum_palm_pixels
+                    and metrics["hand_span_px"] >= self.policy.minimum_span_pixels
+                    and metrics["hand_short_side_px"] >= self.policy.minimum_short_side_pixels)
+
+    def _release_ownership(self):
+        self.active_id = None
+        self._ownership_reset = True
+        self._clear_pending()
+        for track in self.tracks.values():
+            track.gate.reset()
+
     def update(self, rows, image_shape, now):
+        self._ownership_reset = False
         shape = tuple(image_shape[:2])
         if self._image_shape is not None and self._image_shape != shape:
             next_id = self._next_id
@@ -147,65 +246,51 @@ class AutomaticHandSelector:
             self._next_id = next_id
         self._image_shape = shape
         dimensions = np.array([shape[1], shape[0]])
+        self._empty_since = None if rows else (now if self._empty_since is None else self._empty_since)
+        if self.active_id is not None and self._empty_since is not None and now - self._empty_since >= self.policy.track_expiry_seconds:
+            self._release_ownership()
         self.tracks = {key: track for key, track in self.tracks.items()
-                       if now - track.last_seen < self.policy.track_expiry_seconds}
-        if self.active_id not in self.tracks:
-            self.active_id = None
+                       if key == self.active_id or now - track.last_seen < self.policy.track_expiry_seconds}
         previews = [dict(track_id=None, selected=False, landmarks=row["points"].round(6).tolist(),
                          handedness=row.get("handedness"), palm_scale_px=row["metrics"]["palm_scale_px"],
                          gesture=self.config.reject_label, confidence=0.0, eligible=False,
                          reason=row.get("rejection_reason"), body_context=row.get("body_context"),
                          face_context=row.get("face_context")) for row in rows]
 
+        distance_ratio = None
+        distance_method = "relative apparent hand scale; not measured depth"
+
         def result(selected, reason, message):
+            # The inactive hand may build its own gate internally, but its
+            # gesture must not appear as another recognized/eligible command.
+            for i, preview in enumerate(previews):
+                if i != selected:
+                    preview.update(gesture=self.config.reject_label, confidence=0., eligible=False)
             if selected is not None:
                 previews[selected]["selected"] = True
             return (None if selected is None else rows[selected], dict(
                 reason=reason, message=message,
                 selected_track_id=None if selected is None else previews[selected]["track_id"],
                 active_track_id=self.active_id, candidate_count=len(rows),
-                distance_method="relative apparent palm size; not measured depth",
+                ownership_reset=self._ownership_reset,
+                ownership_locked=self.active_id is not None,
+                distance_method=distance_method,
+                distance_scale_ratio=distance_ratio,
                 closer_palm_ratio=self.policy.closer_palm_ratio,
+                closer_projected_world_ratio=self.policy.closer_projected_world_ratio,
             ), previews)
 
         usable = [i for i, row in enumerate(rows) if not row.get("rejection_reason")]
-        if rows and not usable:
-            self._clear_pending()
-            for track in self.tracks.values():
-                track.gate.reset()
-            reason = rows[0]["rejection_reason"]
-            messages = {
-                RESTING_HAND_REASON: "Resting hand: no gesture. Lift your hand away from your hip or thigh.",
-                DORSAL_BELOW_WAIST_REASON: "Dorsal below the waist: no gesture. Raise the hand to command.",
-                "body_context_unavailable": "Body posture check unavailable; gestures are paused for this frame.",
-                "insufficient_hand_pixels": "Move your hand closer and keep the whole hand visible.",
-                "incomplete_hand": "Move your hand closer and keep the whole hand visible.",
-            }
-            message = messages.get(reason, "Hold a clear gesture with the whole hand visible.")
-            return result(None, reason, message)
-        if len(rows) > 2:
-            self._clear_pending()
-            for track in self.tracks.values():
-                track.gate.reset()
-            return result(None, "too_many_candidates", "Hand tracks are unclear. Separate your hands.")
-        if len(usable) == 2:
-            a, b = (rows[i] for i in usable)
-            separation = np.linalg.norm((palm_center(a) - palm_center(b)) * dimensions)
-            if separation < .85 * max(a["metrics"]["palm_scale_px"], b["metrics"]["palm_scale_px"]):
-                self._clear_pending()
-                for track in self.tracks.values():
-                    track.gate.reset()
-                return result(None, "hands_overlap", "Separate your hands so both palms can be tracked.")
-        keys, ambiguous = self._associate([rows[i] for i in usable], dimensions)
-        if ambiguous:
-            self._clear_pending()
-            for track in self.tracks.values():
-                track.gate.reset()
-            return result(None, "ambiguous_tracks", "Hold briefly while the hand tracks separate.")
-
+        physical = [i for i, row in enumerate(rows) if self._physical_hand(row)]
+        # Track physical hands even when face/body/gesture checks pause their
+        # commands. Otherwise the owner freezes at its last allowed position
+        # and every later gesture can be rejected as "active hand missing".
         current = {}
-        decisions = {}
-        for i, key in zip(usable, keys):
+        trackable = sorted(set(usable + physical)) if len(rows) <= 2 else []
+        for row in rows:
+            row["identity_reacquired"] = False
+        keys, ambiguous = self._associate([rows[i] for i in trackable], dimensions)
+        for i, key in zip(trackable, () if ambiguous else keys):
             row = rows[i]
             metrics = row["metrics"]
             if key is None:
@@ -216,7 +301,7 @@ class AutomaticHandSelector:
                                              TemporalGate(self.config))
             track = self.tracks[key]
             dt = max(.001, now - track.last_seen)
-            if dt >= .35:
+            if row["identity_reacquired"]:
                 track.gate.reset()
             alpha = 1 - .65 ** (min(dt, .5) * self.config.target_fps)
             track.palm_size += alpha * (metrics["palm_scale_px"] - track.palm_size)
@@ -224,9 +309,80 @@ class AutomaticHandSelector:
             track.points, track.last_seen = row["points"].copy(), now
             if row.get("handedness_confidence", 0) >= .75:
                 track.handedness = row.get("handedness")
-            current[key] = i
             row["track_id"] = key
             previews[i]["track_id"] = key
+            if i in usable:
+                current[key] = i
+            else:
+                track.gate.reset()
+                track.invalid_since = now
+        if (self.active_id is not None and self.active_id not in current
+                and now - self.tracks[self.active_id].last_seen >= self.policy.track_expiry_seconds):
+            # A different visible hand must not inherit the owner's gesture
+            # immediately. Once that owner has truly disappeared, release its
+            # lock and build a fresh hold for the observed hand on later frames.
+            self._release_ownership()
+            return result(None, "active_hand_expired",
+                          "Previous hand left; hold a clear gesture to select the visible hand.")
+        nearer_index = None
+        if len(physical) == 2:
+            # Current measurements must stop recognition immediately when a
+            # hand returns to its peer's scale; an EMA may still look near.
+            nearer_index, distance_reason, distance_ratio, distance_method = self._compare_two_hands(
+                rows, physical, dimensions)
+            if distance_reason:
+                if distance_reason == "hands_same_distance":
+                    self._release_ownership()
+                else:
+                    self._clear_pending()
+                    for track in self.tracks.values():
+                        track.gate.reset()
+                return result(None, distance_reason,
+                              "Hands are at similar distance. Bring one hand clearly forward."
+                              if distance_reason == "hands_same_distance" else
+                              "Hand distance is uncertain. Keep both hands visible and bring one clearly forward.")
+
+        if rows and not usable:
+            self._clear_pending()
+            for track in self.tracks.values():
+                track.gate.reset()
+            reason = rows[0]["rejection_reason"]
+            messages = {
+                RESTING_HAND_REASON: "Relaxed Dorsal below the waist: no gesture. Raise your hand or bend the arm to gesture.",
+                "insufficient_hand_pixels": "Move your hand closer and keep the whole hand visible.",
+                "incomplete_hand": "Move your hand closer and keep the whole hand visible.",
+                "face_contact_estimated": "Hand appears to touch your face. Move it away to resume gestures.",
+                "face_contact_pending": "Checking face contact; move your hand away to resume gestures.",
+                "face_overlap_depth_unavailable": "Hand overlaps your face; separation is uncertain. Move it away to resume.",
+                "face_detected_as_hand": "Face region rejected as a hand: no gesture.",
+                "face_context_unavailable": "Face check unavailable; gestures are paused for this frame.",
+            }
+            message = messages.get(reason, "Hold a clear gesture with the whole hand visible.")
+            return result(None, reason, message)
+        if len(rows) > 2:
+            self._clear_pending()
+            for track in self.tracks.values():
+                track.gate.reset()
+            return result(None, "too_many_candidates", "Hand tracks are unclear. Separate your hands.")
+        if len(physical) == 2:
+            a, b = (rows[i] for i in physical)
+            separation = np.linalg.norm((palm_center(a) - palm_center(b)) * dimensions)
+            if separation < .85 * max(a["metrics"]["palm_scale_px"], b["metrics"]["palm_scale_px"]):
+                self._clear_pending()
+                for track in self.tracks.values():
+                    track.gate.reset()
+                return result(None, "hands_overlap", "Separate your hands so both palms can be tracked.")
+        if ambiguous:
+            self._clear_pending()
+            for track in self.tracks.values():
+                track.gate.reset()
+            return result(None, "ambiguous_tracks", "Hold briefly while the hand tracks separate.")
+
+        decisions = {}
+        for key, i in current.items():
+            row = rows[i]
+            metrics = row["metrics"]
+            track = self.tracks[key]
             size_ok = (metrics["palm_scale_px"] >= self.policy.minimum_palm_pixels
                        and metrics["hand_span_px"] >= self.policy.minimum_span_pixels
                        and metrics["hand_short_side_px"] >= self.policy.minimum_short_side_pixels)
@@ -250,33 +406,29 @@ class AutomaticHandSelector:
                 track.gate.reset()
 
         ready = [key for key, decision in decisions.items() if decision.execute]
-        # Preserve ownership through brief occlusions, without emitting stale poses.
+        # Ownership stays latched while its hand is physically observed. A
+        # different visible hand cannot transfer control before owner expiry.
         if self.active_id is not None:
             active = self.tracks[self.active_id]
             if self.active_id not in current:
                 self._clear_pending()
-                if now - active.last_seen < self.policy.missing_hold_seconds:
-                    return result(None, "active_hand_missing", "Active hand hidden; waiting for it to return.")
-                self.active_id = None
+                return result(None, "active_hand_missing", "Selected hand hidden; waiting briefly to reacquire it.")
             elif active.invalid_since is not None:
-                if now - active.invalid_since < self.policy.release_seconds:
-                    self._clear_pending()
-                    return result(None, "active_hand_releasing", "Waiting for the active gesture to release.")
-                self.active_id = None
-            else:
-                challengers = [key for key in ready if key != self.active_id
-                               and self._closer(self.tracks[key], active, self.policy.switch_palm_ratio)]
-                if challengers:
-                    challenger = challengers[0]
-                    if self._confirm_choice(challenger, now):
-                        self.active_id = challenger
-                        self._clear_pending()
-                        return result(current[challenger], "closer_hand_selected", "Selected the clearly closer gesture hand.")
-                    return result(None, "confirming_closer_hand", "Confirming the closer hand; hold your gesture.")
                 self._clear_pending()
-                return result(current[self.active_id], "active_hand_locked", "Following the active hand.")
+                return result(None, "active_hand_releasing", "Selected hand has no clear gesture; its selection is retained.")
+            else:
+                self._clear_pending()
+                return result(current[self.active_id], "active_hand_locked", "Following the selected hand while it remains visible.")
 
-        if len(ready) == 1:
+        if nearer_index is not None:
+            # A farther valid gesture cannot win while the nearer physical hand
+            # is idle, occluded, or blocked by a face/trouser context rule.
+            nearer_key = next((key for key, i in current.items() if i == nearer_index), None)
+            if nearer_key not in ready:
+                self._clear_pending()
+                return result(None, "nearer_hand_not_ready", "The closer hand needs a clear eligible gesture.")
+            chosen = nearer_key
+        elif len(ready) == 1:
             chosen = ready[0]
             # A second hand still building a valid gesture must get time to qualify.
             competitors = [key for key, d in decisions.items() if key != chosen
@@ -285,11 +437,8 @@ class AutomaticHandSelector:
                 self._clear_pending()
                 return result(None, "confirming_both_hands", "Checking both hands; hold your gesture.")
         elif len(ready) == 2:
-            ordered = sorted(ready, key=lambda key: self.tracks[key].palm_size, reverse=True)
-            if not self._closer(self.tracks[ordered[0]], self.tracks[ordered[1]], self.policy.closer_palm_ratio):
-                self._clear_pending()
-                return result(None, "ambiguous_hands", "Both hands have gestures. Bring the intended hand forward or relax the other.")
-            chosen = ordered[0]
+            self._clear_pending()
+            return result(None, "hand_distance_uncertain", "Hand distance is uncertain. Bring one clearly visible hand forward.")
         else:
             self._clear_pending()
             small = any(p["reason"] in {"hand_too_small", "dorsal_hand_too_small"} for p in previews)
@@ -301,9 +450,10 @@ class AutomaticHandSelector:
                           "Move your hand closer for reliable finger detail." if small
                           else "Hold one clear gesture; checking the visible hands.")
 
-        if len(rows) > 1 and not self._confirm_choice(chosen, now):
+        if len(physical) > 1 and not self._confirm_choice(chosen, now):
             return result(None, "confirming_hand_choice", "Confirming the gesture hand; keep holding.")
         self.active_id = chosen
         self._clear_pending()
-        return result(current[chosen], "closer_hand_selected" if len(ready) > 1 else "gesture_hand_selected",
-                      "Selected the clearly closer gesture hand." if len(ready) > 1 else "Following the hand with a clear gesture.")
+        return result(current[chosen], "closer_hand_selected" if nearer_index is not None else "gesture_hand_selected",
+                      "Selected and locked the clearly closer gesture hand." if nearer_index is not None
+                      else "Following the first hand with a clear gesture.")

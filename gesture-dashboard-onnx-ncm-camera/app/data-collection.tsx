@@ -6,8 +6,8 @@ import { validPlaneAngles, type PlaneAngles } from './landmark-angles';
 type Handedness = 'left' | 'right';
 type FingerOrientation = 'toward_camera' | 'away_from_camera';
 export type CameraSource = 'ncm' | 'webcam';
-type Step = { id: string; label: string; title: string; view: string; instruction: string; variation: string; target: number; per_hand_target: number | null; per_orientation_target: number | null };
-type HandCounts = { left?: number; right?: number; none?: number; unspecified?: number };
+type Step = { id: string; label: string; title: string; view: string; instruction: string; variation: string; group: string; hand_mode: 'single' | 'both' | 'none'; training_use: 'hand_classifier' | 'context_only' | 'detector_only'; target: number; per_hand_target: number | null; per_orientation_target: number | null };
+type HandCounts = { left?: number; right?: number; both?: number; none?: number; unspecified?: number };
 type OrientationCounts = { toward_camera?: number; away_from_camera?: number; none?: number; unspecified?: number };
 type RecentSample = { sample_id: string; label: string; view: string; handedness: string; finger_orientation?: string; image_path: string };
 type CollectedSample = RecentSample & { sample_ref: string; step_id: string; created_at_utc: string };
@@ -49,7 +49,8 @@ const viewLabels: Record<string, string> = {
   little_finger: 'Little finger only',
   relaxed_hand: 'Relaxed hand',
 };
-const viewLabel = (value: string) => viewLabels[value] ?? pretty(value);
+const viewLabel = (value: string) => viewLabels[value] ?? pretty(value).replace(/^./, letter => letter.toUpperCase());
+const handLabel = (value: string) => value === 'both' ? 'Both hands' : value === 'left' || value === 'right' ? `${value} hand` : 'No hand';
 const orientationLabels: Record<string, string> = {
   toward_camera: 'Fingers toward camera',
   away_from_camera: 'Fingers away from camera',
@@ -110,6 +111,11 @@ const negativeGuides: Record<string, GestureGuide> = {
   thumb_little_sign: { symbol: '🤙', alt: 'Thumb and little finger extended; this is not a command' },
   partial_fist: { symbol: '○', alt: 'Four fingers partly raised or bent; this is not a closed fist command' },
   downward_fist: { symbol: '✊', alt: 'Closed fist pointing down; this is not a command' },
+};
+const negativeGroupSymbols: Record<string, string> = {
+  'No hand': '○', 'Unrelated hand shapes': '✋', 'Near-command shapes': '◇', 'Resting Dorsal': '↘',
+  'Resting Fist': '✊', 'Incidental pointing': '☝',
+  'Occlusion and motion': '◐', 'Two hands': '✋',
 };
 const viewSymbols: Record<string, string> = {
   front: '◎', yaw_left: '↶', yaw_right: '↷', pitch_toward: '⇣', pitch_away: '⇡',
@@ -212,10 +218,13 @@ export default function DataCollection({
   const step = summary?.plan[stepIndex];
   const count = step ? summary?.counts[step.id] ?? 0 : 0;
   const handCounts = handCountsFor(summary, step);
-  const requiresHands = !!step?.per_hand_target;
+  const singleHand = step?.hand_mode === 'single';
+  const requiresHands = !!step && step.hand_mode !== 'none';
   const complete = summary?.plan.filter(s => stepComplete(summary, s)).length ?? 0;
   const lastSave = summary?.recent[0];
-  const guide = step ? (step.label === 'no_gesture' ? negativeGuides[step.view] : gestureGuides[step.label]) : undefined;
+  const guide = step ? (step.label === 'no_gesture'
+    ? negativeGuides[step.view] ?? { symbol: negativeGroupSymbols[step.group] ?? '○', alt: step.instruction }
+    : gestureGuides[step.label]) : undefined;
   const showGuide = !!guide && countdown === null && snapshot === null;
   const displayedLandmarks = snapshot ? snapshot.landmarks : connected && active ? liveLandmarks : undefined;
   const displayedAngles = snapshot && validPlaneAngles(snapshot.plane_angles) ? snapshot.plane_angles : connected && active ? livePlaneAngles : null;
@@ -298,11 +307,11 @@ export default function DataCollection({
     setBusy(true); setError('');
     try {
       const result: { summary: Summary; image_path: string } = await request('/samples', { token: snapshot.token, participant_id: participant,
-        session_id: session.current, step_id: step.id, handedness: step.view === 'background' || step.view === 'face_ear' ? 'none' : handedness,
-        finger_orientation: step.view === 'background' || step.view === 'face_ear' ? 'none' : fingerOrientation,
+        session_id: session.current, step_id: step.id, handedness: singleHand ? handedness : step.hand_mode === 'both' ? 'both' : 'none',
+        finger_orientation: singleHand ? fingerOrientation : 'none',
         lighting, distance, note });
       setSummary(result.summary); setSnapshot(null);
-      let savedMessage = `Saved ${step.title} / ${viewLabel(step.view)} / ${requiresHands ? `${handedness} hand / ${fingerOrientation === 'toward_camera' ? 'fingers toward camera' : 'fingers away from camera'}` : 'no hand'}. ${result.image_path}`;
+      let savedMessage = `Saved ${step.title} / ${viewLabel(step.view)} / ${singleHand ? `${handedness} hand / ${fingerOrientation === 'toward_camera' ? 'fingers toward camera' : 'fingers away from camera'}` : step.hand_mode === 'both' ? 'both hands' : 'no hand'}. ${result.image_path}`;
       if (step.per_orientation_target && !stepComplete(result.summary, step)) {
         const nextChoice = preferredCombination(result.summary, step);
         if (nextChoice.hand !== handedness || nextChoice.orientation !== fingerOrientation) {
@@ -320,7 +329,7 @@ export default function DataCollection({
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.'); }
     finally { setBusy(false); }
-  }, [distance, fingerOrientation, handedness, lighting, note, participant, request, requiresHands, snapshot, step, stepIndex]);
+  }, [distance, fingerOrientation, handedness, lighting, note, participant, request, singleHand, snapshot, step, stepIndex]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -349,7 +358,7 @@ export default function DataCollection({
         const choice = preferredCombination(result.summary, step);
         setHandedness(choice.hand); setFingerOrientation(choice.orientation);
       }
-      setMessage(`Deleted last image: ${pretty(result.deleted.label)} / ${viewLabel(result.deleted.view)}${result.deleted.handedness === 'left' || result.deleted.handedness === 'right' ? ` / ${result.deleted.handedness} hand / ${orientationLabel(result.deleted.finger_orientation)}` : ''}.`);
+      setMessage(`Deleted last image: ${pretty(result.deleted.label)} / ${viewLabel(result.deleted.view)} / ${handLabel(result.deleted.handedness)}.`);
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not delete the last image.'); }
     finally { setBusy(false); }
   }
@@ -385,8 +394,22 @@ export default function DataCollection({
     }
   }
 
+  function jumpToGroup(group: string) {
+    if (!summary) return;
+    const next = summary.plan.findIndex(s => s.group === group && !stepComplete(summary, s));
+    const first = summary.plan.findIndex(s => s.group === group);
+    if (first >= 0) changeStep(next >= 0 ? next : first);
+  }
+
+  function jumpToNegatives() {
+    if (!summary) return;
+    const next = summary.plan.findIndex(s => s.label === 'no_gesture' && !stepComplete(summary, s));
+    const first = summary.plan.findIndex(s => s.label === 'no_gesture');
+    if (first >= 0) changeStep(next >= 0 ? next : first);
+  }
+
   return <div hidden={!active} className="collection-page">
-    <div className="section-heading"><div><p className="eyebrow">05 · TRAINING IMAGES</p><h2>Data Collection</h2><p className="collection-intro">A few natural poses from each person. Guided prompts keep the dataset organized.</p></div>
+    <div className="section-heading"><div><p className="eyebrow">05 · TRAINING IMAGES</p><h2>Data Collection</h2><p className="collection-intro">Collect commands, ordinary resting poses, and difficult no-gesture scenes. You can jump straight to a section below.</p></div>
       <div className="heading-actions">
         <label className="camera-source-control">Camera source<select aria-label="Data collection camera source" value={cameraSource} disabled={connected || busy} onChange={event => setCameraSource(event.target.value as CameraSource)}><option value="ncm">NCM board camera</option><option value="webcam">PC webcam</option></select></label>
         <button type="button" className="primary-button" disabled={!ready || busy} onClick={toggleCamera}>{connected ? `Disconnect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}` : `Connect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}`}</button>
@@ -399,7 +422,7 @@ export default function DataCollection({
           <label>Continue a participant<select aria-label="Continue a participant" value={participant} disabled={busy || !!snapshot} onChange={e => { if (e.target.value) void selectParticipant(e.target.value); }}><option value="">Select a person</option>{summary?.participants.map(id => <option key={id} value={id}>{id}</option>)}</select></label>
           <form onSubmit={e => { e.preventDefault(); void selectParticipant(newParticipant); }}><label>New participant ID<input aria-label="New participant ID" placeholder="person-001" maxLength={48} value={newParticipant} disabled={busy || !!snapshot} onChange={e => setNewParticipant(e.target.value)} /></label><button className="secondary-button wide" disabled={!newParticipant.trim() || busy || !!snapshot}>Create / open participant</button></form>
           <p className="collection-help">Use the same ID for the same person on every visit. Use IDs instead of names, and collect with their permission. Photos may include faces and stay on this PC.</p>
-          <div className="collection-condition-grid"><label>Hand shown<select value={requiresHands ? handedness : 'none'} disabled={!requiresHands || busy || !!snapshot} onChange={e => setHandedness(e.target.value as Handedness)}>{requiresHands ? <><option value="right">Right hand</option><option value="left">Left hand</option></> : <option value="none">No hand required</option>}</select></label><label>Finger angle<select value={requiresHands ? fingerOrientation : 'none'} disabled={!requiresHands || busy || !!snapshot} onChange={e => setFingerOrientation(e.target.value as FingerOrientation)}>{requiresHands ? <><option value="toward_camera">Toward camera</option><option value="away_from_camera">Away from camera</option></> : <option value="none">No hand required</option>}</select></label></div>
+          <div className="collection-condition-grid"><label>Hand shown<select value={singleHand ? handedness : step?.hand_mode === 'both' ? 'both' : 'none'} disabled={!singleHand || busy || !!snapshot} onChange={e => setHandedness(e.target.value as Handedness)}>{singleHand ? <><option value="right">Right hand</option><option value="left">Left hand</option></> : <option value={step?.hand_mode === 'both' ? 'both' : 'none'}>{step?.hand_mode === 'both' ? 'Both hands' : 'No hand required'}</option>}</select></label><label>Finger angle<select value={singleHand ? fingerOrientation : 'none'} disabled={!singleHand || busy || !!snapshot} onChange={e => setFingerOrientation(e.target.value as FingerOrientation)}>{singleHand ? <><option value="toward_camera">Toward camera</option><option value="away_from_camera">Away from camera</option></> : <option value="none">Not applicable</option>}</select></label></div>
           <div className="collection-condition-grid"><label>Lighting<select value={lighting} disabled={busy || !!snapshot} onChange={e => setLighting(e.target.value)}><option value="normal">Normal</option><option value="dim">Dim</option><option value="backlit">Window behind</option></select></label><label>Distance<select value={distance} disabled={busy || !!snapshot} onChange={e => setDistance(e.target.value)}><option value="near">Near</option><option value="medium">Medium</option><option value="far">Far</option></select></label></div>
           <label>Notes (optional)<textarea value={note} disabled={busy || !!snapshot} maxLength={500} onChange={e => setNote(e.target.value)} placeholder="e.g. index finger missed at this angle" /></label>
         </div>
@@ -407,7 +430,9 @@ export default function DataCollection({
       <div className="collection-main">
         {step && <article className="collection-prompt">
           <div className="collection-symbol" aria-hidden="true">{arrows[step.label]}</div>
-          <div className="collection-prompt-copy"><p className="eyebrow">COLLECT NOW · {stepIndex + 1} / {summary?.plan.length}</p><h3>{step.title} <span>/ {viewLabel(step.view)}</span></h3><p>{step.instruction}</p><small>{step.variation}</small>
+          <div className="collection-prompt-copy"><p className="eyebrow">{step.group.toUpperCase()} · {stepIndex + 1} / {summary?.plan.length}</p><h3>{step.title} <span>/ {viewLabel(step.view)}</span></h3><p>{step.instruction}</p><small>{step.variation}</small>
+            {step.group === 'Commands' && <button type="button" className="secondary-button" disabled={busy || !!snapshot} onClick={jumpToNegatives}>Go to no-gesture collection</button>}
+            {step.training_use !== 'hand_classifier' && <small>{step.training_use === 'context_only' ? 'Posture/context example: saved for future context-aware training and testing; excluded from single-hand classifier training.' : 'Detector/tracking example: saved as a reviewed raw image; excluded from single-hand classifier training.'}</small>}
             {step.per_orientation_target ? <div className="collection-hand-options" role="group" aria-label="Choose the hand and finger angle to collect">
               {(['right', 'left'] as Handedness[]).map(hand => <section key={hand} className={handedness === hand ? 'active' : ''}><header><span>{hand === 'right' ? 'R' : 'L'}</span><strong>{hand === 'right' ? 'Right hand' : 'Left hand'}</strong><small>{handCounts[hand]} / {step.per_hand_target}</small></header><div>
                 {(['toward_camera', 'away_from_camera'] as FingerOrientation[]).map(orientation => {
@@ -416,16 +441,16 @@ export default function DataCollection({
                   return <button key={orientation} type="button" className={activeChoice ? 'active' : ''} aria-pressed={activeChoice} disabled={busy || !!snapshot} onClick={() => { setHandedness(hand); setFingerOrientation(orientation); }}><span aria-hidden="true">{orientation === 'toward_camera' ? '⇣' : '⇡'}</span><strong>{orientationLabel(orientation)}</strong><small>{orientationCounts[orientation]} / {step.per_orientation_target}</small></button>;
                 })}
               </div></section>)}
-            </div> : <div className="collection-hand-free"><span aria-hidden="true">✓</span> No hand required for this prompt</div>}
+            </div> : <div className="collection-hand-free"><span aria-hidden="true">✓</span> {step.hand_mode === 'both' ? 'Show both hands for this prompt' : 'No hand required for this prompt'}</div>}
           </div>
           {showGuide && <figure key={step.id} className={`collection-gesture-guide ${step.label === 'no_gesture' ? 'is-negative' : ''}`} data-gesture-guide={step.id}>
-            <figcaption><span>VISUAL EXAMPLE</span><strong>{step.label === 'no_gesture' ? 'Not a command' : requiresHands ? `${handedness} hand · ${fingerOrientation === 'toward_camera' ? 'toward camera' : 'away from camera'}` : 'Copy this pose'}</strong></figcaption>
+            <figcaption><span>{step.label === 'no_gesture' && !negativeGuides[step.view] ? 'SCENE CATEGORY' : 'VISUAL EXAMPLE'}</span><strong>{step.label === 'no_gesture' ? 'Not a command' : singleHand ? `${handedness} hand · ${fingerOrientation === 'toward_camera' ? 'toward camera' : 'away from camera'}` : 'Copy this pose'}</strong></figcaption>
             <div className={`collection-guide-pose collection-guide-view-${step.view}`}>
-              {guide.src ? <img className={`collection-guide-image collection-guide-direction-${step.label} ${requiresHands ? `collection-guide-hand-${handedness} collection-guide-angle-${fingerOrientation}` : ''}`} src={guide.src} alt={`${guide.alt}${requiresHands ? ` using the ${handedness} hand with ${orientationLabel(fingerOrientation).toLowerCase()}` : ''}`} /> : <span className={`collection-guide-symbol ${requiresHands ? `collection-guide-hand-${handedness}` : ''}`} role="img" aria-label={`${guide.alt}${requiresHands ? ` using the ${handedness} hand` : ''}`}>{guide.symbol}</span>}
+              {guide.src ? <img className={`collection-guide-image collection-guide-direction-${step.label} ${singleHand ? `collection-guide-hand-${handedness} collection-guide-angle-${fingerOrientation}` : ''}`} src={guide.src} alt={`${guide.alt}${singleHand ? ` using the ${handedness} hand with ${orientationLabel(fingerOrientation).toLowerCase()}` : ''}`} /> : <span className={`collection-guide-symbol ${singleHand ? `collection-guide-hand-${handedness}` : ''}`} role="img" aria-label={`${guide.alt}${singleHand ? ` using the ${handedness} hand` : ''}`}>{guide.symbol}</span>}
               {['left', 'right', 'up', 'down'].includes(step.label) && <span className="collection-guide-direction-arrow" aria-hidden="true">{arrows[step.label]}</span>}
               {step.label === 'no_gesture' && <span className="collection-guide-no-command" aria-hidden="true">×</span>}
               <span className="collection-guide-view-symbol" aria-hidden="true">{viewSymbols[step.view] ?? '◎'}</span>
-              {requiresHands && <span className="collection-guide-depth" aria-hidden="true">{fingerOrientation === 'toward_camera' ? <><b>FINGERS</b><i>→</i><b>CAMERA</b></> : <><b>CAMERA</b><i>→</i><b>FINGERS</b></>}</span>}
+              {singleHand && <span className="collection-guide-depth" aria-hidden="true">{fingerOrientation === 'toward_camera' ? <><b>FINGERS</b><i>→</i><b>CAMERA</b></> : <><b>CAMERA</b><i>→</i><b>FINGERS</b></>}</span>}
             </div>
           </figure>}
           <div className="collection-count"><strong>{count}<span> / {step.target}</span></strong><small>images saved</small></div>
@@ -441,7 +466,7 @@ export default function DataCollection({
             {countdown !== null && <div className="collection-countdown" role="status">{countdown}</div>}
           </div>
           <div className="collection-review">
-            {snapshot ? <><p>Does this image match <strong>{step?.title} / {viewLabel(step?.view ?? '')}</strong>? Press <kbd>Space</kbd> to confirm the label and save it, even if the current model is wrong.</p><small>Model: {pretty(snapshot.prediction)} · {snapshot.has_features ? 'matching landmarks shown beside the image' : 'raw image saved for later extraction'}{snapshot.reason ? ` · ${snapshot.reason}` : ''}</small><div className="heading-actions"><button className="secondary-button" disabled={busy} onClick={() => setSnapshot(null)}>Retake</button><button className="primary-button" aria-keyshortcuts="Space" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Confirm label & save image · Space'}</button></div></> : <><p>Move slightly between photos. Keep the intended gesture recognizable and the whole hand in view. Press <kbd>Space</kbd> to capture.</p><button className="primary-button" aria-keyshortcuts="Space" disabled={busy || !participant || !connected || !step} onClick={() => void capture()}>{countdown ? 'Get ready…' : 'Capture image · Space · 3 second timer'}</button></>}
+            {snapshot ? <><p>Does this image match <strong>{step?.title} / {viewLabel(step?.view ?? '')}</strong>? Press <kbd>Space</kbd> to confirm the label and save it, even if the current model is wrong.</p><small>Model: {pretty(snapshot.prediction)} · {snapshot.has_features ? 'matching landmarks shown beside the image' : 'raw image saved for later extraction'}{snapshot.reason ? ` · ${snapshot.reason}` : ''}</small><div className="heading-actions"><button className="secondary-button" disabled={busy} onClick={() => setSnapshot(null)}>Retake</button><button className="primary-button" aria-keyshortcuts="Space" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Confirm label & save image · Space'}</button></div></> : <><p>Move slightly between photos. {step?.label === 'no_gesture' ? 'Follow the ordinary non-command activity in the prompt and review the frozen frame before saving.' : 'Keep the intended gesture recognizable and the whole hand in view.'} Press <kbd>Space</kbd> to capture.</p><button className="primary-button" aria-keyshortcuts="Space" disabled={busy || !participant || !connected || !step} onClick={() => void capture()}>{countdown ? 'Get ready…' : 'Capture image · Space · 3 second timer'}</button></>}
           </div>
         </article>
         {error && <p className="collection-error" role="alert">{error}</p>}
@@ -453,19 +478,21 @@ export default function DataCollection({
             {deleteSelectionArmed && !!selectedSamples.length && <div className="collection-delete-confirm" role="alert"><p>Permanently delete {selectedSamples.length} selected image{selectedSamples.length === 1 ? '' : 's'} and matching label file{selectedSamples.length === 1 ? '' : 's'}?</p><div className="heading-actions"><button type="button" className="secondary-button" disabled={busy} onClick={() => setDeleteSelectionArmed(false)}>Cancel</button><button type="button" className="danger-button confirm" disabled={busy} onClick={() => void deleteSelected()}>{busy ? 'Deleting…' : `Yes, delete ${selectedSamples.length}`}</button></div></div>}
             {participant && step ? samples.length ? <div className="collection-image-grid">{samples.map((sample, index) => {
               const selected = selectedSamples.includes(sample.sample_ref);
-              return <label key={sample.sample_ref} className={selected ? 'selected' : ''}><input type="checkbox" aria-label={`Select saved image ${index + 1}`} checked={selected} disabled={busy || !!snapshot} onChange={() => toggleSample(sample.sample_ref)} /><img src={`${api}/api/collection/image?participant_id=${encodeURIComponent(participant)}&sample_ref=${encodeURIComponent(sample.sample_ref)}`} alt={`Saved ${pretty(sample.label)} training image ${index + 1}`} /><span><strong>{sample.handedness === 'left' || sample.handedness === 'right' ? `${sample.handedness} hand` : 'No hand'}</strong><small>{orientationLabel(sample.finger_orientation)}</small></span></label>;
+              return <label key={sample.sample_ref} className={selected ? 'selected' : ''}><input type="checkbox" aria-label={`Select saved image ${index + 1}`} checked={selected} disabled={busy || !!snapshot} onChange={() => toggleSample(sample.sample_ref)} /><img src={`${api}/api/collection/image?participant_id=${encodeURIComponent(participant)}&sample_ref=${encodeURIComponent(sample.sample_ref)}`} alt={`Saved ${pretty(sample.label)} training image ${index + 1}`} /><span><strong>{handLabel(sample.handedness)}</strong><small>{orientationLabel(sample.finger_orientation)}</small></span></label>;
             })}</div> : <p className="empty-note">No images saved for this section yet.</p> : <p className="empty-note">Select or create a participant to view saved images.</p>}
           </div>
         </article>
         <article className="panel collection-progress"><div className="panel-header"><div>COLLECTION PROGRESS</div><span>{complete} / {summary?.plan.length ?? 0} PROMPTS COMPLETE</span></div><div className="collection-fields">
-          <label>Jump to a gesture / angle<select aria-label="Collection prompt" value={stepIndex} disabled={busy || !!snapshot} onChange={e => changeStep(Number(e.target.value))}>{summary?.plan.map((s, i) => <option value={i} key={s.id}>{stepComplete(summary, s) ? '✓ ' : ''}{i + 1}. {s.title} / {viewLabel(s.view)} ({summary.counts[s.id] ?? 0}/{s.target})</option>)}</select></label>
+          <div className="heading-actions"><button type="button" className="secondary-button" disabled={!summary || busy || !!snapshot} onClick={jumpToNegatives}>Start / resume no-gesture prompts</button></div>
+          <label>Jump to a section<select aria-label="Collection section" value={step?.group ?? ''} disabled={!summary || busy || !!snapshot} onChange={e => jumpToGroup(e.target.value)}>{[...new Set(summary?.plan.map(s => s.group) ?? [])].map(group => <option value={group} key={group}>{group}</option>)}</select></label>
+          <label>Jump to a prompt<select aria-label="Collection prompt" value={stepIndex} disabled={busy || !!snapshot} onChange={e => changeStep(Number(e.target.value))}>{[...new Set(summary?.plan.map(s => s.group) ?? [])].map(group => <optgroup label={group} key={group}>{summary?.plan.map((s, i) => s.group === group ? <option value={i} key={s.id}>{stepComplete(summary, s) ? '✓ ' : ''}{i + 1}. {viewLabel(s.view)} ({summary.counts[s.id] ?? 0}/{s.target})</option> : null)}</optgroup>)}</select></label>
           <progress value={complete} max={summary?.plan.length || 1} aria-label="Completed collection prompts" />
           <div className="heading-actions"><button className="secondary-button" disabled={stepIndex === 0 || busy || !!snapshot} onClick={() => changeStep(stepIndex - 1)}>Previous prompt</button><button className="secondary-button" disabled={!summary || stepIndex >= summary.plan.length - 1 || busy || !!snapshot} onClick={() => changeStep(stepIndex + 1)}>Skip / next prompt</button></div>
-          <p className="collection-help">Directions come first, followed by palm and other commands, then no-gesture examples: other fingers, face/ear, and background. Repeat with both hands and different conditions.</p>
+          <p className="collection-help">Collect the sections you can complete now; every prompt can be skipped and revisited. Resting poses, everyday activity, and two-hand scenes are kept separate from single-hand classifier examples.</p>
           <div className="collection-recent">
             <div className="collection-recent-heading"><strong>Recent saves</strong><button type="button" className="danger-button" disabled={!lastSave || busy || !!snapshot} onClick={() => setDeleteArmed(true)}>Delete last image</button></div>
-            {deleteArmed && lastSave && <div className="collection-delete-confirm" role="alert"><p>Permanently delete the latest image and its label?<small>{pretty(lastSave.label)} · {viewLabel(lastSave.view)}{lastSave.handedness === 'left' || lastSave.handedness === 'right' ? ` · ${lastSave.handedness} hand · ${orientationLabel(lastSave.finger_orientation)}` : ''}</small></p><div className="heading-actions"><button type="button" className="secondary-button" disabled={busy} onClick={() => setDeleteArmed(false)}>Cancel</button><button type="button" className="danger-button confirm" disabled={busy} onClick={() => void deleteLast()}>{busy ? 'Deleting…' : 'Yes, delete last image'}</button></div></div>}
-            {summary?.recent.length ? summary.recent.map((r, index) => <div className="collection-recent-entry" key={r.sample_id + r.image_path}><span>{index === 0 ? 'LATEST' : String(index + 1).padStart(2, '0')}</span><div>{pretty(r.label)} · {viewLabel(r.view)}{r.handedness === 'left' || r.handedness === 'right' ? ` · ${r.handedness} hand · ${orientationLabel(r.finger_orientation)}` : ''}<small>{r.image_path}</small></div></div>) : <small>No images saved for this participant yet.</small>}
+            {deleteArmed && lastSave && <div className="collection-delete-confirm" role="alert"><p>Permanently delete the latest image and its label?<small>{pretty(lastSave.label)} · {viewLabel(lastSave.view)} · {handLabel(lastSave.handedness)}</small></p><div className="heading-actions"><button type="button" className="secondary-button" disabled={busy} onClick={() => setDeleteArmed(false)}>Cancel</button><button type="button" className="danger-button confirm" disabled={busy} onClick={() => void deleteLast()}>{busy ? 'Deleting…' : 'Yes, delete last image'}</button></div></div>}
+            {summary?.recent.length ? summary.recent.map((r, index) => <div className="collection-recent-entry" key={r.sample_id + r.image_path}><span>{index === 0 ? 'LATEST' : String(index + 1).padStart(2, '0')}</span><div>{pretty(r.label)} · {viewLabel(r.view)} · {handLabel(r.handedness)}<small>{r.image_path}</small></div></div>) : <small>No images saved for this participant yet.</small>}
           </div>
         </div></article>
       </div>

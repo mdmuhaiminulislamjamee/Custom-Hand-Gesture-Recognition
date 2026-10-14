@@ -147,7 +147,11 @@ The supplied reference receiver replies to a heartbeat with packet type `0x03`. 
 
 `backend/model_runtime.py` decodes the JPEG, analyses the full camera frame in the live BAT viewer and dashboard, preserves native detail up to a maximum analysis dimension of 960 pixels, and runs adaptive low-light analysis. Very dark/blank frames are rejected before hand detection. Underexposed usable frames receive bounded CLAHE/gamma enhancement without horizontal mirroring.
 
-`backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. Live inference observes up to two hands and `backend/hand_selection.py` selects a qualified hand automatically. `backend/face_guard.py` records face proximity for diagnostics; a clear listed gesture beside the face can pass the classifier, pose validation and temporal hold. Unknown shapes still depend on the runtime's vocabulary and geometry checks. `backend/body_guard.py` uses the bundled Pose Landmarker Lite model to treat dorsal below the waist, including a relaxed hanging hand beside the thigh, as `no_gesture` when the body landmarks are reliable. The posture rule does not measure contact with clothing.
+`backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. Live inference observes up to two hands. `backend/hand_selection.py` compares physical palms before gesture qualification, initially selects only a clearly nearer eligible hand, and locks the first successful owner. Similar current palm sizes immediately pause both gestures and reset ownership; newcomers cannot take over while distances differ. Idle hands participate in distance comparison, and inactive previews remain `no_gesture`. Distance uses apparent palm segments, not measured camera depth. Hand positions continue updating during context rejections. A unique confident returning hand can reacquire its owner after large movement, with a fresh gesture hold. This prevents a stale owner position from permanently blocking subsequent gestures.
+
+Live detection does not load a face model or block gestures in front of the face. Dorsal requires four straight fingers together, the thumb beside the index, and the back of the hand visible. Pose Lite suppresses Dorsal on a relaxed hanging arm below the waist or a folded resting arm with a dropped hand; other gestures remain eligible. Keep shoulder, elbow and wrist visible for the posture check. See `HAND_DISTANCE.md` for the gesture definition and limitations.
+
+`backend/body_guard.py` uses the bundled Pose Landmarker Lite model to reject Dorsal on a relaxed hanging arm below the waist or a folded resting arm with the fingers dropped downward. It checks shoulder/elbow/wrist landmarks 12/14/16 on the right or 11/13/15 on the left. A confident hip defines the waist for the hanging-arm rule; the folded-arm rule can work when the waist is cropped. Raised or other deliberately positioned arms remain eligible. The other classes have no body-position restriction. Dorsal, Open Palm and Fist also accept rotation without the historical fixed-angle bans, while their hand shapes still need to pass geometry checks. This posture rule does not measure desk or clothing contact.
 
 Accepted landmarks are checked for clipping, scale, plausibility, and sudden jumps. `RuntimeSession` in `backend/model_runtime.py` keeps a velocity-adaptive EMA per client and reacquires persistent real motion instead of following a single-frame jump.
 
@@ -325,8 +329,9 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `backend/model_runtime.py` | ONNX loading, image preprocessing, landmark stabilization, inference orchestration, result/timing payload |
 | `backend/hand_detection.py` | Two-hand MediaPipe VIDEO tracker and bounded recovery passes |
 | `backend/hand_selection.py` | Automatic qualification, hand ownership and relative-closeness selection |
-| `backend/face_guard.py` | BlazeFace face-proximity diagnostics |
-| `backend/body_guard.py` | Standing waist and relaxed-hand context for dorsal rejection |
+| `backend/face_contact.py` | Legacy offline contact helper; not used for live detection |
+| `backend/face_guard.py` | Face boxes for collection diagnostics and bounded mesh fallback |
+| `backend/body_guard.py` | Dorsal-only exclusion for relaxed hanging or folded resting arms |
 | `backend/geometry.py` | Exact 76-D feature construction and gesture pose/direction resolution |
 | `backend/runtime.py` | Hard rate limiter, probability EMA, temporal decision gate |
 | `backend/follow_object.py` | Open-Palm object-tracking demo state machine |
@@ -687,9 +692,10 @@ In **05 Data Collection**:
 1. create/reuse an anonymous participant ID;
 2. follow the displayed label, view, hand, finger orientation, light, and distance prompt;
 3. capture, review the frozen image, and confirm or retake;
-4. collect 12 varied images per prompt (3 for each hand/orientation group where applicable);
-5. complete 54 prompts, or 648 images for one full participant pass;
-6. delete incorrect samples using the UI so both JPEG and JSON are removed together.
+4. collect 12 varied images per prompt (3 for each hand/orientation group on single-hand prompts);
+5. use **Go to no-gesture collection** or **Jump to a section** to focus on negatives;
+6. the full optional plan has 72 command prompts and 61 no-gesture prompts (1,596 images at 12 each); skip and revisit sections as needed;
+7. delete incorrect samples using the UI so both JPEG and JSON are removed together.
 
 The saved structure is:
 
@@ -704,7 +710,7 @@ The saved structure is:
         <sample-id>.json
 ```
 
-The JPEG is the original board frame without overlay. The JSON holds the reviewed label, provenance, hand/view/lighting/distance fields, checksum, frame ID, and any available landmarks/features/diagnostics. Saving images does not retrain the model or invoke Safe Learn.
+The JPEG is the original board frame without overlay. The JSON holds the reviewed label, provenance, hand/view/lighting/distance fields, prompt group, training use, checksum, frame ID, and any available landmarks/features/diagnostics. Saving images does not retrain the model or invoke Safe Learn. Resting Dorsal/Fist, everyday pointing, and two-hand scenes are marked `context_only`; occlusion and no-hand scenes are `detector_only`. They remain reviewed raw images and are excluded from the single-hand landmark classifier. Only distinct hand shapes with valid landmarks enter that classifier's training set.
 
 Collect with consent and anonymous IDs. Images can contain faces. Back up the entire collection root, including every JSON sidecar.
 

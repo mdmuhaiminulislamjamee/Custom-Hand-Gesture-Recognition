@@ -10,8 +10,9 @@ No tapping, calibration, or preferred left/right setting is needed for selection
 The preview outlines both observations and highlights the selected hand. The
 dashboard's **Automatic hand selection** card and the BAT camera's bottom banner
 explain which hand is used or why actions are paused. Existing metre estimates
-are approximate; selection compares apparent palm size and does not use them as
-measured camera depth.
+are approximate. When both hands have coherent world landmarks, selection compares
+their image-to-world projected scale. It falls back to apparent palm size when
+that comparison is unavailable. Neither cue measures camera depth.
 
 Every frame includes a full-frame detection pass. A bounded second pass can
 recover a difficult hand from a rotated/cropped view. Each hand is associated
@@ -22,19 +23,46 @@ The dashboard NCM path now analyzes the full image, matching the BAT viewer.
 Previews use a fitted full image and both skeletons follow the same coordinates.
 Recalibrate any saved range calibration that was made with the old central crop.
 
-- If only one hand qualifies, it can control the app even if an idle hand is larger.
-- If both qualify initially, one palm must appear at least **1.35 times** larger,
-  with reasonably consistent ratios across palm segments. The choice must persist
-  for at least **3 observations and 0.25 seconds**, in addition to gesture holds.
-- Once selected, a hand remains selected while its gesture is valid. Switching to
-  another valid hand needs a stronger **1.60 times** palm-size ratio and the same
-  choice confirmation. Actions pause while that switch is being confirmed.
-- At startup, similarly sized qualifying hands cause a pause. Bring the intended
-  hand forward or relax the other. Strong overlap or uncertain track assignment
-  also pauses actions. The system cannot recover fingers hidden by the other hand.
-- A missing active hand has a **0.60-second** grace period before another hand may
-  take over. No action uses stale landmarks during that period. A visible hand
-  that releases its gesture gives up ownership after **0.35 seconds**.
+- Both clearly visible physical hands are compared before gesture qualification,
+  including idle hands and real hands blocked by a context rule. Their gesture
+  labels do not affect the comparison. Face hallucinations and incomplete/tiny
+  clouds do not count as another reliable physical hand.
+- With two hands present initially, coherent image/world landmarks can identify
+  a hand that projects at least **1.18 times** larger, even when palm rotation
+  makes its four image palm segments look similar to the other hand's. This
+  comparison applies to every gesture label and either hand. If coherent world
+  landmarks are unavailable, the closer palm must appear at least **1.35 times**
+  larger with consistent ratios across four palm segments.
+  Only that nearer hand may qualify; a farther gesture cannot beat a nearer
+  idle or blocked hand. Choice must persist for at least **3 observations and
+  0.25 seconds**, in addition to the normal gesture hold.
+- Similar projected scales (within **1.10 times**) or, on fallback, similar
+  apparent palm sizes immediately stop recognition from both hands,
+  clear ownership and all holds, and require fresh confirmation afterward.
+  This uses current measurements; filtered size history cannot delay the stop
+  when the selected hand moves back beside the other.
+- The first successfully qualified hand remains the owner while distances
+  differ. A newcomer, a different/identical gesture, or a closer challenger
+  cannot transfer ownership. Only the selected hand's gesture is shown as a
+  recognized gesture; inactive previews remain `no_gesture`.
+- An invalid but physically tracked owner pauses recognition without losing
+  ownership. If the owner disappears for **0.80 seconds**, selection resets
+  even when another hand remains visible. That hand must complete a fresh
+  gesture hold before it can act. No output uses stale landmarks, and a
+  high-confidence opposite handedness cannot inherit the owner's track.
+- Track position continues updating during body rejections. A unique,
+  confidently identified returning hand can recover its owner ID after a large
+  movement. That recovery resets smoothing and gesture confirmation, so stale
+  commands cannot execute at the new position. Ambiguous or opposite hands
+  cannot use this recovery.
+- Selection uses the same temporal gap policy as gesture confirmation. Valid
+  observations arriving 350–499 ms apart no longer reset the selection hold on
+  every frame.
+- An intermediate projected scale difference (**1.10–1.18 times**), inconsistent
+  segment ratios, strong overlap or uncertain track assignment
+  pause recognition without transferring the lock. Uncertain distance does
+  not establish equality, so an existing owner is retained until comparison
+  becomes reliable or the equal-distance reset/owner-absence timeout occurs.
 - Live selection requires at least **18 palm pixels**, **40 hand-span pixels**,
   and **12 pixels along the short side** of the hand. Dorsal additionally requires
   **24 palm pixels**. These checks use analysis-image pixels before recovery crop
@@ -44,22 +72,36 @@ Recalibrate any saved range calibration that was made with the old central crop.
 
 Defaults are in `backend/hand_selection.py` (`SelectionPolicy`). They are starting
 values for real camera trials, not a measured accuracy guarantee. Palm rotation,
-different hand anatomy, occlusion, and lighting can still bias apparent size.
-Clothing proximity is not used as a universal veto; a valid foreground hand may
-be in front of the user's shirt. Face proximity is recorded for diagnostics and
-the normal gesture qualification rules still apply there.
+different hand anatomy, inaccurate world landmarks, occlusion, and lighting can
+still bias the comparison. A single RGB camera cannot resolve every near-equal
+or fully occluded two-hand arrangement.
+The body-position restriction applies only to Dorsal on a relaxed hanging arm
+below the waist or a folded resting arm with a dropped hand. Face overlap does
+not pause live gestures. These are
+RGB estimates rather than measured camera depth or
+cloth/skin contact.
 
 Suggested live checks, in both the BAT camera and dashboard:
 
 1. Hold each gesture with either hand alone; confirm the selected hand and action.
-2. Add a larger idle hand. The gesturing hand should keep control.
-3. Start with both hands making gestures at similar apparent sizes. Expect a pause.
+2. Add a larger idle hand after ownership is established. The original owner
+   should keep control while distances differ. At startup, a nearer idle hand
+   should prevent a farther gesture from taking control.
+3. Start with both hands at similar apparent sizes, including identical gestures
+   or one idle hand. Expect no gesture from either hand.
 4. Bring one hand clearly forward and hold. Expect selection after confirmation.
 5. Swap screen positions without overlapping, then overlap/cross the hands. Expect
    stable identities while separated and no action during uncertain overlap.
-6. Briefly hide the selected hand. Expect a pause without immediate takeover.
-7. Stand farther away with relaxed hands beside clothing. Check that tiny dorsal
-   candidates do not trigger. Then show an intentional gesture and move closer.
+6. Move the selected hand back to the other hand's apparent size. Expect an
+   immediate stop and cleared ownership, then a fresh hold after separation.
+7. Hide the selected hand while the peer stays visible. Expect a brief pause,
+   then a fresh selection and gesture hold after 0.80 seconds. If the selected
+   hand remains physically tracked but its gesture is invalid, expect its
+   ownership to remain locked.
+8. Check Dorsal with a straight or slightly bent hanging arm below the waist,
+   and with a folded arm resting beside a desk while the hand hangs downward;
+   expect no gesture. Raise the arm and hold a deliberate Dorsal; expect
+   recognition. Check both arms and verify that other classes remain eligible.
 
 Record false actions, missed intended gestures, and time to selection. Automated
 tests cover selection and state transitions; the actual camera trial is still
@@ -109,23 +151,72 @@ angles, camera distance, or a calibrated measurement of the user's arm.
 
 ## Detection changes and evidence
 
-### Relaxed hands beside clothing
+### Dorsal on a relaxed hanging or folded arm
 
-The BAT viewer and dashboard live inference match each hand to confident
-shoulder, wrist and hip landmarks. After gesture classification, a **dorsal**
-hand below the waist is treated as `no_gesture`. A dorsal hand hanging down
-beside the hip or upper thigh is also marked **resting / no gesture**. Other
-listed gestures at that position remain eligible. A blocked dorsal hand cannot
-win automatic selection, and a new temporal hold is required after it moves
-into an eligible position.
+The BAT viewer and dashboard match each hand to confident MediaPipe body
+landmarks: right shoulder/elbow/wrist **12/14/16** with hip **24**, or left
+shoulder/elbow/wrist **11/13/15** with hip **23**. After classification, only
+**Dorsal** with a below-waist hand and a relaxed hanging arm is `no_gesture`.
+The elbow's interior angle must be at least **135 degrees**, and both upper arm
+and forearm must point down along the torso. Shoulder, elbow, wrist and hip
+visibility/presence must each be at least **0.65**. The palm centre must be at or
+below the hip's waist plane; wrist matching allows a small tolerance for a
+sloping torso and mildly bent hanging arm.
 
-A face box is now recorded as scene context, with no automatic proximity veto.
-The previous veto rejected a clear open palm at the user's ear before its pose
-could be classified. A hand beside the face now goes through the same twelve
-gesture geometry, known-mass, confidence and hold rules as other hands. These
-rules reject many unknown poses, but no closed-set classifier can guarantee
-that every unlisted hand shape will be rejected. Collecting representative
-face/ear hard negatives and evaluating them remains important.
+For a seated desk view with the waist cropped, a second narrow check uses a
+confident shoulder, elbow and wrist. It suppresses Dorsal when the upper arm
+drops, the elbow folds outward, the forearm returns across the shoulder line,
+and the fingers hang downward. A bent arm by itself does not trigger this rule.
+
+A raised arm or a bent arm outside the folded resting pattern remains eligible
+for Dorsal. There is no horizontal trouser margin and no
+body-position restriction on Fist, Up, Down, Left, Right or the other classes.
+The same rule checks the final smoothed prediction; crop recovery cannot bypass
+a confirmed relaxed Dorsal rejection. Ordinary gesture holds still apply.
+
+Per-hand `body_context` includes `below_waist`, `relaxed`, `hanging_arm`,
+`folded_resting_arm`,
+`arm_confident`, `arm_landmark_indices`, `waist_landmark_index`,
+`elbow_angle_deg`, `upper_arm_down_alignment`, `forearm_down_alignment`,
+`wrist_height` and `palm_height`. Missing or weak body evidence does not impose
+a body-position veto.
+
+Dorsal, Open Palm and Fist no longer have fixed screen-angle rejection ranges.
+They still require the intended finger shape and palm/back-of-hand evidence.
+The defining directions of Up, Down, Left, Right, Like and Thumb Down remain
+part of recognizing those gestures.
+
+Live gestures are not rejected because of face position or contact. The Face
+Landmarker model has been removed from the runtime and installer. No face
+inference or contact hold runs in the live hand detector. The old face-contact
+helper is retained only for offline regression/reference work.
+
+Dorsal requires four straight, together, approximately parallel fingers, with
+the thumb beside the index finger and the back of the hand visible. The thumb
+gap to the index-finger segment must be at most 0.50 of wrist-to-middle-MCP
+length. This shape rule applies at every screen rotation and location,
+including in front of the face. A loose spread-thumb hand does not qualify.
+This is an explicit gesture definition, not an attempt to infer intent.
+
+Pose Lite also checks the folded resting arm when the hip is out of frame.
+Other gestures have no body-position veto. Missing body landmarks cannot
+establish either relaxed posture, so keep the shoulder, elbow and wrist visible
+when validating this rule.
+A confirmed resting posture survives a brief missing body estimate for up to
+650 ms, only while the same hand stays in place at a similar size. Movement,
+an explicit raised/bent-arm estimate or ambiguous hand matching clears it.
+Reused posture evidence never extends its own timeout.
+
+Regression checks cover the traced chin-rest screenshot, both hands, rotated
+and scaled deliberate Dorsal, relaxed arms, and above-waist/bent-arm positives.
+Screenshot traces and synthetic posture tests are not measured camera accuracy.
+
+Horizontal Left/Right accepts an expanded thumb. A strict long straight index,
+separate extended thumb and three deeply curled fingers additionally supports
+the reported low-mass L-shaped pose in `backend/geometry.py`. This narrow
+recovery still requires at least 0.01 vocabulary mass, a 500 ms hold and no
+online negative evidence. Other Left/Right shapes retain the usual mass gates;
+Peace/Rock/open fingers and diagonal directions cannot use this recovery.
 
 This uses [MediaPipe Pose Landmarker Lite](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker),
 with the official version-1 model pinned by SHA-256 in `backend/body_guard.py`.
@@ -140,12 +231,12 @@ Pose history is isolated by camera session. Per-frame diagnostics include
 `quality.detector.body_guard` and each rejected hand's `body_context` evidence.
 
 This is a posture heuristic, not detection of cloth contact or measured depth.
-The head, elbows and knees may be cropped for the below-waist rule, but reliable
-shoulder, wrist and hip landmarks are required. A hanging-arm label additionally
-needs the elbow and downward fingers. If the body cannot be located, this rule
-cannot identify a below-waist hand; the other gesture and selection checks still
-apply. A clearly enlarged foreground hand is excluded by the body matching rule.
-To intentionally perform dorsal, raise the hand above the waist.
+The head and knees may be cropped. A reliable hip is required for the
+below-waist case; the folded-arm case can work without it. If the body cannot
+be located, the body-position rule leaves the hand eligible; the other gesture
+and selection checks still apply. A clearly enlarged foreground hand is excluded
+from body matching. To intentionally perform Dorsal, raise the arm away from
+the hanging or folded resting posture.
 
 Restart the BAT viewer or dashboard backend to load this change. During live
 trials, compare both relaxed hands beside the trousers, one raised gesture with

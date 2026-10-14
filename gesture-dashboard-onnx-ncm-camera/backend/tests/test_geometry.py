@@ -25,6 +25,82 @@ def representative_hand():
     return points
 
 
+def reported_expanded_thumb_left_pose():
+    """Approximate screenshot-2 joints; both index and thumb are extended."""
+    return np.asarray([
+        [149, 523], [166, 473], [205, 424], [230, 389], [244, 355],
+        [238, 433], [304, 429], [343, 429], [373, 431],
+        [245, 466], [310, 475], [291, 482], [266, 483],
+        [245, 502], [300, 504], [281, 510], [260, 513],
+        [245, 536], [280, 536], [266, 538], [246, 535],
+    ], dtype=np.float32)
+
+
+@pytest.mark.parametrize("mirror", [False, True])
+@pytest.mark.parametrize("raw_label", ["left", "like", "ok", "peace", "rock"])
+@pytest.mark.parametrize("dimensions", [(1, 1), (960, 500), (960, 540)])
+def test_thumb_expanded_point_recovers_the_reported_002_mass_after_longer_hold(mirror, raw_label, dimensions):
+    from backend.hand_selection import gate_arguments
+    config = RuntimeConfig()
+    points = reported_expanded_thumb_left_pose()
+    if mirror:
+        points[:, 0] = 960 - points[:, 0]
+    points = points / dimensions
+    label = "right" if mirror else "left"
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx[raw_label]]
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+    assert details["directional"]["expanded_thumb_pointing"]
+    assert details["pose_validation"]["expanded_thumb_direction_recovery"]
+    assert config.class_names[int(resolved.argmax())] == label
+    args = gate_arguments(details, dict(known_gesture_mass=.02))
+    gate = TemporalGate(config)
+    for now in (1., 1.1, 1.2, 1.3, 1.4):
+        assert not gate.update(resolved, now=now, **args).execute
+    decision = gate.update(resolved, now=1.51, **args)
+    assert decision.execute
+    assert decision.predicted_gesture == label
+    assert decision.known_gesture_mass == .02
+    # Online negative evidence must still disable every geometry recovery.
+    args = gate_arguments(details, dict(known_gesture_mass=.02, online_adapter={"negative_support": .9}))
+    assert not TemporalGate(config).update(resolved, now=2., **args).execute
+
+
+@pytest.mark.parametrize("negative", ["middle_extended", "pinky_extended", "thumb_folded", "diagonal", "index_folded"])
+def test_expanded_thumb_mass_recovery_rejects_other_shapes(negative):
+    points = reported_expanded_thumb_left_pose()
+    if negative == "middle_extended":
+        points[9:13] = points[5:9] + [0, 28]
+    elif negative == "pinky_extended":
+        points[17:21] = points[5:9] + [0, 80]
+    elif negative == "thumb_folded":
+        points[1:5] = [[190, 495], [224, 485], [210, 500], [194, 505]]
+    elif negative == "index_folded":
+        points[5:9] = points[9:13]
+    else:
+        angle = np.deg2rad(40)
+        points = points @ np.asarray([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]).T
+    assert not geometry.expanded_thumb_pointing_geometry(points)
+
+
+def test_shipped_onnx_thumb_expanded_pose_reaches_left_with_real_low_mass():
+    from backend.model_runtime import ModelManager
+    from backend.hand_selection import gate_arguments
+    config = RuntimeConfig()
+    manager = ModelManager(config)
+    assert manager.ready, manager.errors
+    points = reported_expanded_thumb_left_pose() / [960, 500]
+    probabilities, _, _, quality = manager.predict_detailed(landmarks_to_feature(points))
+    resolved, details = GeometryResolver(config).resolve(probabilities, points)
+    assert details["pose_validation"]["expanded_thumb_direction_recovery"]
+    assert config.class_names[int(resolved.argmax())] == "left"
+    gate = TemporalGate(config)
+    for index in range(8):
+        decision = gate.update(resolved, now=1 + index * .1, **gate_arguments(details, quality))
+    assert decision.execute
+    assert decision.predicted_gesture == "left"
+    assert decision.known_gesture_mass == quality["known_gesture_mass"]
+
+
 def test_feature_contract_is_76_dimensions():
     feature = landmarks_to_feature(representative_hand())
     assert feature.shape == (76,)
@@ -151,6 +227,31 @@ def side_on_like_pose() -> np.ndarray:
         [346, 406], [315, 402], [288, 407], [305, 384],
         [342, 424], [317, 429], [299, 425], [312, 412],
     ], dtype=np.float32)
+
+
+def edge_on_like_pose(
+    xy_degrees: float = -145.0, zx_degrees: float = -141.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Folded world fingers whose joints project nearly straight sideways."""
+    folded = side_on_like_pose()
+    axis = folded[[5, 9, 13, 17]].mean(axis=0) - folded[0]
+    rotation = np.deg2rad(xy_degrees) - np.arctan2(axis[1], axis[0])
+    transform = np.asarray([
+        [np.cos(rotation), -np.sin(rotation)],
+        [np.sin(rotation), np.cos(rotation)],
+    ], dtype=np.float32)
+    world_xy = (folded - folded[0]) @ transform.T
+    world_axis = world_xy[[5, 9, 13, 17]].mean(axis=0)
+    projected_depth = world_xy @ (world_axis / np.linalg.norm(world_axis))
+    depth_ratio = np.cos(np.deg2rad(xy_degrees)) / np.tan(np.deg2rad(zx_degrees))
+    world = np.column_stack((world_xy, depth_ratio * projected_depth))
+    projected = folded.copy()
+    for mcp in (5, 9, 13, 17):
+        projected[mcp + 1:mcp + 4] = [
+            [projected[mcp, 0] - distance, projected[mcp, 1]]
+            for distance in (15, 30, 45)
+        ]
+    return projected, world
 
 
 def prominent_index_down_pose() -> np.ndarray:
@@ -297,6 +398,75 @@ def test_side_on_thumbs_up_recovers_like_below_classifier_confidence_floor():
     )
     assert decision.execute is True
     assert decision.predicted_gesture == 'like'
+
+
+def test_side_on_thumbs_up_recovers_like_from_other_model_label_and_low_mass():
+    config = RuntimeConfig()
+    probabilities = np.full(len(config.class_names), .002)
+    probabilities[config.class_to_idx['rock']] = .97
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities, side_on_like_pose()
+    )
+    pose = details['pose_validation']
+
+    assert pose['gesture'] == 'like'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+    assert resolved[config.class_to_idx['like']] >= .96 - 1e-12
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3, 1.4, 1.5):
+        decision = gate.update(
+            resolved, now=now, known_gesture_mass=.53,
+            pose_valid=pose['valid'], geometry_supported=pose['geometry_supported'],
+        )
+    assert decision.predicted_gesture == 'like'
+    assert decision.execute is True
+
+
+@pytest.mark.parametrize('known_mass,xy,zx', [
+    (.50, -145.0, -141.0), (.28, -152.0, -137.0),
+])
+def test_edge_on_folded_fingers_recover_like_with_world_landmarks(known_mass, xy, zx):
+    config = RuntimeConfig()
+    points, world = edge_on_like_pose(xy, zx)
+    probabilities = np.full(len(config.class_names), .002)
+    probabilities[config.class_to_idx['rock']] = .97
+    probabilities /= probabilities.sum()
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities, points, world_landmarks=world,
+    )
+    shape = details['hand_shape']
+    pose = details['pose_validation']
+    assert shape['index_extension'] > .9
+    assert shape['like_world_folded_fingers'] is True
+    assert pose['gesture'] == 'like'
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
+
+    gate = TemporalGate(config)
+    for now in (1.0, 1.1, 1.2, 1.3, 1.4, 1.5):
+        decision = gate.update(
+            resolved, now=now, known_gesture_mass=known_mass,
+            pose_valid=pose['valid'], geometry_supported=pose['geometry_supported'],
+        )
+    assert decision.predicted_gesture == 'like'
+    assert decision.execute is True
+
+
+def test_edge_on_straight_projection_without_fold_evidence_is_not_like():
+    config = RuntimeConfig()
+    points, _ = edge_on_like_pose()
+    probabilities = np.full(len(config.class_names), .002)
+    probabilities[config.class_to_idx['rock']] = .97
+    probabilities /= probabilities.sum()
+
+    _, details = GeometryResolver(config).resolve(probabilities, points)
+    assert details['hand_shape']['like_geometry_supported'] is False
+    assert details['pose_validation']['gesture'] != 'like'
 
 
 def test_away_facing_side_on_thumbs_up_relabels_fist_as_like():
@@ -601,7 +771,7 @@ def test_open_palm_accepts_upward_sideways_and_reported_oblique_angle():
         assert accepted['pose_validation']['geometry_supported'] is True
 
 
-def test_open_palm_rejects_downward_and_diagonal_down_poses():
+def test_open_palm_accepts_downward_and_diagonal_down_poses():
     config = RuntimeConfig()
     upward = representative_hand()
     probabilities = np.full(len(config.class_names), 0.001)
@@ -624,9 +794,9 @@ def test_open_palm_rejects_downward_and_diagonal_down_poses():
             probabilities, points, handedness=handedness,
             handedness_confidence=.99,
         )
-        assert rejected['hand_shape']['open_palm_allowed_direction'] is False
-        assert rejected['pose_validation']['valid'] is False
-        assert rejected['pose_validation']['reason'] == 'open_palm must not point downward'
+        assert rejected['hand_shape']['open_palm_allowed_direction'] is True
+        assert rejected['pose_validation']['valid'] is True
+        assert rejected['pose_validation']['gesture'] == 'open_palm'
 
 
 def test_downward_palmar_open_hand_cannot_fall_through_to_dorsal():
@@ -651,7 +821,8 @@ def test_downward_palmar_open_hand_cannot_fall_through_to_dorsal():
 
     assert details['hand_shape']['hand_surface'] == 'palmar'
     assert details['hand_shape']['dorsal_geometry_supported'] is False
-    assert details['pose_validation']['valid'] is False
+    assert details['pose_validation']['valid'] is True
+    assert details['pose_validation']['gesture'] == 'open_palm'
 
 
 @pytest.mark.parametrize('gesture', ['fist', 'thumb_down'])
@@ -737,7 +908,7 @@ def test_camera_facing_fist_recovery_rejects_open_pointing_and_thumb_down(points
 
 @pytest.mark.parametrize('mirror', [False, True])
 @pytest.mark.parametrize('model_label', ['fist', 'thumb_down'])
-def test_fist_rejects_downward_orientation_even_with_strong_model_score(mirror, model_label):
+def test_fist_accepts_downward_orientation_when_the_hand_is_closed(mirror, model_label):
     config = RuntimeConfig()
     points = camera_facing_fist_pose()
     points = 2 * points[0] - points
@@ -747,20 +918,20 @@ def test_fist_rejects_downward_orientation_even_with_strong_model_score(mirror, 
     row[config.class_to_idx[model_label]] = .995
     row[config.class_to_idx['left']] = .005
     resolved, details = GeometryResolver(config).resolve(row, points)
-    assert details['hand_shape']['fist_allowed_direction'] is False
-    assert details['pose_validation']['valid'] is False
+    assert details['hand_shape']['fist_allowed_direction'] is True
+    assert details['pose_validation']['valid'] is True
     decision = TemporalGate(config).update(
         resolved, now=1.0, known_gesture_mass=1.0,
         pose_valid=details['pose_validation']['valid'],
         rejection_reason=details['pose_validation']['reason'],
     )
-    assert decision.predicted_gesture == 'no_gesture'
+    assert decision.predicted_gesture == 'fist'
     assert not decision.execute
 
 
 @pytest.mark.parametrize('mirror', [False, True])
 @pytest.mark.parametrize('xy_degrees', [-180, -90, -68, -20, 0, 20, 90, 180])
-def test_reverse_facing_fist_outside_reported_view_is_no_gesture(mirror, xy_degrees):
+def test_reverse_facing_closed_fist_is_valid_outside_historical_view_cones(mirror, xy_degrees):
     config = RuntimeConfig()
     points, world = fist_at_xy_angle(xy_degrees, -.60, mirror=mirror)
     row = np.zeros(len(config.class_names))
@@ -773,19 +944,15 @@ def test_reverse_facing_fist_outside_reported_view_is_no_gesture(mirror, xy_degr
     shape = details['hand_shape']
     pose = details['pose_validation']
     assert shape['fist_depth_alignment'] < -.45
-    assert shape['fist_allowed_direction'] is False
+    assert shape['fist_allowed_direction'] is True
     assert pose['gesture'] == 'fist'
-    assert pose['valid'] is False
-    assert pose['reason'] in {
-        'fist points away from the camera',
-        'fist orientation matches a no-gesture pose',
-    }
+    assert pose['valid'] is True
 
     decision = TemporalGate(config).update(
         resolved, now=1.0, known_gesture_mass=1.0,
         pose_valid=pose['valid'], rejection_reason=pose['reason'],
     )
-    assert decision.predicted_gesture == 'no_gesture'
+    assert decision.predicted_gesture == 'fist'
     assert not decision.execute
 
 
@@ -873,7 +1040,7 @@ def test_reported_reverse_view_still_rejects_partly_open_hand():
 ])
 @pytest.mark.parametrize('jitter', [-2, 0, 2])
 @pytest.mark.parametrize('model_label', ['fist', 'thumb_down'])
-def test_user_rejected_fist_views_clear_a_previously_accepted_fist(
+def test_historical_fist_view_exclusions_no_longer_clear_a_real_closed_fist(
     mirror, xy, yz, zx, jitter, model_label,
 ):
     """Reconstruct reported world axes; screenshots do not contain raw landmarks."""
@@ -906,15 +1073,15 @@ def test_user_rejected_fist_views_clear_a_previously_accepted_fist(
     resolved, details = resolver.resolve(row, points, world_landmarks=world,
                                          require_fist_depth=True)
     pose = details['pose_validation']
-    assert details['hand_shape']['fist_rejected_view'] is True
-    assert details['hand_shape']['fist_foreshortened_relabel'] is False
-    assert pose['valid'] is False
-    assert pose['geometry_supported'] is False
+    assert details['hand_shape']['fist_rejected_view'] is False
+    assert details['hand_shape']['fist_foreshortened_relabel'] is True
+    assert pose['valid'] is True
+    assert pose['geometry_supported'] is True
     decision = gate.update(resolved, now=1.4, known_gesture_mass=1.0,
                            pose_valid=pose['valid'], rejection_reason=pose['reason'],
                            geometry_supported=pose['geometry_supported'])
-    assert decision.predicted_gesture == 'no_gesture'
-    assert not decision.execute
+    assert decision.predicted_gesture == 'fist'
+    assert decision.execute
 
 
 @pytest.mark.parametrize('mirror', [False, True])
@@ -1114,7 +1281,7 @@ def test_live_fist_without_world_landmarks_is_no_gesture():
 
 
 @pytest.mark.parametrize('xy_degrees', [28, 90, 152])
-def test_fist_still_rejects_downward_xy_angles(xy_degrees):
+def test_fist_accepts_downward_xy_angles(xy_degrees):
     config = RuntimeConfig()
     points, world = fist_at_xy_angle(xy_degrees, .17)
     row = np.zeros(len(config.class_names))
@@ -1123,9 +1290,9 @@ def test_fist_still_rejects_downward_xy_angles(xy_degrees):
 
     _, details = GeometryResolver(config).resolve(row, points, world_landmarks=world)
 
-    assert details['hand_shape']['fist_allowed_direction'] is False
-    assert details['pose_validation']['valid'] is False
-    assert details['pose_validation']['reason'] == 'fist points downward'
+    assert details['hand_shape']['fist_allowed_direction'] is True
+    assert details['pose_validation']['valid'] is True
+    assert details['pose_validation']['gesture'] == 'fist'
 
 
 @pytest.mark.parametrize('target_angle', [0.0, np.pi])

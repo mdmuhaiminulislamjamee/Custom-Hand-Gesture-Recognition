@@ -10,8 +10,9 @@ echo ========================================================
 echo.
 echo   Hold a clear gesture. If both hands gesture, bring one forward.
 echo   Gray hands are observed; the selected hand is highlighted.
-echo   Dorsal below the waist is no gesture when the body is visible.
-echo   A clear listed gesture can qualify beside the face.
+echo   Dorsal: four straight fingers together, thumb beside index.
+echo   Dorsal pauses below the waist only with a relaxed hanging arm.
+echo   Gestures can qualify in front of the face; no face filter.
 echo.
 echo   [1] Run with PC Webcam (Default)
 echo   [2] Run with USB-NCM Board Camera (192.168.50.2:5000)

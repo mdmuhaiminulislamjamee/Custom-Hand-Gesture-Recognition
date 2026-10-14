@@ -48,6 +48,90 @@ LABEL_TITLES.update({
 })
 
 
+# Keep existing step IDs stable: saved images and their JSON sidecars use them.
+# Context and detector cases are reviewed raw images, but cannot safely train a
+# classifier whose only input is one hand's 76 landmark features.
+NEGATIVE_GROUPS = (
+    ("No hand", "none", "detector_only", "Vary the person, background, lighting and camera position; keep every hand out of view.", (
+        ("background", "Keep both hands out of view. Vary your head position and the background."),
+        ("face_ear", "Keep hands out of view while your face and ears are visible."),
+        ("torso_no_hands", "Show your torso and shoulders with both hands outside the frame."),
+        ("desk_clutter_no_hands", "Show a desk with ordinary objects but no visible hands."),
+    )),
+    ("Unrelated hand shapes", "single", "hand_classifier", "Use both hands and vary yaw, pitch, roll, distance and lighting. Keep the pose distinct from every command.", (
+        ("middle_finger", "Raise only the middle finger. This is not a directional command."),
+        ("ring_finger", "Raise only the ring finger. This is not a directional command."),
+        ("little_finger", "Raise only the little finger. This is not a directional command."),
+        ("relaxed_hand", "Show a loose, partly curled hand that is clearly neither a closed fist nor four straight Dorsal fingers."),
+        ("thumb_little_sign", "Extend thumb and little finger while folding the others. This retired sign is not a command."),
+        ("partial_fist", "Partly curl the fingers without closing a full Fist or opening the palm."),
+        ("downward_fist", "Make a closed fist with its palm axis pointing down. This is not a Fist command in this application."),
+        ("bent_index", "Bend the index finger halfway while keeping the others relaxed; do not point in a command direction."),
+        ("three_fingers", "Extend three fingers with the others folded; avoid the two-finger Peace and four-finger Dorsal shapes."),
+        ("four_fingers_spread", "Show four loosely spread fingers with the thumb tucked; avoid a together-finger Dorsal or full Open Palm."),
+        ("thumb_sideways", "Show a sideways thumb with the other fingers loosely curled; avoid Like and Thumb Down."),
+        ("almost_ok", "Bring thumb and index near each other without closing an OK circle; keep the other fingers relaxed."),
+        ("crossed_fingers", "Cross index and middle fingers; keep the remaining fingers folded. This is not Peace."),
+    )),
+    ("Near-command shapes", "single", "hand_classifier", "Make the stated difference from the command obvious in the saved frame. Retake any image that could fairly be labeled as a real command.", (
+        ("index_middle_together", "Extend index and middle fingers close together, without the V separation required for Peace."),
+        ("thumb_up_half", "Raise the thumb only partway or diagonally while the other fingers remain loose; do not form Like."),
+        ("thumb_down_half", "Lower the thumb only partway or diagonally while the other fingers remain loose; do not form Thumb Down."),
+        ("palm_thumb_tucked", "Show the palm with four fingers extended but the thumb clearly tucked; this is not a five-finger Open Palm."),
+        ("palm_two_fingers_curled", "Show a partly open palm with two clearly curled fingers; do not form Peace or Open Palm."),
+        ("ok_circle_fingers_folded", "Make a thumb-index circle but curl at least two of the other fingers; this is not the three-finger-extended OK command."),
+        ("rock_middle_partly_open", "Extend index and little finger while leaving the middle finger clearly partly open; avoid the folded-middle Rock shape."),
+        ("dorsal_fingers_spread", "Show the back of the hand with four fingers clearly spread apart; avoid the together-finger Dorsal shape."),
+        ("dorsal_one_finger_curled", "Show the back of the hand with one of the four fingers clearly curled; do not make Dorsal."),
+        ("fist_one_finger_loose", "Curl most fingers but leave the ring or little finger clearly partly open; do not make a closed Fist."),
+    )),
+    ("Resting Dorsal", "single", "context_only", "Capture ordinary rest, not an intentional command. Include shoulder, elbow and wrist when possible; vary seated and standing views.", (
+        ("standing_arm_hanging", "Stand naturally with one arm hanging and the back of its relaxed hand toward the camera."),
+        ("standing_hand_on_thigh", "Stand with a relaxed hand resting against the hip or thigh, fingers dropping downward."),
+        ("seated_hand_on_lap", "Sit with a relaxed hand lying on the lap, back of hand visible."),
+        ("seated_hand_on_desk", "Sit with forearm resting on the desk and hand relaxed near the desk edge."),
+        ("seated_fingers_over_edge", "Let the relaxed fingers hang over the desk edge as in the reported false Dorsal example."),
+        ("seated_folded_arm_dropped", "Sit with elbow bent beside the body and the relaxed hand hanging downward."),
+        ("chin_rest_dorsal", "Rest the chin or cheek lightly on a relaxed hand, with the back of the hand visible."),
+        ("hand_on_keyboard", "Rest the hand naturally over a keyboard without making a command."),
+        ("hand_on_mouse", "Rest the hand naturally on a mouse without making a command."),
+    )),
+    ("Resting Fist", "single", "context_only", "Capture ordinary rest or grasping, not an intentional command. A closed hand alone can look identical to Fist.", (
+        ("standing_loose_fist", "Stand with a loosely closed hand hanging at the side."),
+        ("seated_fist_on_lap", "Sit with a naturally closed hand resting on the lap."),
+        ("seated_fist_on_desk", "Sit with a naturally closed hand resting on the desk."),
+        ("fist_near_chest_rest", "Keep a relaxed closed hand near the chest without presenting a command."),
+        ("gripping_phone", "Hold a phone naturally; the fingers may resemble a fist."),
+        ("gripping_cup", "Hold a cup or bottle naturally; do not present a Fist command."),
+        ("gripping_bag", "Hold a bag handle or strap naturally with curled fingers."),
+        ("holding_small_object", "Hold a small everyday object with curled fingers; keep the object visible."),
+    )),
+    ("Incidental pointing", "single", "context_only", "Capture everyday index-finger use, not an intended Left, Right, Up or Down command. Keep the surrounding activity visible.", (
+        ("index_resting_on_desk", "Rest or tap the index finger on the desk while the arm remains supported."),
+        ("index_touching_face", "Touch or scratch the face with the index finger without signaling a command."),
+        ("index_holding_pen", "Hold or use a pen with the index finger extended along it."),
+        ("index_partly_extended", "Leave the index finger only partly extended during a relaxed hand movement."),
+        ("pointing_during_reach", "Reach for an object with an incidental extended index finger; keep the object visible."),
+        ("index_near_camera", "Move an incidental extended index finger toward the camera during ordinary activity."),
+    )),
+    ("Occlusion and motion", "single", "detector_only", "Save raw difficult frames for detector and tracking evaluation. A partly observed hand may not provide trustworthy classifier features.", (
+        ("partial_hand_frame", "Let part of a relaxed hand leave the image edge; do not form a command."),
+        ("fingers_hidden_object", "Hide some relaxed fingers behind an object while keeping part of the hand visible."),
+        ("hand_under_sleeve", "Let a sleeve partly cover the wrist or hand while the hand remains relaxed."),
+        ("hand_over_face", "Place a relaxed hand partly in front of the face without making a command."),
+        ("hand_turning", "Capture a relaxed hand during a wrist turn between poses, away from a stable command."),
+        ("moving_hand_blur", "Move a relaxed hand during capture to include realistic motion blur."),
+    )),
+    ("Two hands", "both", "context_only", "Show both hands. These raw images test hand selection and context; the single-hand classifier cannot learn the two-hand relationship.", (
+        ("both_hands_relaxed", "Keep both hands relaxed and visible, seated or standing."),
+        ("both_hands_same_distance", "Show two relaxed hands at approximately the same camera distance."),
+        ("both_hands_different_distances", "Show two relaxed hands with one clearly nearer the camera."),
+        ("hands_crossed", "Cross or overlap two relaxed hands without forming a command."),
+        ("one_hand_behind_other", "Partly hide one relaxed hand behind the other."),
+    )),
+)
+
+
 def collection_plan():
     plan = []
     for label in CLASS_NAMES:
@@ -69,23 +153,16 @@ def collection_plan():
         for view in views:
             plan.append(dict(id=f"{label}/{view}", label=label, title=LABEL_TITLES[label],
                              view=view, instruction=instruction, variation=VIEWS[view],
+                             group="Commands", hand_mode="single", training_use="hand_classifier",
                              target=12, per_hand_target=6, per_orientation_target=3))
-    for view, instruction in {
-        "background": "Keep both hands out of view. Vary your head position and the background.",
-        "face_ear": "Keep hands down. Turn your head so eyes and ears are visible.",
-        "middle_finger": "Raise only the middle finger. This is NOT a directional command.",
-        "ring_finger": "Raise only the ring finger. This is NOT a directional command.",
-        "little_finger": "Raise only the little finger. This is NOT a directional command.",
-        "relaxed_hand": "Rest or loosely curl the hand without making a command.",
-        "thumb_little_sign": "Extend the thumb and little finger while folding the other fingers. This retired sign is not a command.",
-        "partial_fist": "Keep four fingers partly raised or bent as in the open-looking hand false positive. Label it No gesture, not Fist.",
-        "downward_fist": "Make a closed fist with its palm axis pointing down. This is not a Fist command.",
-    }.items():
-        plan.append(dict(id=f"no_gesture/{view}", label="no_gesture", title="No gesture",
-                         view=view, instruction=instruction,
-                         variation="These examples teach the model which scenes should produce no action.",
-                         target=12, per_hand_target=None if view in {"background", "face_ear"} else 6,
-                         per_orientation_target=None if view in {"background", "face_ear"} else 3))
+    for group, hand_mode, training_use, variation, cases in NEGATIVE_GROUPS:
+        for view, instruction in cases:
+            single = hand_mode == "single"
+            plan.append(dict(id=f"no_gesture/{view}", label="no_gesture", title="No gesture",
+                             view=view, instruction=instruction, variation=variation,
+                             group=group, hand_mode=hand_mode, training_use=training_use,
+                             target=12, per_hand_target=6 if single else None,
+                             per_orientation_target=3 if single else None))
     return plan
 
 
@@ -354,7 +431,7 @@ class CollectionStore:
         step = next((s for s in collection_plan() if s["id"] == step_id), None)
         if step is None:
             raise ValueError("Unknown collection prompt.")
-        if handedness not in {"left", "right", "none", "unspecified"} or finger_orientation not in {*FINGER_ORIENTATIONS, "none", "unspecified"} or lighting not in {"normal", "dim", "backlit"} or distance not in {"near", "medium", "far"}:
+        if handedness not in {"left", "right", "both", "none", "unspecified"} or finger_orientation not in {*FINGER_ORIENTATIONS, "none", "unspecified"} or lighting not in {"normal", "dim", "backlit"} or distance not in {"near", "medium", "far"}:
             raise ValueError("Unknown recording condition.")
         with self._lock:
             entry = self._frames.get(token)
@@ -377,6 +454,7 @@ class CollectionStore:
             captured_at = datetime.now(timezone.utc).isoformat()
             record = dict(schema_version=2, sample_id=sample_id, participant_id=participant_id,
                           session_id=session_id, step_id=step_id, label=step["label"], view=step["view"],
+                          group=step["group"], hand_mode=step["hand_mode"], training_use=step["training_use"],
                           created_at_utc=captured_at, source=source, frame_id=frame_id,
                           image_path=image_path.relative_to(self.root).as_posix(), image_sha256=digest,
                           width=width, height=height, handedness=handedness,

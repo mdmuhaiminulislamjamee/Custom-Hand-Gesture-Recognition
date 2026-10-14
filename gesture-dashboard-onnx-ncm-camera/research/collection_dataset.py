@@ -24,7 +24,7 @@ def load_collection_dataset(dataset_root: Path):
         raise ValueError("Unsupported dashboard collection schema")
     labels = [*CLASS_NAMES, "no_gesture"]
     prompts = {s["id"]: s for s in collection_plan()}
-    rows, skipped, seen = [], [], {}
+    rows, skipped, excluded, seen = [], [], [], {}
     image_count = 0
     for sidecar in sorted((root / "participants").glob("*/*/*/*/*.json")):
         if not sidecar.resolve().is_relative_to(root):
@@ -56,6 +56,9 @@ def load_collection_dataset(dataset_root: Path):
             skipped.append(dict(image_path=key, reason="duplicate_image"))
             continue
         seen[digest] = (participant, row["label"])
+        if prompt["training_use"] != "hand_classifier":
+            excluded.append(dict(image_path=key, training_use=prompt["training_use"]))
+            continue
         if row.get("landmarks") is None or row.get("feature_vector") is None:
             skipped.append(dict(image_path=key, reason="needs_landmark_extraction"))
             continue
@@ -86,6 +89,6 @@ def load_collection_dataset(dataset_root: Path):
         data = {k: np.asarray([r[k] for r in rows], dtype=str if v.dtype.kind == 'U' else v.dtype)
                 for k, v in data.items()}
     return data, dict(schema_version=2, raw_images=image_count, usable_feature_rows=len(rows),
-                      raw_cases_for_review=skipped,
+                      raw_cases_for_review=skipped, excluded_by_design=excluded,
                       split_policy="Deterministic participant-level 70/15/15; audit coverage before training",
-                      note="Raw-only cases are retained for future detector work; the landmark classifier cannot train on missing landmarks.")
+                      note="Context and detector cases remain reviewed raw images; the single-hand landmark classifier trains only on hand-shape cases with valid landmarks.")

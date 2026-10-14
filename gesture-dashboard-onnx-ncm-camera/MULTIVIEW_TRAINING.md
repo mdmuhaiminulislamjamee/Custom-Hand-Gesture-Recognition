@@ -2,7 +2,9 @@
 
 For everyday collection, use **05 Data Collection** and follow
 [DATA_COLLECTION.md](DATA_COLLECTION.md). The dashboard saves portable JPEG/JSON
-records under `D:\Data-Collection`, including all ten commands and hard negatives.
+records under `D:\Data-Collection`, including all twelve commands and 61
+grouped no-gesture prompts. Context and detector prompts are retained as raw
+examples and excluded from single-hand landmark classifier fitting.
 The training command below also accepts `--dataset D:\Data-Collection` directly.
 Raw-only cases are retained and reported for later landmark re-extraction.
 The CSV capture instructions below remain an alternative for technical users.

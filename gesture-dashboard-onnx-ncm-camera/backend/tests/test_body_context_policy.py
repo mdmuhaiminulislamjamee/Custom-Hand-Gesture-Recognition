@@ -1,16 +1,17 @@
-"""Waist placement rejects dorsal while preserving other listed poses."""
+"""Only relaxed Dorsal below the waist is subject to a body-position veto."""
 from types import SimpleNamespace
 import threading
 
 import cv2
 import numpy as np
+import pytest
 
 from backend.config import RuntimeConfig
-from backend.body_guard import (DORSAL_BELOW_WAIST_REASON, RESTING_HAND_REASON,
-                                body_hand_context, dorsal_body_rejection)
+from backend.body_guard import RESTING_HAND_REASON, body_hand_context, dorsal_body_rejection
 from backend.hand_detection import hand_pixel_metrics
 from backend.model_runtime import InferenceEngine, RuntimeSession
 from backend.tests.test_camera_stability import representative_hand
+from backend.tests.test_dorsal_posture import arm_case
 from backend.tests.test_hand_detection import simulated_detector
 
 
@@ -41,14 +42,15 @@ def test_standing_dorsal_below_waist_is_negative_but_other_class_is_eligible():
     assert dorsal_body_rejection(context, "down") is None
 
 
-def test_dorsal_below_waist_with_unclear_elbow_is_still_negative():
+def test_dorsal_below_waist_with_unclear_elbow_is_not_assumed_relaxed():
     hand, pose = standing_case(elbow_visible=False)
     context = body_hand_context(hand, SHAPE, [pose])
     assert context["below_waist"] and not context["relaxed"]
-    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BELOW_WAIST_REASON
+    assert dorsal_body_rejection(context, "dorsal") is None
 
 
 def test_raised_dorsal_and_unmatched_body_are_not_blocked():
+    # Fingertips may approach waist height while the wrist/forearm is raised.
     hand, pose = standing_case(hand_wrist_y=300)
     context = body_hand_context(hand, SHAPE, [pose])
     assert context and not context["below_waist"]
@@ -85,13 +87,20 @@ def test_detector_scores_hand_and_vetoes_only_dorsal_below_waist(monkeypatch):
     assert scores == ["dorsal", "open_palm"]
 
 
-def test_final_smoothed_dorsal_cannot_escape_waist_guard(monkeypatch):
+@pytest.mark.parametrize("final_label", ["dorsal", "fist"])
+@pytest.mark.parametrize("posture", ["standing", "seated"])
+def test_final_smoothed_body_rule_applies_only_to_dorsal(monkeypatch, final_label, posture):
     import backend.model_runtime as runtime_module
-    hand, pose = standing_case()
+    if posture == "seated":
+        hand, pose = arm_case(shoulder=(815, 230), elbow=(865, 315),
+                              wrist=(750, 405), hip=(820, 650))
+        pose[24, 2:] = 0
+    else:
+        hand, pose = standing_case()
     context = body_hand_context(hand, SHAPE, [pose])
     config = RuntimeConfig()
     palm = np.eye(len(config.class_names))[config.class_to_idx["open_palm"]]
-    dorsal = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
+    restricted = np.eye(len(config.class_names))[config.class_to_idx[final_label]]
     row = dict(points=hand, world_landmarks=None, metrics=hand_pixel_metrics(hand, SHAPE),
                area=.1, view=(0, 0, 960, 750, 0, 0), handedness="Left",
                handedness_confidence=.99, rejection_reason=None, body_context=context,
@@ -111,7 +120,7 @@ def test_final_smoothed_dorsal_cannot_escape_waist_guard(monkeypatch):
         ready=True, models={"ONNX": object()}, resolve_name=lambda name: "ONNX",
         predict_many=lambda *args: {"ONNX": (palm.copy(), .01, quality)})
     engine.resolver = SimpleNamespace(resolve=lambda p, points, **kwargs: (
-        dorsal.copy(), {"pose_validation": {"valid": True}}))
+        restricted.copy(), {"pose_validation": {"valid": True}}))
     clock = [1.]
     monkeypatch.setattr(runtime_module.time, "monotonic", lambda: clock[0])
     encoded = cv2.imencode(".jpg", np.full(SHAPE, 140, np.uint8))[1].tobytes()
@@ -119,6 +128,27 @@ def test_final_smoothed_dorsal_cannot_escape_waist_guard(monkeypatch):
     for frame in range(6):
         clock[0] = 1 + frame * .1
         output = engine.process_frame(encoded, session)
-        assert output["runtime_prediction"] == "no_gesture"
-        assert output["runtime_action"] == "Wait / No Action"
-        assert output["resolvers"]["pose_validation"]["reason"] == RESTING_HAND_REASON
+        if final_label == "dorsal":
+            assert output["runtime_prediction"] == "no_gesture"
+            assert output["runtime_action"] == "Wait / No Action"
+            assert output["resolvers"]["pose_validation"]["reason"] == RESTING_HAND_REASON
+        else:
+            assert output["runtime_prediction"] == "fist"
+            assert output["resolvers"]["pose_validation"]["valid"]
+
+
+@pytest.mark.parametrize("label", RuntimeConfig().class_names)
+def test_missing_body_estimate_does_not_pause_all_gestures(monkeypatch, label):
+    import backend.hand_detection as module
+    monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
+    hand, _ = standing_case()
+    detector = simulated_detector()
+    detector._body_guard = SimpleNamespace(detector=True, detect=lambda rgb, *, state: (
+        [], dict(ready=False, error="posture unavailable", body_count=0)))
+    detector._run_candidates = lambda rgb, view, *, video: [(.1, hand, None, None)]
+    def score(row):
+        row["resolved_label"] = label
+        return 1.
+    rows = detector.detect_candidates(np.full(SHAPE, 145, np.uint8), state={}, candidate_score=score)
+    assert rows[0]["rejection_reason"] is None
+    assert not detector.diagnostics()["body_guard"]["ready"]

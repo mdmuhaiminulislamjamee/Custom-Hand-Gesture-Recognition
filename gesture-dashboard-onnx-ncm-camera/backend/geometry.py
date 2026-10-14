@@ -10,6 +10,39 @@ from .config import RuntimeConfig
 MINIMUM_PEACE_TIP_SEPARATION_RATIO = 0.04
 
 
+def expanded_thumb_pointing_geometry(points):
+    """Strict horizontal index, separate thumb and three deeply curled fingers.
+
+    Ordinary directions allow either thumb position. This stronger silhouette
+    recovers the reported L-shaped pose without a general low-mass bypass.
+    """
+    points = np.asarray(points, dtype=np.float32).reshape(21, 2)
+    scale = max(_palm_gap_scale(points), 1e-8)
+    vector = points[8] - points[5]
+    reach = float(np.linalg.norm(vector))
+    unit = vector / max(reach, 1e-8)
+    path = sum(float(np.linalg.norm(points[b] - points[a])) for a, b in ((5, 6), (6, 7), (7, 8)))
+    thumb = points[4] - points[2]
+    thumb_path = float(np.linalg.norm(points[3] - points[2]) + np.linalg.norm(points[4] - points[3]))
+    thumb_norm = float(np.linalg.norm(thumb))
+    other_extensions = [finger_extension_score(points, *ids)
+                        for ids in ((9, 10, 11, 12), (13, 14, 15, 16), (17, 18, 19, 20))]
+    other_reaches = [float(np.linalg.norm(points[tip] - points[mcp])) / scale
+                     for mcp, tip in ((9, 12), (13, 16), (17, 20))]
+    lead = min(float(np.dot(points[8] - points[tip], unit)) / scale for tip in (12, 16, 20))
+    return bool(
+        abs(float(unit[0])) >= .94
+        and finger_extension_score(points, 5, 6, 7, 8) >= .90
+        and reach / max(path, 1e-8) >= .96 and reach / scale >= .75 and lead >= .60
+        and max(other_extensions) <= .30 and max(other_reaches) <= .50
+        and finger_extension_score(points, 1, 2, 3, 4) >= .85
+        and thumb_norm / max(thumb_path, 1e-8) >= .90
+        and float(np.linalg.norm(points[4] - points[0])) / scale >= 1.35
+        and abs(float(np.dot(thumb / max(thumb_norm, 1e-8), unit))) <= .65
+        and float(np.linalg.norm(points[4] - points[8])) / scale >= .75
+    )
+
+
 def _unit_direction(vector: np.ndarray, description: str) -> np.ndarray:
     norm = float(np.linalg.norm(vector))
     if norm < 1e-8:
@@ -486,14 +519,43 @@ class GeometryResolver:
     config: RuntimeConfig
 
     def _directional(
-        self, probabilities: np.ndarray, landmarks: np.ndarray
+        self, probabilities: np.ndarray, landmarks: np.ndarray,
+        world_landmarks: np.ndarray | None = None,
+        preferred_direction: str | None = None,
     ) -> tuple[np.ndarray, dict | None]:
         points = np.asarray(landmarks, dtype=np.float32).reshape(21, 2)
         raw = self.config.class_names[int(np.argmax(probabilities))]
+        world_index_only = False
+        world_projection_fraction = 0.0
+        if world_landmarks is not None:
+            world = np.asarray(world_landmarks, dtype=np.float32)
+            if world.shape == (21, 3) and np.isfinite(world).all():
+                world_vector = world[8] - world[5]
+                world_reach = float(np.linalg.norm(world_vector))
+                world_projection_fraction = float(np.linalg.norm(world_vector[:2])) / max(world_reach, 1e-8)
+                world_palm = max(float(np.linalg.norm(world[9] - world[0])), 1e-8)
+                world_path = sum(float(np.linalg.norm(world[b] - world[a]))
+                                 for a, b in ((5, 6), (6, 7), (7, 8)))
+                other_world_extensions = [finger_extension_score(world, m, m + 1, m + 2, m + 3)
+                                          for m in (9, 13, 17)]
+                other_world_reaches = [float(np.linalg.norm(world[m + 3] - world[m])) / world_palm
+                                       for m in (9, 13, 17)]
+                world_index_only = bool(
+                    finger_extension_score(world, 5, 6, 7, 8) >= .75
+                    and world_reach / max(world_path, 1e-8) >= .88
+                    and world_reach / world_palm >= .55
+                    and max(other_world_extensions) <= .55
+                    and max(other_world_reaches) <= .65
+                )
+        expanded_thumb_pointing = expanded_thumb_pointing_geometry(points)
+        continued_direction = bool(
+            world_index_only and world_projection_fraction < .20
+            and preferred_direction in {"left", "right", "up", "down"}
+        )
         # Peace and Rock also extend the index finger. The one-finger
         # directional recovery below must not rewrite a confidently classified
         # multi-finger command into Left/Right/Up/Down.
-        if raw in {"peace", "rock"}:
+        if raw in {"peace", "rock"} and not (expanded_thumb_pointing or world_index_only):
             return probabilities, {
                 "valid": True,
                 "reason": "multi-finger command retains model label",
@@ -504,6 +566,16 @@ class GeometryResolver:
         vector = points[8] - points[5]
         norm = float(np.linalg.norm(vector))
         if norm < 1e-8:
+            if continued_direction:
+                return _set_probability_floor(
+                    probabilities, self.config.class_to_idx[preferred_direction], .98
+                ), {
+                    "valid": True, "gesture": preferred_direction,
+                    "reason": "continuing the selected hand's last visible direction",
+                    "strong_geometry": True, "model_supported_pose": True,
+                    "world_index_only": True, "continued_direction": True,
+                    "world_projection_fraction": world_projection_fraction,
+                }
             return probabilities, {
                 "valid": raw not in {"left", "right", "up", "down"},
                 "reason": "degenerate index-finger direction",
@@ -513,7 +585,8 @@ class GeometryResolver:
             finger_extension_score(points, 13, 14, 15, 16),
             finger_extension_score(points, 17, 18, 19, 20),
         ], dtype=np.float32)
-        if raw in {"left", "right", "up", "down"} and "peace" in self.config.class_to_idx:
+        if (raw in {"left", "right", "up", "down"}
+                and "peace" in self.config.class_to_idx and not world_index_only):
             index_extension = finger_extension_score(points, 5, 6, 7, 8)
             index_span = float(np.linalg.norm(points[8] - points[5]))
             middle_span = float(np.linalg.norm(points[12] - points[9]))
@@ -553,6 +626,14 @@ class GeometryResolver:
                             "model_supported_pose": False,
                         }
         dominance = float(np.max(np.abs(vector)) / norm)
+        # The world joints retain the index's length when it points partly
+        # toward the lens. They establish the pose, while the image projection
+        # still determines the command's camera-relative direction.
+        projected_reach = norm / max(float(np.linalg.norm(points[9] - points[0])), 1e-8)
+        world_directional = bool(
+            world_index_only and world_projection_fraction >= .20
+            and projected_reach >= .18
+        )
         strict_pose = bool(
             pose_score >= 0.50
             and float(non_index_extensions.mean()) <= 0.70
@@ -565,6 +646,8 @@ class GeometryResolver:
             # old source labels. This is a semantic swap, not an image mirror.
             else ("left" if dx > 0 else "right")
         )
+        if continued_direction:
+            gesture = preferred_direction
         # Folded fingers can project as straight segments in a side view. Only
         # relax their joint-angle check when the classifier agrees and the
         # index is straight and clearly leads every other fingertip.
@@ -748,11 +831,15 @@ class GeometryResolver:
             or clustered_edge_down
             or reverse_palm_edge_down
             or prominent_index_down
+            or expanded_thumb_pointing
+            or world_directional
+            or continued_direction
         )
         settings = (self.config.raw.get("directional_resolution") or {})
         minimum_axis_dominance = float(settings.get("minimum_axis_dominance", 0.73))
         directional = bool(
             dominance >= minimum_axis_dominance
+            and (not world_index_only or world_projection_fraction >= .20 or continued_direction)
             and (
                 (index_only and (strict_pose or supported_pose))
                 or edge_on_down
@@ -760,6 +847,8 @@ class GeometryResolver:
                 or clustered_edge_down
                 or reverse_palm_edge_down
                 or prominent_index_down
+                or world_directional
+                or continued_direction
             )
         )
         strong_short_index = bool(
@@ -789,6 +878,12 @@ class GeometryResolver:
             "clustered_edge_down": clustered_edge_down,
             "reverse_palm_edge_down": reverse_palm_edge_down,
             "prominent_index_down": prominent_index_down,
+            "expanded_thumb_pointing": expanded_thumb_pointing,
+            "world_index_only": world_index_only,
+            "world_directional": world_directional,
+            "continued_direction": continued_direction,
+            "world_projection_fraction": world_projection_fraction,
+            "projected_index_reach_ratio": projected_reach,
             "palm_down_alignment": palm_down_alignment,
             "minimum_finger_down_alignment": float(finger_units[:, 1].min()),
             "finger_reach_ratios": finger_reaches.tolist(),
@@ -809,6 +904,9 @@ class GeometryResolver:
                     or clustered_edge_down
                     or reverse_palm_edge_down
                     or prominent_index_down
+                    or expanded_thumb_pointing
+                    or world_directional
+                    or continued_direction
                     or (
                         model_agrees
                         and float(ordered[-1]) >= .95
@@ -939,7 +1037,9 @@ class GeometryResolver:
                 if float(np.linalg.norm(world_xy)) > 1e-8:
                     dorsal_axis = world_xy
         dorsal_xy = float(np.degrees(np.arctan2(dorsal_axis[1], dorsal_axis[0])))
-        dorsal_allowed_direction = bool(-1e-4 <= dorsal_xy <= 150.0 + 1e-4)
+        # Dorsal is a hand surface/shape, not a fixed camera-angle command.
+        # The relaxed-below-waist exclusion is applied by the body guard.
+        dorsal_allowed_direction = True
         # Check finger shape in a palm-aligned frame so sideways/downward
         # rotations retain the same extension/togetherness requirements.
         dorsal_rotation = np.pi / 2 - np.arctan2(palm_axis[1], palm_axis[0])
@@ -948,21 +1048,8 @@ class GeometryResolver:
             (points - points[0]) @ np.asarray([[c, -s], [s, c]]).T
         )
         palm_axis_dominance = float(np.max(np.abs(palm_axis)) / palm_axis_norm)
-        open_palm_orientation_settings = (
-            self.config.raw.get("open_palm_orientation") or {}
-        )
         open_palm_upward = palm_up_alignment >= .70
-        # Horizontal palms are commands too. Permit a small downward component
-        # for landmark jitter at the horizon, but reject clearly descending
-        # wrist-to-palm axes (including diagonal-down poses).
-        open_palm_allowed_direction = bool(
-            palm_up_alignment >= float(
-                open_palm_orientation_settings.get(
-                    "minimum_non_down_alignment",
-                    open_palm_orientation_settings.get("minimum_up_alignment", -.10),
-                )
-            )
-        )
+        open_palm_allowed_direction = True
         surface_settings = self.config.raw.get("palm_surface_validation") or {}
         surface_validation_enabled = bool(surface_settings.get("enabled", True))
         normalized_handedness = str(handedness or "").strip().lower()
@@ -982,26 +1069,42 @@ class GeometryResolver:
             ),
         )
         palm_visible = bool(surface["palm_visible"])
+        dorsal_shape = aligned_dorsal
+        # Deliberate Dorsal uses a closed thumb beside four straight, together
+        # fingers. A loose hand supporting the chin can otherwise have the
+        # same back-of-hand winding and receive a strong geometry override.
+        index_axis = points[8] - points[5]
+        thumb_projection = float(np.clip(
+            np.dot(points[4] - points[5], index_axis)
+            / max(float(np.dot(index_axis, index_axis)), 1e-8), 0., 1.))
+        thumb_index_gap = float(np.linalg.norm(
+            points[4] - (points[5] + thumb_projection * index_axis)))
+        dorsal_thumb_gap_ratio = thumb_index_gap / max(float(np.linalg.norm(points[9] - points[0])), 1e-8)
+        deliberate_dorsal = bool(
+            dorsal_shape.get("minimum_extension_score", 0) >= .80
+            and dorsal_shape.get("together_score", 0) >= .65
+            and dorsal_shape.get("parallel_score", 0) >= .90
+            and dorsal_thumb_gap_ratio <= .50)
         dorsal_range_recovery = bool(
-            dorsal_allowed_direction and surface["dorsal_visible"]
+            deliberate_dorsal and dorsal_allowed_direction and surface["dorsal_visible"]
             and dorsal_geometry_support(aligned_dorsal)
             and float(np.linalg.norm(
                 points[[8, 12, 16, 20]] - points[[5, 9, 13, 17]], axis=1
             ).min()) / palm_axis_norm >= .35
         )
         dorsal_supported = bool(
-            (dorsal_supported or dorsal_range_recovery)
+            deliberate_dorsal and (dorsal_supported or dorsal_range_recovery)
             and dorsal_allowed_direction
             and (not surface_validation_active or bool(surface["dorsal_visible"]))
         )
         dorsal_valid = bool(
-            dorsal_range_recovery or (
+            deliberate_dorsal and (dorsal_range_recovery or (
                 dorsal_allowed_direction
-                and dorsal["score"] >= 0.76
-                and dorsal["downward_finger_count"] >= 4
-                and dorsal["minimum_extension_score"] >= 0.50
+                and dorsal_shape["score"] >= 0.76
+                and dorsal_shape["downward_finger_count"] >= 4
+                and dorsal_shape["minimum_extension_score"] >= 0.50
                 and (not surface_validation_active or bool(surface["dorsal_visible"]))
-            )
+            ))
         )
         open_palm_valid = bool(
             extended_non_thumb_count == 4
@@ -1041,6 +1144,39 @@ class GeometryResolver:
         like_finger_shape = bool(
             thumb_lead >= .10 and raised_non_thumb_count == 0
         )
+        # The model can retain Like/Thumb Down through a screen rotation even
+        # when the vertical thumb lead test changes sign. Require the world
+        # joints to show one long thumb and four genuinely folded fingers.
+        world_thumb_only = False
+        if world_landmarks is not None:
+            world_points = np.asarray(world_landmarks, dtype=np.float32)
+            if world_points.shape == (21, 3) and np.isfinite(world_points).all():
+                world_scale = max(float(np.linalg.norm(world_points[9] - world_points[0])), 1e-8)
+                thumb_vector_world = world_points[4] - world_points[2]
+                thumb_reach_world = float(np.linalg.norm(thumb_vector_world))
+                thumb_path_world = float(np.linalg.norm(world_points[3] - world_points[2])
+                                         + np.linalg.norm(world_points[4] - world_points[3]))
+                thumb_unit_world = thumb_vector_world / max(thumb_reach_world, 1e-8)
+                other_world_extensions = [finger_extension_score(
+                    world_points, m, m + 1, m + 2, m + 3) for m in (5, 9, 13, 17)]
+                other_world_reaches = [float(np.linalg.norm(world_points[m + 3] - world_points[m]))
+                                       / world_scale for m in (5, 9, 13, 17)]
+                thumb_lead_world = min(float(np.dot(
+                    world_points[4] - world_points[tip], thumb_unit_world)) / world_scale
+                    for tip in (8, 12, 16, 20))
+                world_thumb_only = bool(
+                    finger_extension_score(world_points, 1, 2, 3, 4) >= .70
+                    and thumb_reach_world / max(thumb_path_world, 1e-8) >= .90
+                    and thumb_reach_world / world_scale >= .50
+                    and thumb_lead_world >= .35
+                    and max(other_world_extensions) <= .45
+                    and max(other_world_reaches) <= .50
+                )
+        rotated_thumb_model_support = bool(
+            world_thumb_only and raw in {"like", "thumb_down"}
+            and float(adjusted.max()) >= .60
+            and float(adjusted.max() - np.partition(adjusted, -2)[-2]) >= .25
+        )
         like_valid = bool(
             like_finger_shape
             and (
@@ -1051,20 +1187,47 @@ class GeometryResolver:
                     and extensions[0] >= .40 and thumb_up_score >= .20)
             )
         )
-        # A side-on thumbs-up can be outside the classifier's learned camera
-        # angles even though its silhouette is unambiguous. Keep this recovery
-        # deliberately stricter than ordinary Like validation: the thumb must
-        # be strongly extended/upward, protrude beyond the compact palm, lead
-        # every fingertip, and the other four fingers must all remain folded.
+        like_valid = like_valid or (raw == "like" and rotated_thumb_model_support)
+        # In an edge-on fist, folded fingers can look straight in the image.
+        # Their tips still cluster around the palm; when available, the world
+        # joints provide an independent check of the actual finger bends.
+        world_folded_fingers = False
+        if world_landmarks is not None:
+            world_points = np.asarray(world_landmarks, dtype=np.float32)
+            if world_points.shape == (21, 3) and np.isfinite(world_points).all():
+                world_non_thumb = np.asarray([
+                    finger_extension_score(world_points, mcp, mcp + 1, mcp + 2, mcp + 3)
+                    for mcp in (5, 9, 13, 17)
+                ])
+                world_folded_fingers = bool(
+                    float(world_non_thumb.max()) <= .80
+                    and float(world_non_thumb.mean()) <= .55
+                )
+        compact_like_fingers = bool(
+            (float(non_thumb.max()) <= .50 and float(non_thumb.mean()) <= .38)
+            or (
+                float(foreshortened_fist["maximum_tip_radius_ratio"]) <= 1.40
+                and raised_non_thumb_count == 0
+                and float(non_thumb.mean()) <= .72
+            )
+            or (
+                float(foreshortened_fist["maximum_tip_radius_ratio"]) <= 1.50
+                and world_folded_fingers
+            )
+        )
+        # A side-on thumbs-up can receive any classifier label. Require a
+        # strongly extended/upward thumb that leads compact, folded fingertips.
         like_geometry_supported = bool(
-            raw in {"like", "fist"}
-            and extensions[0] >= .70
+            extensions[0] >= .70
             and float(foreshortened_fist["thumb_radius_ratio"]) >= 1.10
-            and float(non_thumb.max()) <= .50
-            and float(non_thumb.mean()) <= .38
+            and compact_like_fingers
             and thumb_up_score >= .70
             and thumb_lead >= .25
+            and palm_up_alignment >= -.35
         )
+        like_geometry_supported = like_geometry_supported or bool(
+            raw == "like" and rotated_thumb_model_support)
+        like_valid = like_valid or like_geometry_supported
         thumb_down_score = float(thumb_vector[1] / thumb_norm)
         thumb_down_lead = float(
             min(points[4, 1] - points[tip, 1] for tip in (8, 12, 16, 20))
@@ -1082,6 +1245,8 @@ class GeometryResolver:
             and thumb_down_score >= .25
             and thumb_down_lead >= .15
         )
+        thumb_down_valid = thumb_down_valid or bool(
+            raw == "thumb_down" and rotated_thumb_model_support)
         thumb_down_geometry_supported = bool(
             thumb_down_valid
             and extensions[0] >= .70
@@ -1089,6 +1254,8 @@ class GeometryResolver:
             and thumb_down_score >= .70
             and thumb_down_lead >= .25
         )
+        thumb_down_geometry_supported = thumb_down_geometry_supported or bool(
+            raw == "thumb_down" and rotated_thumb_model_support)
         # A high model score alone is not evidence of a closed hand. In
         # particular, four partly bent but raised fingers can look like Fist
         # to the MLP. Keep a geometry requirement for every Fist decision.
@@ -1106,7 +1273,6 @@ class GeometryResolver:
         reported_reverse_alignment = None
         reported_side_alignment = None
         tilted_side_alignment = None
-        rejected_view_alignment = None
         if world_landmarks is not None:
             world_points = np.asarray(world_landmarks, dtype=np.float32)
             if world_points.shape == (21, 3) and np.isfinite(world_points).all():
@@ -1139,37 +1305,6 @@ class GeometryResolver:
                     tilted_side_alignment = _mirrored_view_alignment(
                         world_axis_unit, -3.0, 107.0,
                     )
-                    # Explicit negative examples take precedence over every
-                    # fist path, including a confident model or curl recovery.
-                    rejected_view_alignment = max(
-                        _mirrored_view_alignment(world_axis_unit, xy, zx)
-                        for xy, zx in (
-                            (-64.0, 126.0), (-68.0, 50.0), (-20.0, 102.0),
-                            # Latest webcam negatives. The first otherwise
-                            # overlaps the reverse-facing Fist exception.
-                            (-61.0, 142.0), (-64.0, 40.0),
-                            # The second HUD's XY/YZ also permits a +140 ZX
-                            # reading; retain rejection around that axis too.
-                            (-64.0, 140.0),
-                        )
-                    )
-        fist_orientation_settings = self.config.raw.get("fist_orientation") or {}
-        maximum_depth_alignment = float(
-            fist_orientation_settings.get("maximum_depth_alignment", .45)
-        )
-        # Permit the 0-20 degree transition just below either horizontal
-        # boundary while retaining the downward-fist exclusion.
-        horizontal_tolerance_degrees = float(
-            fist_orientation_settings.get("horizontal_tolerance_degrees", 20.0)
-        )
-        fist_xy_allowed = bool(
-            palm_up_alignment >=
-            -float(np.sin(np.deg2rad(horizontal_tolerance_degrees))) - 1e-6
-        )
-        reported_reverse_view = bool(
-            reported_reverse_alignment is not None
-            and reported_reverse_alignment >= float(np.cos(np.deg2rad(12.0)))
-        )
         reported_side_view = bool(
             reported_side_alignment is not None
             and reported_side_alignment >= float(np.cos(np.deg2rad(18.0)))
@@ -1177,13 +1312,6 @@ class GeometryResolver:
         tilted_side_view = bool(
             tilted_side_alignment is not None
             and tilted_side_alignment >= float(np.cos(np.deg2rad(10.0)))
-        )
-        rejected_fist_view = bool(
-            rejected_view_alignment is not None
-            # Keep this narrow: the second negative is close to an earlier
-            # accepted raised fist. A six-degree cone tolerates camera jitter
-            # without rejecting that positive reference.
-            and rejected_view_alignment >= float(np.cos(np.deg2rad(6.0)))
         )
         reported_side_fist_geometry = bool(
             (reported_side_view or tilted_side_view)
@@ -1213,15 +1341,8 @@ class GeometryResolver:
         )
         fist_depth_allowed = bool(
             (fist_depth_alignment is not None or not require_fist_depth)
-            and (fist_depth_alignment is None
-                 or fist_depth_alignment >= -maximum_depth_alignment
-                 or reported_reverse_view)
         )
-        fist_allowed_direction = bool(
-            (fist_xy_allowed or reported_reverse_view or fist_side_view_geometry)
-            and fist_depth_allowed
-            and not rejected_fist_view
-        )
+        fist_allowed_direction = fist_depth_allowed
         fist_valid = bool(
             fist_allowed_direction
             and (fist_compact or foreshortened_fist["strong_geometry"]
@@ -1240,7 +1361,11 @@ class GeometryResolver:
         fist_foreshortened_relabel = bool(
             fist_allowed_direction
             and (foreshortened_fist["strong_geometry"] or fist_side_view_geometry
-                 or reported_side_fist_geometry)
+                 or reported_side_fist_geometry
+                 or (raw in {"like", "thumb_down"} and fist_geometry_supported
+                     and extensions[0] <= .45
+                     and float(foreshortened_fist["thumb_radius_ratio"]) >= .75
+                     and float(probabilities[self.config.class_to_idx["fist"]]) >= .08))
             # A projected Fist and the two thumb commands can share the same
             # four curled fingertips. Preserve a thumb command only when its
             # thumb geometry actually passes validation.
@@ -1267,16 +1392,15 @@ class GeometryResolver:
         }
         # Geometry may safely resolve the two open-hand orientations even when
         # perspective causes the MLP to swap them.
-        allow_dorsal_resolution = not (
-            raw == "open_palm"
-            and not open_palm_allowed_direction
-            and not bool(surface["dorsal_visible"])
-        )
         # Only the perspective-specific curl-back signature may relabel a
         # different top class. The ordinary compact-fist validator remains a
         # guard for an already predicted Fist; otherwise it can resemble the
         # clustered Down silhouettes covered by the camera regressions.
-        if like_geometry_supported:
+        if raw == "thumb_down" and rotated_thumb_model_support:
+            adjusted = _set_probability_floor(
+                adjusted, self.config.class_to_idx["thumb_down"], 0.96
+            )
+        elif like_geometry_supported:
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx["like"], 0.96
             )
@@ -1286,7 +1410,7 @@ class GeometryResolver:
                 adjusted, self.config.class_to_idx["fist"], 0.96
             )
             raw = "fist"
-        elif allow_dorsal_resolution and (
+        elif (
             dorsal_supported
             or (dorsal_valid and raw in {"open_palm", "dorsal", "down"})
         ):
@@ -1302,21 +1426,12 @@ class GeometryResolver:
         valid = validators.get(raw, True)
         if valid:
             reason = "pose geometry accepted"
-        elif raw == "dorsal" and not dorsal_allowed_direction:
-            reason = "dorsal requires an XY angle from 0 to 150 degrees downward"
-        elif raw == "open_palm" and not open_palm_allowed_direction:
-            reason = "open_palm must not point downward"
         elif raw == "fist" and require_fist_depth and fist_depth_alignment is None:
             reason = "fist depth landmarks unavailable"
-        elif raw == "fist" and rejected_fist_view:
-            reason = "fist orientation matches a no-gesture pose"
-        elif raw == "fist" and not fist_depth_allowed:
-            reason = "fist points away from the camera"
-        elif raw == "fist" and not (fist_xy_allowed or reported_reverse_view
-                                    or fist_side_view_geometry):
-            reason = "fist points downward"
         elif raw == "like" and not like_finger_shape:
             reason = "like requires the thumb to lead and other fingers to stay folded"
+        elif raw == "dorsal" and not deliberate_dorsal:
+            reason = "dorsal requires four straight fingers together and the thumb beside the index"
         elif raw == "ok" and (closest_other_thumb_gap < .70 or closest_other_thumb_gap - gap < .25):
             reason = "ok requires only the index fingertip to touch the thumb"
         else:
@@ -1326,6 +1441,7 @@ class GeometryResolver:
             "reason": reason,
             "resolved_gesture": raw,
             "thumb_extension": float(extensions[0]),
+            "world_thumb_only": world_thumb_only,
             "index_extension": float(extensions[1]),
             "middle_extension": float(extensions[2]),
             "ring_extension": float(extensions[3]),
@@ -1345,6 +1461,8 @@ class GeometryResolver:
             "palm_up_alignment": palm_up_alignment,
             "palm_axis_dominance": palm_axis_dominance,
             "dorsal_score": float(dorsal["score"]),
+            "dorsal_deliberate_shape": deliberate_dorsal,
+            "dorsal_thumb_index_gap_ratio": dorsal_thumb_gap_ratio,
             "dorsal_geometry_supported": dorsal_supported,
             "peace_geometry_supported": peace_geometry_supported,
             "peace_pair_recovery": peace_pair_recovery,
@@ -1356,6 +1474,8 @@ class GeometryResolver:
             "peace_world_geometry": peace_world,
             "palm_geometry_supported": palm_geometry_supported,
             "sideways_palm_recovery": sideways_palm_recovery,
+            "like_compact_fingers": compact_like_fingers,
+            "like_world_folded_fingers": world_folded_fingers,
             "like_geometry_supported": like_geometry_supported,
             "fist_geometry_supported": fist_geometry_supported,
             "fist_allowed_direction": fist_allowed_direction,
@@ -1366,8 +1486,8 @@ class GeometryResolver:
             "fist_reported_side_alignment": reported_side_alignment,
             "fist_reported_side_geometry": reported_side_fist_geometry,
             "fist_tilted_side_alignment": tilted_side_alignment,
-            "fist_rejected_view_alignment": rejected_view_alignment,
-            "fist_rejected_view": rejected_fist_view,
+            "fist_rejected_view_alignment": None,
+            "fist_rejected_view": False,
             "fist_foreshortened_relabel": fist_foreshortened_relabel,
             "fist_retracted_finger_count": int(
                 foreshortened_fist["retracted_finger_count"]
@@ -1398,8 +1518,10 @@ class GeometryResolver:
         handedness_confidence: float | None = None,
         world_landmarks: np.ndarray | None = None,
         require_fist_depth: bool = False,
+        preferred_direction: str | None = None,
     ) -> tuple[np.ndarray, dict[str, dict | None]]:
-        adjusted, directional = self._directional(probabilities, landmarks)
+        adjusted, directional = self._directional(
+            probabilities, landmarks, world_landmarks, preferred_direction)
         adjusted, shape = self._hand_shape(
             adjusted,
             landmarks,
@@ -1415,6 +1537,12 @@ class GeometryResolver:
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx["down"], .98
             )
+        if directional.get("expanded_thumb_pointing", False):
+            adjusted = _set_probability_floor(
+                adjusted, self.config.class_to_idx[directional["gesture"]], .98)
+        if directional.get("continued_direction", False):
+            adjusted = _set_probability_floor(
+                adjusted, self.config.class_to_idx[directional["gesture"]], .98)
         resolved = self.config.class_names[int(np.argmax(adjusted))]
         valid = bool(shape.get("valid", True))
         reason = str(shape.get("reason", "pose geometry accepted"))
@@ -1443,5 +1571,7 @@ class GeometryResolver:
                 "dorsal_range_recovery": bool(
                     resolved == "dorsal" and shape.get("dorsal_range_recovery", False)
                 ),
+                "expanded_thumb_direction_recovery": bool(
+                    resolved in {"left", "right"} and directional.get("expanded_thumb_pointing", False)),
             },
         }

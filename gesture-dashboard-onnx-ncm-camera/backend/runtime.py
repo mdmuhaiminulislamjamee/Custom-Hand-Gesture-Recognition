@@ -177,6 +177,8 @@ class TemporalGate:
         directional_recovery: bool = False,
         sideways_palm_recovery: bool = False,
         dorsal_range_recovery: bool = False,
+        expanded_thumb_direction_recovery: bool = False,
+        continued_direction_recovery: bool = False,
     ) -> TemporalDecision:
         now = time.monotonic() if now is None else float(now)
         row = np.asarray(probabilities, dtype=np.float64).reshape(-1)
@@ -205,6 +207,14 @@ class TemporalGate:
         recovery_mass_ok = bool(
             known_gesture_mass >= self.config.geometry_recovery_mass_floor
         )
+        expanded_thumb_fallback = bool(
+            expanded_thumb_direction_recovery and geometry_supported and directional_recovery
+            and geometry_gesture in {"left", "right"} and known_gesture_mass >= .01
+        )
+        continued_direction_fallback = bool(
+            continued_direction_recovery and geometry_supported and directional_recovery
+            and geometry_gesture in {"left", "right", "up", "down"}
+        )
         dorsal_fallback = bool(
             geometry_supported and geometry_gesture == "dorsal"
             and (recovery_mass_ok or dorsal_range_recovery)
@@ -216,7 +226,8 @@ class TemporalGate:
             # motivated the geometry fallback. Other directions need a small
             # amount of classifier vocabulary evidence to reject held rock/
             # peace hard negatives that can project like a pointing finger.
-            and (geometry_gesture == "down" or recovery_mass_ok)
+            and (geometry_gesture == "down" or recovery_mass_ok
+                 or expanded_thumb_fallback or continued_direction_fallback)
         )
         supported_hand = bool(
             geometry_supported
@@ -283,7 +294,7 @@ class TemporalGate:
         if dorsal_fallback and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.45 if dorsal_range_recovery else 0.35)
         if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.40)
+            required_hold = max(required_hold, 0.50 if expanded_thumb_fallback else 0.40)
         if supported_hand and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.45)
         if peace_fallback and known_gesture_mass < self.config.known_mass_floor:

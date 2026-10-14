@@ -62,33 +62,40 @@ def test_fingers_at_ear_are_observed_even_when_palm_center_is_outside_face():
     assert face_context_observation(normalized, (750, 960, 3), [box])["near_face"] is True
 
 
-def test_separate_command_and_large_foreground_palm_remain_eligible():
+def test_separate_command_and_small_background_face_remain_eligible():
     points, box = reported_resting_hand(3)
     assert not face_context_observation((points - [260, 0]) / [960, 750], (750, 960, 3), [box])["near_face"]
-    assert not face_context_observation(representative_hand(), (400, 400, 3), [(150,60,90,110)])["near_face"]
+    assert face_context_observation(representative_hand(), (400, 400, 3), [(150,60,90,110)])["near_face"]
     assert not face_context_observation(points / [960, 750], (750, 960, 3), [])["near_face"]
     assert not face_context_observation(points / [960, 750], (750, 960, 3), [(460,300,30,40)])["near_face"]
 
 
-@pytest.mark.parametrize("known_mass,expected", [(1.0, "open_palm"), (.01, "no_gesture")])
-def test_face_observation_allows_listed_pose_but_unknown_mass_is_rejected(monkeypatch, known_mass, expected):
+def test_one_fingertip_on_face_counts_without_palm_overlap():
+    assert face_context_observation(
+        representative_hand(), (400, 400, 3), [(180, 100, 80, 105)]
+    )["near_face"]
+
+
+@pytest.mark.parametrize("gesture", RuntimeConfig().class_names)
+@pytest.mark.parametrize("blocked", [True, False])
+def test_legacy_face_box_alone_never_blocks_a_gesture(monkeypatch, gesture, blocked):
     import backend.hand_detection as detection_module
     monkeypatch.setattr(detection_module.time, "perf_counter", lambda: 10.)
     points, box = reported_resting_hand(3)
     detector = simulated_detector()
-    detector._face_guard = SimpleNamespace(detector=True, detect=lambda rgb: [box])
+    detector._face_guard = SimpleNamespace(detector=True, detect=lambda rgb: [box] if blocked else [])
     detector._run_candidates = lambda rgb, view, *, video: [(.1, points / [960,750], None, None)]
     config = RuntimeConfig()
     session = RuntimeSession(config)
     detector._multi_context = session.hand_selector.detector_state
-    probabilities = np.eye(len(config.class_names))[config.class_to_idx["open_palm"]]
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx[gesture]]
     scored = []
 
     def score(row):
         scored.append(True)
-        row["resolved_label"] = "open_palm"
+        row["resolved_label"] = gesture
         row["probabilities"] = probabilities
-        row["gate_args"] = dict(known_gesture_mass=known_mass)
+        row["gate_args"] = dict(known_gesture_mass=1.0)
         return 1.
 
     decisions = []
@@ -97,12 +104,13 @@ def test_face_observation_allows_listed_pose_but_unknown_mass_is_rejected(monkey
             np.full((750,960,3), 145, dtype=np.uint8),
             state=session.hand_selector.detector_state, candidate_score=score)
         assert rows[0]["rejection_reason"] is None
-        assert rows[0]["face_context"]["near_face"] is True
-        assert detector.diagnostics()["near_face_candidate_count"] >= 1
-        _, _, previews = session.hand_selector.update(rows, (750,960,3), 1 + frame * .1)
+        assert not rows[0]["face_context"]["contact_confirmed"]
+        chosen, selection, previews = session.hand_selector.update(
+            rows, (750,960,3), 1 + frame * .1)
         decisions.append(previews[0]["gesture"])
     assert scored
-    assert decisions[-1] == expected
+    assert decisions == [gesture] * 8
+    assert chosen is not None
 
 
 def test_face_occlusion_hold_expires_and_resets_on_resolution_change(monkeypatch):

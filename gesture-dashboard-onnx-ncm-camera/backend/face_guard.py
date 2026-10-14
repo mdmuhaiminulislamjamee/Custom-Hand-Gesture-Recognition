@@ -1,8 +1,4 @@
-"""Observe when a hand is near a detected face without vetoing gestures.
-
-Face boxes describe image overlap, not whether a hand pose is intentional.
-Gesture validity is decided by the classifier, geometry, and temporal gate.
-"""
+"""Face boxes for collection diagnostics and a bounded live mesh fallback."""
 from pathlib import Path
 import time
 
@@ -23,25 +19,32 @@ def overlaps_face_as_small_hand(points, image_shape, boxes):
 
 
 def face_context_observation(points, image_shape, boxes):
-    """Report face proximity for diagnostics; never reject a pose from it."""
+    """Report broad overlap for diagnostics, not evidence of skin contact."""
     pixels = np.asarray(points) * [image_shape[1], image_shape[0]]
     fingers = pixels[[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]]
+    fingertips = pixels[[4, 8, 12, 16, 20]]
     span = float(np.ptp(pixels, axis=0).max())
     palm = pixels[[0, 5, 9, 13, 17]].mean(axis=0)
     for x, y, width, height in boxes:
         if width <= 0 or height <= 0:
             continue
+        # A much smaller face is likely behind a foreground hand; image
+        # overlap there cannot mean that the hand touches that face.
+        if span > 2.0 * max(width, height):
+            continue
         palm_inside = (x - .30 * width <= palm[0] <= x + 1.30 * width
                        and y - .10 * height <= palm[1] <= y + 1.05 * height)
-        # Keep the old ear zone as an observation. Its overlap cannot tell an
-        # open-palm command from a hand resting beside the head.
-        if span > 1.5 * max(width, height):
-            continue
+        # Include fingers beside the ear and fingertips touching the face,
+        # even when the palm centre lies outside the face box.
         inside = ((fingers[:, 0] >= x - .55 * width)
                   & (fingers[:, 0] <= x + 1.55 * width)
                   & (fingers[:, 1] >= y - .20 * height)
                   & (fingers[:, 1] <= y + 1.15 * height))
-        if palm_inside or np.count_nonzero(inside) >= 6:
+        fingertip_inside = ((fingertips[:, 0] >= x - .10 * width)
+                            & (fingertips[:, 0] <= x + 1.10 * width)
+                            & (fingertips[:, 1] >= y - .10 * height)
+                            & (fingertips[:, 1] <= y + 1.10 * height))
+        if palm_inside or np.any(fingertip_inside) or np.count_nonzero(inside) >= 6:
             return dict(near_face=True, hand_to_face_span_ratio=round(span / max(width, height), 3))
     return dict(near_face=False)
 
@@ -64,16 +67,24 @@ class FaceGuard:
         except Exception as error:
             self.error = str(error)
 
-    def detect(self, rgb):
+    def detect(self, rgb, *, state=None):
         if self.detector is None:
             return []
         import cv2
         height, width = rgb.shape[:2]
         now = time.monotonic()
-        if self._image_shape != (height, width):
+        if state is None and self._image_shape != (height, width):
             self.boxes = []
             self._recent_boxes = []
             self._image_shape = (height, width)
+        if state is not None:
+            cache = state.setdefault("face_boxes", {})
+            if cache.get("shape") != (height, width):
+                cache.clear()
+                cache["shape"] = (height, width)
+            recent = cache.get("recent", [])
+        else:
+            recent = self._recent_boxes
         scale = min(1., 320 / max(height, width))
         small = cv2.resize(rgb, (round(width * scale), round(height * scale)))
         result = self.detector.detect(self.mp.Image(image_format=self.mp.ImageFormat.SRGB,
@@ -92,13 +103,17 @@ class FaceGuard:
 
         # Retain each missed face separately: a visible background face must
         # not erase the foreground user's briefly occluded head region.
-        retained = [(box, seen) for box, seen in self._recent_boxes
+        retained = [(box, seen) for box, seen in recent
                     if now - seen <= .5 and not refreshed(box)]
-        self._recent_boxes = retained + [(box, now) for box in boxes]
-        self.boxes = [box for box, _ in self._recent_boxes]
+        recent = retained + [(box, now) for box in boxes]
+        if state is not None:
+            cache["recent"] = recent
+        else:
+            self._recent_boxes = recent
+            self.boxes = [box for box, _ in recent]
         # Brief profile/hand occlusions must not turn a resting hand into a
         # command. Expire the cache by elapsed time, never by frame count.
-        return list(self.boxes)
+        return [box for box, _ in recent]
 
     def close(self):
         if self.detector is not None:

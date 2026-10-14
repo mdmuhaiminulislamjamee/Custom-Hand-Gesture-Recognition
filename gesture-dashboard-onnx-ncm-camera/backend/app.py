@@ -486,7 +486,7 @@ class CollectionSamplePayload(CollectionParticipantPayload):
     token: str = Field(min_length=32, max_length=32)
     session_id: str = Field(min_length=1, max_length=48)
     step_id: str = Field(max_length=80)
-    handedness: Literal["left", "right", "none", "unspecified"] = "unspecified"
+    handedness: Literal["left", "right", "both", "none", "unspecified"] = "unspecified"
     finger_orientation: Literal["toward_camera", "away_from_camera", "none", "unspecified"] = "unspecified"
     lighting: Literal["normal", "dim", "backlit"] = "normal"
     distance: Literal["near", "medium", "far"] = "medium"

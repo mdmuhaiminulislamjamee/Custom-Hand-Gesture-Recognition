@@ -8,11 +8,12 @@ from pathlib import Path
 import numpy as np
 from .face_guard import FaceGuard, face_context_observation
 from .body_guard import (BodyGuard, POSE_MODEL_NAME, RESTING_HAND_REASON,
-                         DORSAL_BELOW_WAIST_REASON, body_hand_context, dorsal_body_rejection)
+                         RELAXED_ELBOW_MIN_ANGLE_DEG, body_hand_context, dorsal_body_rejection,
+                         retain_relaxed_posture)
 
 DETECTOR_SETTINGS = {
     "maximum_hands": 2,
-    "live_hand_selection": "automatic gesture qualification, apparent closeness, and persistent ownership",
+    "live_hand_selection": "nearer-hand acquisition; first-success ownership lock; equal-distance reset",
     "live_minimum_palm_pixels": 18,
     "live_minimum_dorsal_palm_pixels": 24,
     "running_mode": "VIDEO with IMAGE recovery",
@@ -21,8 +22,9 @@ DETECTOR_SETTINGS = {
     "minimum_tracking_confidence": 0.60,
     "recovery_detection_confidence": 0.20,
     "recovery_presence_confidence": 0.30,
-    "face_guard": "BlazeFace face proximity observation; listed gestures remain eligible",
-    "body_guard": "Pose Lite standing below-waist dorsal veto before automatic selection",
+    "face_guard": "disabled; gestures may overlap the face",
+    "body_guard": "Pose Lite hanging-below-waist or folded resting arm; Dorsal only",
+    "relaxed_elbow_min_angle_deg": RELAXED_ELBOW_MIN_ANGLE_DEG,
     "body_pose_refresh_ms": 150,
     "body_pose_occlusion_hold_ms": 400,
     "recovery_confirmation_frames": 2,
@@ -32,7 +34,7 @@ DETECTOR_SETTINGS = {
     "maximum_analysis_dimension": 960,
     "maximum_detection_passes_per_frame": 2,
     "recovery_start_budget_ms": 55,
-    "distance_method": "user-calibrated apparent palm size; no absolute MediaPipe depth",
+    "distance_method": "projected image/world hand scale when coherent; palm-size fallback; no absolute depth",
 }
 
 
@@ -127,7 +129,7 @@ class HandDetector:
                 if self._body_guard.detector is None:
                     raise RuntimeError(self._body_guard.error)
             self.ready = True
-            if model_path.with_name("blaze_face_short_range.tflite").exists():
+            if not use_body_context and model_path.with_name("blaze_face_short_range.tflite").exists():
                 self._face_guard = FaceGuard(model_path.with_name("blaze_face_short_range.tflite"))
         except Exception as error:
             self.error = f"MediaPipe initialization failed: {error}"
@@ -199,10 +201,12 @@ class HandDetector:
         self._last_diagnostics = dict(running_mode="VIDEO" if same_context else "IMAGE",
                                       candidate_count=0, analysis_width=width, analysis_height=height,
                                       recovery_attempted=False, rejection_reason=None)
-        face_guard = getattr(self, "_face_guard", None)
-        boxes = face_guard.detect(rgb_image) if face_guard else []
-        self._last_diagnostics.update(face_guard_ready=bool(face_guard and face_guard.detector),
-                                      face_guard_error=getattr(face_guard, "error", None), face_count=len(boxes))
+        # Face position/contact is not a live gesture veto. Keep explicit
+        # disabled diagnostics for existing viewers without loading a model.
+        self._last_diagnostics.update(
+            face_contact=dict(enabled=False, ready=False, face_count=0, error=None),
+            face_guard_ready=False, face_guard_error=None, face_count=0,
+            face_contact_rejected_count=0, near_face_candidate_count=0)
         body_guard = getattr(self, "_body_guard", None)
         poses = None
         self._last_diagnostics["body_guard"] = dict(
@@ -212,7 +216,8 @@ class HandDetector:
         def observations(view, video):
             nonlocal poses
             rows = []
-            for area, points, category, world in self._run_candidates(rgb_image, view, video=video):
+            candidates = self._run_candidates(rgb_image, view, video=video)
+            for area, points, category, world in candidates:
                 metrics = hand_pixel_metrics(points, rgb_image.shape)
                 reason = None
                 if (metrics["palm_scale_px"] < 8 or metrics["hand_span_px"] < 24
@@ -221,15 +226,14 @@ class HandDetector:
                 inside = np.mean(np.all((points >= -.05) & (points <= 1.05), axis=1))
                 if inside < .90:
                     reason = reason or "incomplete_hand"
-                face_context = face_context_observation(points, rgb_image.shape, boxes)
+                face_context = dict(enabled=False, near_face=False,
+                                    contact_confirmed=False, suppressed=False)
                 context = None
                 if not reason and body_guard is not None:
                     if poses is None:
                         poses, diagnostics = body_guard.detect(rgb_image, state=state)
                         self._last_diagnostics["body_guard"] = dict(diagnostics, checked=True)
-                    if not self._last_diagnostics["body_guard"]["ready"]:
-                        reason = "body_context_unavailable"
-                    else:
+                    if self._last_diagnostics["body_guard"]["ready"]:
                         context = body_hand_context(points, rgb_image.shape, poses)
                 row = dict(points=points, world_landmarks=world, metrics=metrics, area=area, view=view,
                            handedness=getattr(category, "category_name", None),
@@ -249,8 +253,7 @@ class HandDetector:
 
         rows = observations(full, same_context)
         requested = state.pop("pose_recovery_requested", False)
-        context_vetoes = {RESTING_HAND_REASON, DORSAL_BELOW_WAIST_REASON,
-                          "body_context_unavailable"}
+        context_vetoes = {RESTING_HAND_REASON}
         needs_recovery = (requested or not rows or any(
                               row["recovery_score"] < 1 and row["rejection_reason"] not in context_vetoes
                               for row in rows)
@@ -301,11 +304,12 @@ class HandDetector:
                 state["view_misses"] = state.get("view_misses", 0) + 1
                 if state["view_misses"] >= 2:
                     state["view"] = None
+        retain_relaxed_posture(rows, rgb_image.shape, state=state, now=time.monotonic())
         self._last_diagnostics["candidate_count"] = len(rows)
-        self._last_diagnostics["near_face_candidate_count"] = sum(
-            bool(row["face_context"]["near_face"]) for row in rows)
         if any(not row["rejection_reason"] for row in rows):
             self._last_diagnostics["rejection_reason"] = None
+        elif rows:
+            self._last_diagnostics["rejection_reason"] = rows[0]["rejection_reason"]
         return rows
 
     def _search_views(self, shape):

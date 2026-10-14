@@ -37,6 +37,8 @@ class RuntimeSession:
     follow_object: FollowObjectStateMachine = field(init=False)
     hand_selector: AutomaticHandSelector = field(init=False)
     selected_track_id: int | None = field(default=None, init=False)
+    last_screen_direction: str | None = field(default=None, init=False)
+    last_screen_direction_at: float = field(default=0.0, init=False)
     diagnostic_gates: dict[str, TemporalGate] = field(default_factory=dict)
     frame_times: deque[float] = field(default_factory=lambda: deque(maxlen=30))
     last_action_gesture: str | None = None
@@ -68,6 +70,8 @@ class RuntimeSession:
         self.temporal_gate.reset()
         self.hand_selector.reset()
         self.selected_track_id = None
+        self.last_screen_direction = None
+        self.last_screen_direction_at = 0.0
         self.follow_object.reset()
         self.diagnostic_gates.clear()
         self.frame_times.clear()
@@ -942,6 +946,11 @@ class InferenceEngine:
 
         with self._lock:
             landmark_started = time.perf_counter()
+            preferred_direction = (
+                session.last_screen_direction
+                if session.selected_track_id is not None
+                and now - session.last_screen_direction_at <= 1.0 else None
+            )
             def candidate_score(row):
                 # Score each candidate with its OWN handedness and world points.
                 # Only a geometry contradiction requests an extra detector view;
@@ -952,7 +961,8 @@ class InferenceEngine:
                     resolved, details = self.resolver.resolve(
                         probabilities, row["points"], handedness=row["handedness"],
                         handedness_confidence=row["handedness_confidence"],
-                        world_landmarks=row["world_landmarks"], require_fist_depth=True)
+                        world_landmarks=row["world_landmarks"], require_fist_depth=True,
+                        preferred_direction=preferred_direction)
                     row["probabilities"] = resolved
                     row["gate_args"] = gate_arguments(details, quality)
                     row["resolved_label"] = self.config.class_names[int(np.argmax(resolved))]
@@ -967,18 +977,27 @@ class InferenceEngine:
                 world_landmarks = None if chosen is None else chosen["world_landmarks"]
                 detector_quality = self.detector.diagnostics()
                 detector_quality.update(selection=selection, hands=hands)
+                if selection.get("ownership_reset"):
+                    session.selected_track_id = None
+                    session.last_screen_direction = None
+                    session.reset_landmark_tracking()
+                    session.temporal_gate.reset()
+                    session.diagnostic_gates.clear()
                 if chosen is None:
                     detector_quality["rejection_reason"] = detector_quality.get("rejection_reason") or selection["reason"]
                 else:
                     detector_quality.update(chosen["metrics"])
                     track_id = chosen["track_id"]
+                    if track_id != session.selected_track_id or chosen.get("identity_reacquired", False):
+                        session.last_screen_direction = None
                     detector_quality.update(
                         selected_handedness=chosen["handedness"],
                         selected_handedness_confidence=chosen["handedness_confidence"],
                         selected_body_context=chosen.get("body_context"),
                         selected_face_context=chosen.get("face_context"),
                         selected_track_id=track_id, selected_bbox_area=chosen["area"],
-                        reacquired=track_id != session.selected_track_id,
+                        reacquired=(track_id != session.selected_track_id
+                                    or chosen.get("identity_reacquired", False)),
                         detection_rotation_degrees=int(chosen["view"][4] * 90),
                         detection_view=list(chosen["view"][:4]),
                         small_hand=chosen["metrics"]["palm_scale_px"] < 24,
@@ -1055,6 +1074,8 @@ class InferenceEngine:
                     ),
                     world_landmarks=world_landmarks,
                     require_fist_depth=True,
+                    preferred_direction=session.last_screen_direction
+                    if now - session.last_screen_direction_at <= 1.0 else None,
                 )
                 # Smoothing can change the resolved label after hand selection.
                 # Apply the dorsal information floor to that final label too.
@@ -1064,7 +1085,8 @@ class InferenceEngine:
                     resolver_rows[name]["pose_validation"].update(
                         valid=False, reason="Move closer: dorsal hand has insufficient finger detail")
                 # Final smoothed landmarks can change the label from the one
-                # used to select the hand. Keep the waist rule on that output.
+                # used to select the hand. Only final Dorsal is subject to the
+                # relaxed-arm below-waist rule.
                 context_reason = dorsal_body_rejection(
                     detector_quality.get("selected_body_context"),
                     self.config.class_names[int(np.argmax(resolved_rows[name]))])
@@ -1105,6 +1127,10 @@ class InferenceEngine:
             directional_recovery=directional_recovery,
             sideways_palm_recovery=bool(pose_validation.get("sideways_palm_recovery", False)),
             dorsal_range_recovery=bool(pose_validation.get("dorsal_range_recovery", False)),
+            expanded_thumb_direction_recovery=bool(
+                geometry_supported and pose_validation.get("expanded_thumb_direction_recovery", False)),
+            continued_direction_recovery=bool(
+                geometry_supported and direction_details.get("continued_direction", False)),
         )
 
         diagnostic_results: dict[str, dict[str, Any]] = {}
@@ -1135,6 +1161,10 @@ class InferenceEngine:
                     ),
                     sideways_palm_recovery=bool(model_pose.get("sideways_palm_recovery", False)),
                     dorsal_range_recovery=bool(model_pose.get("dorsal_range_recovery", False)),
+                    expanded_thumb_direction_recovery=bool(
+                        model_geometry_supported and model_pose.get("expanded_thumb_direction_recovery", False)),
+                    continued_direction_recovery=bool(
+                        model_geometry_supported and model_direction.get("continued_direction", False)),
                 )
             )
             diagnostic_results[name] = {
@@ -1152,6 +1182,13 @@ class InferenceEngine:
                     model_quality.get("online_adapter_applied", False)
                 ),
             }
+
+        if decision.execute and decision.predicted_gesture in {"left", "right", "up", "down"}:
+            if not direction_details.get("continued_direction", False):
+                session.last_screen_direction = decision.predicted_gesture
+                session.last_screen_direction_at = now
+        elif decision.execute:
+            session.last_screen_direction = None
 
         follow = session.follow_object.observe(
             decision.predicted_gesture,

@@ -56,7 +56,9 @@ def main() -> None:
     print(f"Commands ({len(config.class_names)}):")
     for gesture in config.class_names:
         print(f"  {gesture:<12} -> {config.gesture_to_action[gesture]}")
-    print("Open Palm works pointing up, left, or right; downward poses are rejected.\n")
+    print("Dorsal: four straight fingers together, thumb beside index.")
+    print("Dorsal pauses below the waist with a relaxed hanging arm.")
+    print("Face filtering removed: gestures can qualify in front of the face.\n")
 
     status = engine.status()
     if not status.get("ready"):
@@ -64,7 +66,7 @@ def main() -> None:
         return
 
     print("Models loaded successfully!")
-    print("Press 'q' or 'ESC' in the camera window to exit.\n")
+    print("Press 'q' or 'ESC' to exit; press 'r' to reset hand selection.\n")
 
     if args.source == "ncm":
         print("Connecting to USB-NCM camera at 192.168.50.2:5000...")
@@ -72,7 +74,7 @@ def main() -> None:
         client = NcmCameraClient(ncm_config)
         client.start()
         
-        window_title = "ONNX Gesture Recognition - USB-NCM Camera (Press 'q' to exit)"
+        window_title = "ONNX Gesture Recognition - USB-NCM Camera (q: exit, r: reset)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
@@ -95,7 +97,7 @@ def main() -> None:
                             2,
                         )
                         cv2.imshow(window_title, display)
-                        if cv2.waitKey(30) & 0xFF in (ord("q"), 27):
+                        if _handle_key(cv2.waitKey(30), session):
                             break
                     continue
 
@@ -108,7 +110,7 @@ def main() -> None:
                     _draw_overlay(frame, result)
                     cv2.imshow(window_title, frame)
 
-                if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
+                if _handle_key(cv2.waitKey(1), session):
                     break
         finally:
             client.stop()
@@ -122,7 +124,7 @@ def main() -> None:
             print(f"Error: Could not open webcam at index {args.webcam_id}.")
             return
 
-        window_title = "ONNX Gesture Recognition - PC Webcam (Press 'q' to exit)"
+        window_title = "ONNX Gesture Recognition - PC Webcam (q: exit, r: reset)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
@@ -142,12 +144,20 @@ def main() -> None:
                 _draw_overlay(frame, result)
                 cv2.imshow(window_title, frame)
 
-                if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
+                if _handle_key(cv2.waitKey(1), session):
                     break
         finally:
             cap.release()
             cv2.destroyAllWindows()
             engine.close()
+
+
+def _handle_key(key: int, session: RuntimeSession) -> bool:
+    key &= 0xFF
+    if key == ord("r"):
+        session.reset()
+        print("Hand selection reset; hold a clear gesture to select the visible hand.")
+    return key in (ord("q"), 27)
 
 
 HAND_CONNECTIONS = [
@@ -497,6 +507,8 @@ def _draw_overlay(
     cv2.rectangle(frame, (0, h - bar_h), (w, h), (18, 18, 18), -1)
     cv2.line(frame, (0, h - bar_h), (w, h - bar_h), (45, 45, 45), 1)
     selection_text = selection.get("message", "Automatic hand selection")
+    if selection.get("reason") == "active_hand_missing":
+        selection_text += " Press R to reset now."
     label = f"{len(hands)} hand(s) | {selection_text}"
     text_width = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, .45, 1)[0][0]
     text_scale = min(.45, .45 * max(100, w - 24) / max(text_width, 1))

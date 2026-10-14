@@ -1,5 +1,6 @@
 from io import BytesIO
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -85,12 +86,17 @@ def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp
 
 def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_angles():
     plan = collection_plan()
-    assert len(plan) == 81
+    assert len(plan) == 133
+    assert len({step['id'] for step in plan}) == len(plan)
     assert all(step['target'] == 12 for step in plan)
-    assert all(step['per_hand_target'] == 6 for step in plan if step['view'] not in {'background', 'face_ear'})
-    assert all(step['per_orientation_target'] == 3 for step in plan if step['view'] not in {'background', 'face_ear'})
-    assert all(step['per_hand_target'] is None for step in plan if step['view'] in {'background', 'face_ear'})
-    assert all(step['per_orientation_target'] is None for step in plan if step['view'] in {'background', 'face_ear'})
+    assert all(step['per_hand_target'] == 6 and step['per_orientation_target'] == 3
+               for step in plan if step['hand_mode'] == 'single')
+    assert all(step['per_hand_target'] is None and step['per_orientation_target'] is None
+               for step in plan if step['hand_mode'] in {'none', 'both'})
+    assert {step['group'] for step in plan if step['label'] == 'no_gesture'} == {
+        'No hand', 'Unrelated hand shapes', 'Near-command shapes', 'Resting Dorsal', 'Resting Fist',
+        'Incidental pointing', 'Occlusion and motion', 'Two hands',
+    }
 
 
 def test_summary_counts_each_hand_angle_and_delete_last_removes_image_and_label(tmp_path):
@@ -269,7 +275,33 @@ def test_raw_only_images_are_reported_without_fabricating_training_features(tmp_
     data, audit = load_collection_dataset(tmp_path)
     assert data['X'].shape == (0, 76)
     assert audit['raw_images'] == 1
-    assert audit['raw_cases_for_review'][0]['reason'] == 'needs_landmark_extraction'
+    assert audit['raw_cases_for_review'] == []
+    assert audit['excluded_by_design'][0]['training_use'] == 'detector_only'
+
+
+@pytest.mark.parametrize('view', ['seated_fingers_over_edge', 'seated_fist_on_desk',
+                                   'index_resting_on_desk', 'both_hands_relaxed'])
+def test_context_negatives_are_saved_but_not_fitted_as_single_hand_shapes(tmp_path, view):
+    from backend.geometry import landmarks_to_feature
+    from research.collection_dataset import load_collection_dataset
+
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    points = representative_hand()
+    store.observe(1, jpeg_bytes(), dict(landmarks=points.tolist(),
+                                        feature_vector=landmarks_to_feature(points).tolist()))
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id=f'no_gesture/{view}',
+                       handedness='both' if view == 'both_hands_relaxed' else 'right',
+                       finger_orientation='none' if view == 'both_hands_relaxed' else 'toward_camera')
+    metadata = json.loads(Path(saved['image_path']).with_suffix('.json').read_text(encoding='utf-8'))
+    assert metadata['training_use'] == 'context_only'
+    assert metadata['hand_mode'] == ('both' if view == 'both_hands_relaxed' else 'single')
+    data, audit = load_collection_dataset(tmp_path)
+    assert data['X'].shape == (0, 76)
+    assert audit['raw_images'] == 1
+    assert audit['raw_cases_for_review'] == []
+    assert audit['excluded_by_design'][0]['training_use'] == 'context_only'
 
 
 def test_tracking_gap_does_not_rearm_a_held_action_too_soon():

@@ -519,7 +519,6 @@ export default function Dashboard() {
         context.fill();
       });
       const handState = selected ? 'selected'
-        : hand.reason === 'dorsal_below_waist' ? 'dorsal below waist / no gesture'
         : hand.reason === 'relaxed_hand_near_hip_or_thigh' ? 'resting / no gesture' : 'observed';
       const label = `${hand.handedness ?? 'Hand'}${hand.track_id ? ` #${hand.track_id}` : ''} · ${handState}`;
       context.font = `${Math.max(11, size / 34)}px sans-serif`;
@@ -1492,11 +1491,11 @@ export default function Dashboard() {
             <aside className="result-stack">
               <article className="result-card">
                 <p>AUTOMATIC HAND SELECTION</p>
-                <strong>{prediction.hand_selection?.selected_track_id != null
-                  ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
-                <span>{prediction.hand_selection?.message ?? 'Show either hand. A clearly closer gesture hand is preferred when both qualify.'}</span>
+                <strong>{(prediction.hand_selection?.selected_track_id ?? prediction.hand_selection?.active_track_id) != null
+                  ? `Hand #${prediction.hand_selection?.selected_track_id ?? prediction.hand_selection?.active_track_id}` : 'Waiting for a clear hand'}</strong>
+                <span>{prediction.hand_selection?.message ?? 'Bring one clear hand forward. Selection resets when its hand disappears.'}</span>
                 <span>Closeness uses apparent palm size; camera depth is not measured.</span>
-                <span>Dorsal below the waist is treated as no gesture when body posture is visible. Clear listed gestures can qualify beside the face.</span>
+                <span>Matching hand distances pause both gestures. Dorsal pauses only below the waist with a relaxed hanging arm. Raised or deliberately bent arms remain eligible.</span>
               </article>
               <article className="result-card accent-mint">
                 <p>RUNTIME PREDICTION</p><strong>{humanize(runtimeGesture)}</strong>
