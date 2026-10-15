@@ -31,8 +31,8 @@ def test_shipped_classifier_commands_survive_live_selection_and_reacquisition(
         label, index, side, shipped_manager, monkeypatch):
     """Fixed recorded 2D samples through ONNX and the actual live pipeline.
 
-    The world joints are a planar fixture for the depth availability contract;
-    this smoke test does not claim measured depth or image detection accuracy.
+    The world joints are synthetic for the depth availability contract; this
+    smoke test does not claim measured depth or image detection accuracy.
     """
     import cv2
     from backend.config import PROJECT_ROOT
@@ -48,7 +48,12 @@ def test_shipped_classifier_commands_survive_live_selection_and_reacquisition(
     points *= 160 / max(np.ptp(points, axis=0))
     points += [200, 300]
     points /= [640, 480]
-    world = np.column_stack((points - points[0], np.zeros(21)))
+    world_depth = np.zeros(21)
+    if label == "fist":
+        palm_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+        palm_unit = palm_axis / np.linalg.norm(palm_axis)
+        world_depth = (points - points[0]) @ palm_unit * .17
+    world = np.column_stack((points - points[0], world_depth))
     engine = InferenceEngine.__new__(InferenceEngine)
     engine.config = shipped_manager.config
     engine.model_manager = shipped_manager

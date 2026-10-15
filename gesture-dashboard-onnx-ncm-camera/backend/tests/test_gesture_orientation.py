@@ -1,4 +1,4 @@
-"""Real hand shape remains valid when its screen/depth orientation changes.
+"""Screen rotation preserves shape; camera-facing depth controls Fist.
 
 These are synthetic landmark regressions, not pixel replays of the supplied
 camera images. Context (waist, face contact, ownership) is tested separately.
@@ -65,7 +65,7 @@ def assert_held_geometry_recovers(config, probabilities, details, gesture):
 @pytest.mark.parametrize("angle", SCREEN_ANGLES)
 @pytest.mark.parametrize("mirror", [False, True])
 @pytest.mark.parametrize("surface,label", [("dorsal", "dorsal"), ("palmar", "open_palm")])
-def test_four_extended_fingers_accept_every_screen_rotation_and_both_hands(angle, mirror, surface, label):
+def test_four_extended_fingers_respect_surface_and_dorsal_direction(angle, mirror, surface, label):
     hand = four_finger_hand()
     if surface == "dorsal":
         hand[1:5] = [[.46, .83], [.425, .76], [.42, .68], [.42, .60]]
@@ -79,6 +79,12 @@ def test_four_extended_fingers_accept_every_screen_rotation_and_both_hands(angle
     config, probabilities, details = resolve(points, "like", handedness=handedness)
     pose = details["pose_validation"]
     assert details["hand_shape"]["hand_surface"] == surface
+    if surface == "dorsal" and not details["hand_shape"]["dorsal_allowed_direction"]:
+        assert not pose["valid"]
+        decision = TemporalGate(config).update(
+            probabilities, now=1., **gate_arguments(details, dict(known_gesture_mass=.20)))
+        assert decision.predicted_gesture == "no_gesture"
+        return
     assert pose["valid"] and pose["geometry_supported"]
     assert pose["gesture"] == label
     assert config.class_names[int(probabilities.argmax())] == label
@@ -88,7 +94,10 @@ def test_four_extended_fingers_accept_every_screen_rotation_and_both_hands(angle
 def rotated_closed_fist(angle, tilt, axis, mirror):
     """Apply actual rigid 3D rotations before projecting the closed joints."""
     original = closed_hand_pose(thumb_down=False)
-    world = np.column_stack((original - original[0], np.zeros(21)))
+    palm_axis = original[[5, 9, 13, 17]].mean(axis=0) - original[0]
+    palm_unit = palm_axis / np.linalg.norm(palm_axis)
+    forward_depth = (original - original[0]) @ palm_unit * .17
+    world = np.column_stack((original - original[0], forward_depth))
     radians = np.deg2rad(tilt)
     cosine, sine = np.cos(radians), np.sin(radians)
     depth_rotation = (
@@ -124,10 +133,11 @@ def test_closed_fist_accepts_every_screen_rotation_with_world_joints(angle, mirr
 @pytest.mark.parametrize("tilt", [-65, -35, 35, 65])
 @pytest.mark.parametrize("axis", ["x", "y"])
 @pytest.mark.parametrize("mirror", [False, True])
-def test_closed_fist_depth_rotation_toward_or_away_does_not_block_its_shape(tilt, axis, mirror):
+def test_closed_fist_depth_rotation_rejects_away_views(tilt, axis, mirror):
     points, world = rotated_closed_fist(0, tilt, axis, mirror)
     config, probabilities, details = resolve(points, "fist", world=world)
-    assert details["pose_validation"]["valid"]
+    faces_camera = details["hand_shape"]["fist_depth_alignment"] >= .08
+    assert details["pose_validation"]["valid"] is faces_camera
     assert details["pose_validation"]["gesture"] == "fist"
     assert config.class_names[int(probabilities.argmax())] == "fist"
 
@@ -144,7 +154,10 @@ def test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_th
         original = data["landmarks"][2900].copy()
     for angle in range(0, 360, 45):
         points = rotate_screen(original, angle)
-        world = np.column_stack((points - points[0], np.zeros(21)))
+        palm_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+        palm_unit = palm_axis / np.linalg.norm(palm_axis)
+        world = np.column_stack((points - points[0],
+                                 (points - points[0]) @ palm_unit * .17))
         probabilities, _, _, quality = manager.predict_detailed(landmarks_to_feature(points))
         resolved, details = GeometryResolver(config).resolve(
             probabilities, points, handedness="Right", handedness_confidence=.99,

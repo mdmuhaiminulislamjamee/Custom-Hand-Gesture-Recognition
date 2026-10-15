@@ -85,7 +85,7 @@ def rotate_to_xy(points, xy):
     return (points - points[0]) @ rotation.T + points[0]
 
 
-@pytest.mark.parametrize('xy', [0, 1, 15, 30, 67, 90, 120, 149, 150])
+@pytest.mark.parametrize('xy', [0, 1, 15, 30, 67, 90, 120, 149])
 @pytest.mark.parametrize('mirror', [False, True])
 def test_reported_dorsal_accepts_rotated_four_finger_shape_with_low_mass(xy, mirror):
     points = reported_dorsal()
@@ -116,22 +116,28 @@ def test_reported_dorsal_accepts_rotated_four_finger_shape_with_low_mass(xy, mir
     assert decision.known_gesture_mass == .05
 
 
-@pytest.mark.parametrize('xy', [-90, -1, 151, 180])
-def test_dorsal_accepts_angles_previously_rejected_by_screen_range(xy):
+@pytest.mark.parametrize('xy', [-90, -35, -1, 151, 180])
+def test_dorsal_rejects_hand_outside_command_direction(xy):
     config = RuntimeConfig()
     points = rotate_to_xy(reported_dorsal(), xy)
     hand = next(hand for hand in ('Left', 'Right')
                 if hand_surface_orientation(points, hand, .99)['dorsal_visible'])
     row = np.eye(len(config.class_names))[config.class_to_idx['dorsal']]
-    _, details = GeometryResolver(config).resolve(
+    resolved, details = GeometryResolver(config).resolve(
         row, points, handedness=hand, handedness_confidence=.99,
         world_landmarks=world_for_image(points),
     )
-    # Latest policy restricts Dorsal only through relaxed below-waist arm
-    # context. A screen direction by itself does not make the pose idle.
-    assert details['pose_validation']['valid']
+    assert not details['pose_validation']['valid']
     assert details['pose_validation']['gesture'] == 'dorsal'
-    assert details['pose_validation']['dorsal_range_recovery']
+    assert not details['pose_validation']['dorsal_range_recovery']
+    assert not details['hand_shape']['dorsal_allowed_direction']
+    decision = TemporalGate(config).update(
+        resolved, now=1., known_gesture_mass=0.,
+        pose_valid=details['pose_validation']['valid'],
+        geometry_supported=details['pose_validation']['geometry_supported'],
+        dorsal_range_recovery=details['pose_validation']['dorsal_range_recovery'],
+    )
+    assert decision.predicted_gesture == 'no_gesture'
 
 
 @pytest.mark.parametrize('variant', ['palmar', 'unknown_surface', 'curled'])
@@ -162,8 +168,8 @@ def test_low_mass_dorsal_recovery_requires_verified_back_and_four_extended_finge
         assert not decision.execute
 
 
-@pytest.mark.parametrize('world_xy', [-90, -30, 160, 180])
-def test_dorsal_world_axis_angle_does_not_veto_verified_finger_shape(world_xy):
+@pytest.mark.parametrize('world_xy', [-90, -35, -30, 160, 180])
+def test_dorsal_world_axis_angle_vetoes_even_verified_finger_shape(world_xy):
     config = RuntimeConfig()
     points = reported_dorsal()
     hand = next(hand for hand in ('Left', 'Right')
@@ -173,9 +179,9 @@ def test_dorsal_world_axis_angle_does_not_veto_verified_finger_shape(world_xy):
         row, points, handedness=hand, handedness_confidence=.99,
         world_landmarks=world_for_image(rotate_to_xy(points, world_xy)),
     )
-    assert details['pose_validation']['valid']
+    assert not details['pose_validation']['valid']
     assert details['pose_validation']['gesture'] == 'dorsal'
-    assert details['pose_validation']['dorsal_range_recovery']
+    assert not details['pose_validation']['dorsal_range_recovery']
 
 
 @pytest.mark.parametrize('finger', [5, 9, 13, 17])

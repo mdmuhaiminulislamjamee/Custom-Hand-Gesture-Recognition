@@ -36,15 +36,16 @@ Recalibrate any saved range calibration that was made with the old central crop.
   Only that nearer hand is passed to gesture recognition; a farther gesture
   cannot beat a nearer idle or blocked hand. Choice must persist for at least
   **3 observations and 0.25 seconds**. The gesture has its own hold.
-- Similar projected scales (within **1.05 times**) or, on fallback, similar
-  apparent palm sizes immediately stop recognition from both hands,
-  clear ownership and all holds, and require fresh confirmation afterward.
-  This uses current measurements; filtered size history cannot delay the stop
-  when the selected hand moves back beside the other.
-- When the other hand moves in front, the previous gesture stops immediately.
-  The new foreground hand takes ownership after the distance hold, even if its
-  gesture is still being checked. Only the selected hand can show a recognized
-  gesture; inactive previews remain `no_gesture`.
+- Similar projected scales or a small, uncertain difference keep an already
+  selected hand active while its track is clear. Without an existing owner,
+  neither hand is selected until one moves clearly forward. Uncertain track
+  assignment still pauses actions.
+- When the other hand appears clearly in front, the selected hand stays visible
+  while the challenger is checked. New actions pause during this check. The
+  challenger takes ownership only after **3 observations and 0.25 seconds** of
+  a sustained lead; a one-frame size spike cannot switch hands. Only the
+  selected hand can show a recognized gesture; inactive previews remain
+  `no_gesture`.
 - An invalid but physically tracked foreground hand remains selected but does
   not produce an action. If it disappears for **0.80 seconds**, selection resets
   even when another hand remains visible. That hand must complete a fresh
@@ -58,11 +59,13 @@ Recalibrate any saved range calibration that was made with the old central crop.
 - Selection uses the same temporal gap policy as gesture confirmation. Valid
   observations arriving 350–499 ms apart no longer reset the selection hold on
   every frame.
-- An intermediate projected scale difference (**1.05–1.10 times**), inconsistent
-  segment ratios, or uncertain track assignment
-  pause recognition without transferring selection. Uncertain distance does
-  not establish equality, so an existing track is retained until comparison
-  becomes reliable or the equal-distance reset/owner-absence timeout occurs.
+- An intermediate projected scale difference (**1.05–1.10 times**) or a
+  similarly small, inconsistent palm-size difference keeps a clearly tracked
+  owner. A larger but inconsistent difference or uncertain track assignment
+  pauses actions without transferring ownership.
+- If two hands were recently tracked and a frame finds only one, the detector
+  attempts its bounded second pass on that frame. Recovery still requires
+  fresh landmarks; missing hands cannot produce a gesture action.
 - Live selection requires at least **18 palm pixels**, **40 hand-span pixels**,
   and **12 pixels along the short side** of the hand. Dorsal additionally requires
   **24 palm pixels**. These checks use analysis-image pixels before recovery crop
@@ -92,8 +95,9 @@ Suggested live checks, in both the BAT camera and dashboard:
 4. Bring one hand clearly forward and hold. Expect selection after confirmation.
 5. Swap screen positions without overlapping, then overlap/cross the hands. Expect
    stable identities while separated and no action during uncertain overlap.
-6. Move the selected hand back to the other hand's apparent size. Expect an
-   immediate stop and cleared ownership, then a fresh hold after separation.
+6. Move the selected hand back to the other hand's apparent size. Expect it to
+   remain selected while both hands are clearly tracked. Cross or overlap the
+   hands so identity becomes uncertain; expect actions to pause.
 7. Hide the selected hand while the peer stays visible. Expect a brief pause,
    then a fresh selection and gesture hold after 0.80 seconds. If the selected
    hand remains physically tracked but its gesture is invalid, expect it to

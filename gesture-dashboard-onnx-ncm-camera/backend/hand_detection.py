@@ -13,7 +13,7 @@ from .body_guard import (BodyGuard, POSE_MODEL_NAME, RESTING_HAND_REASON,
 
 DETECTOR_SETTINGS = {
     "maximum_hands": 2,
-    "live_hand_selection": "foreground-hand tracking; hand switch on distance reversal; equal-distance reset",
+    "live_hand_selection": "foreground-hand tracking; confirmed hand switch; retain clear owner near equal distance",
     "live_minimum_palm_pixels": 18,
     "live_minimum_dorsal_palm_pixels": 24,
     "running_mode": "VIDEO with IMAGE recovery",
@@ -258,6 +258,7 @@ class HandDetector:
                               row["recovery_score"] < 1 and row["rejection_reason"] not in context_vetoes
                               for row in rows)
                           or state.get("view") is not None
+                          or len(rows) < state.get("expected_hands", 0)
                           or (len(rows) < 2 and state["frames"] % 3 == 0))
         if needs_recovery and time.perf_counter() - started < .055:
             views = self._search_views(rgb_image.shape)

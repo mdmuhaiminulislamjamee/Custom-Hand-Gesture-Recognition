@@ -37,14 +37,15 @@ def test_deliberate_dorsal_and_chin_rest_across_views(angle, mirror, scale, inte
     resolved, details = GeometryResolver(config).resolve(
         probabilities, points, handedness=side, handedness_confidence=.99)
     assert details["hand_shape"]["dorsal_deliberate_shape"] is intentional
-    assert details["pose_validation"]["valid"] is intentional
+    expected = intentional and details["hand_shape"]["dorsal_allowed_direction"]
+    assert details["pose_validation"]["valid"] is expected
     gate = TemporalGate(config)
     for timestamp in (1., 1.1, 1.2, 1.3, 1.6):
         decision = gate.update(resolved, now=timestamp,
             **gate_arguments(details, dict(known_gesture_mass=1.)))
-        if not intentional:
+        if not expected:
             assert decision.predicted_gesture == "no_gesture" and not decision.execute
-    if intentional:
+    if expected:
         assert decision.predicted_gesture == "dorsal"
 
 

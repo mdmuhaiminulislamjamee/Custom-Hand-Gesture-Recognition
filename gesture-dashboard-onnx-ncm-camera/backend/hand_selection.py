@@ -2,8 +2,9 @@
 
 Apparent hand scale is a relative closeness cue, never a metric depth measurement.
 Compare both physical hands before gesture qualification. The foreground hand
-owns recognition after a brief distance hold; equality pauses both hands, and a
-change of foreground hand clears the previous gesture history.
+owns recognition after a brief distance hold. When the hands return to the same
+distance, a clearly tracked owner keeps control; a change of foreground hand
+clears the previous gesture history.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ class SelectionPolicy:
     closer_palm_ratio: float = 1.15
     closer_projected_world_ratio: float = 1.10
     equal_projected_world_ratio: float = 1.05
+    overlap_palm_ratio: float = 0.50
     choice_hold_seconds: float = 0.25
     choice_frames: int = 3
     track_expiry_seconds: float = 0.80
@@ -259,6 +261,7 @@ class AutomaticHandSelector:
 
         distance_ratio = None
         distance_method = "relative apparent hand scale; not measured depth"
+        switch_pending = False
 
         def result(selected, reason, message):
             # The inactive hand may build its own gate internally, but its
@@ -268,12 +271,15 @@ class AutomaticHandSelector:
                     preview.update(gesture=self.config.reject_label, confidence=0., eligible=False)
             if selected is not None:
                 previews[selected]["selected"] = True
+                if switch_pending:
+                    previews[selected]["eligible"] = False
             return (None if selected is None else rows[selected], dict(
                 reason=reason, message=message,
                 selected_track_id=None if selected is None else previews[selected]["track_id"],
                 active_track_id=self.active_id, candidate_count=len(rows),
                 ownership_reset=self._ownership_reset,
                 ownership_locked=self.active_id is not None,
+                switch_pending=switch_pending,
                 distance_method=distance_method,
                 distance_scale_ratio=distance_ratio,
                 closer_palm_ratio=self.policy.closer_palm_ratio,
@@ -290,6 +296,16 @@ class AutomaticHandSelector:
         for row in rows:
             row["identity_reacquired"] = False
         keys, ambiguous = self._associate([rows[i] for i in trackable], dimensions)
+        if len(physical) == 2:
+            first, second = (rows[i] for i in physical)
+            palm_separation = float(np.linalg.norm(
+                (palm_center(first) - palm_center(second)) * dimensions))
+            larger_palm = max(first["metrics"]["palm_scale_px"],
+                              second["metrics"]["palm_scale_px"])
+            if palm_separation < self.policy.overlap_palm_ratio * larger_palm:
+                _, overlap_reason, _, _ = self._compare_two_hands(rows, physical, dimensions)
+                if overlap_reason:
+                    ambiguous = True
         if (len(physical) == 2
                 and all(rows[i].get("handedness_confidence", 0) >= .75 for i in physical)
                 and rows[physical[0]].get("handedness") == rows[physical[1]].get("handedness")):
@@ -329,20 +345,25 @@ class AutomaticHandSelector:
             return result(None, "active_hand_expired",
                           "Previous hand left; hold a clear gesture to select the visible hand.")
         nearer_index = None
+        retained_owner = False
         if len(physical) == 2:
-            # Current measurements must stop recognition immediately when a
-            # hand returns to its peer's scale; an EMA may still look near.
             nearer_index, distance_reason, distance_ratio, distance_method = self._compare_two_hands(
                 rows, physical, dimensions)
-            if distance_reason:
-                if distance_reason == "hands_same_distance":
-                    self._release_ownership()
-                else:
-                    self._clear_pending()
-                    for track in self.tracks.values():
-                        track.gate.reset()
+            # Small scale changes near a decision threshold must not make an
+            # established, clearly tracked owner disappear for one frame.
+            closer_ratio = (self.policy.closer_projected_world_ratio
+                            if distance_method == "projected world landmarks"
+                            else self.policy.closer_palm_ratio)
+            retained_owner = (distance_reason is not None and not ambiguous
+                              and self.active_id in current
+                              and (distance_reason == "hands_same_distance"
+                                   or distance_ratio < closer_ratio))
+            if distance_reason and not retained_owner and not ambiguous:
+                self._clear_pending()
+                for track in self.tracks.values():
+                    track.gate.reset()
                 return result(None, distance_reason,
-                              "Hands are at similar distance. Bring one hand clearly forward."
+                              "Hands are at similar distance. Bring one hand clearly forward to select it."
                               if distance_reason == "hands_same_distance" else
                               "Hand distance is uncertain. Keep both hands visible and bring one clearly forward.")
 
@@ -406,9 +427,21 @@ class AutomaticHandSelector:
         # confidence. A nearer hand with an unclear pose may pause its own
         # command, but must never leave the farther hand in control.
         nearer_key = next((key for key, i in current.items() if i == nearer_index), None)
+        switch_confirmed = False
         if (nearer_index is not None and not ambiguous and self.active_id is not None
                 and self.active_id != nearer_key):
+            if nearer_key is None:
+                self._clear_pending()
+                return result(None, "nearer_hand_unusable", "The closer hand is not fully visible.")
+            if not self._confirm_choice(nearer_key, now):
+                switch_pending = True
+                if self.active_id in current:
+                    return result(current[self.active_id], "confirming_hand_switch",
+                                  "Following the selected hand while checking the closer hand.")
+                return result(None, "active_hand_missing", "Selected hand hidden; checking the closer hand.")
+            switch_confirmed = True
             self._release_ownership()
+            previews[nearer_index]["eligible"] = False
         if self.active_id is not None:
             active = self.tracks[self.active_id]
             if self.active_id not in current:
@@ -417,10 +450,12 @@ class AutomaticHandSelector:
             elif active.invalid_since is not None:
                 self._clear_pending()
                 return result(current[self.active_id], "active_hand_unrecognized",
-                              "Following the closer hand; checking its gesture.")
+                              "Following the selected hand; checking its gesture.")
             else:
                 self._clear_pending()
-                return result(current[self.active_id], "active_hand_locked", "Following the closer hand.")
+                return result(current[self.active_id], "active_hand_locked",
+                              "Following the selected hand while distances are close."
+                              if retained_owner else "Following the closer hand.")
 
         if nearer_index is not None:
             # Select the physical foreground hand after a short, stable depth
@@ -452,7 +487,7 @@ class AutomaticHandSelector:
                           "Move your hand closer for reliable finger detail." if small
                           else "Hold one clear gesture; checking the visible hands.")
 
-        if len(physical) > 1 and not self._confirm_choice(chosen, now):
+        if len(physical) > 1 and not switch_confirmed and not self._confirm_choice(chosen, now):
             return result(None, "confirming_hand_choice", "Confirming the gesture hand; keep holding.")
         self.active_id = chosen
         self._clear_pending()

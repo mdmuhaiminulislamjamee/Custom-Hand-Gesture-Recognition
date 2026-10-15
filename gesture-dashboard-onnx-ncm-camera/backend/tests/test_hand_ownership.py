@@ -66,8 +66,9 @@ def test_late_closer_challenger_takes_selection_after_confirmation(challenger_la
     owner = first[1]["selected_track_id"]
     challenger = observation(x=.75, scale=.65, hand="Left", label=challenger_label)
     results = feed(selector, [challenger, active], start=10, count=25)
-    assert results[0][0] is None
-    assert all(chosen is not active for chosen, _, _ in results)
+    assert results[0][0] is active
+    assert results[0][1]["switch_pending"]
+    assert not results[0][2][1]["eligible"]
     assert results[-1][0] is challenger
     assert results[-1][1]["selected_track_id"] != owner
     assert selector.active_id == results[-1][1]["selected_track_id"]
@@ -80,13 +81,14 @@ def test_previously_farther_peer_moving_forward_replaces_owner():
     owner = feed(selector, [active, peer])[-1][1]["selected_track_id"]
     advanced = observation(x=.75, scale=.9, hand="Left", label="fist")
     results = feed(selector, [advanced, active], start=10, count=15)
-    assert results[0][0] is None
+    assert results[0][0] is active
+    assert results[0][1]["switch_pending"]
     assert results[-1][0] is advanced
     assert results[-1][1]["selected_track_id"] != owner
 
 
 @pytest.mark.parametrize("returning_hand", ["owner", "peer"])
-def test_current_equal_distance_immediately_resets_owner_despite_filtered_history(returning_hand):
+def test_equal_distance_keeps_tracked_owner_despite_filtered_history(returning_hand):
     selector = AutomaticHandSelector(RuntimeConfig())
     active = observation(scale=.6, label="left")
     peer = observation(x=.75, scale=.3, hand="Left", label="fist")
@@ -96,20 +98,25 @@ def test_current_equal_distance_immediately_resets_owner_despite_filtered_histor
     equal_active = observation(scale=scale, label="left")
     equal_peer = observation(x=.75, scale=scale, hand="Left", label="fist")
     chosen, selection, previews = selector.update([equal_active, equal_peer], SHAPE, 1.)
-    assert chosen is None
-    assert selection["active_track_id"] is None and selector.active_id is None
-    assert all(not item["selected"] and not item["eligible"] for item in previews)
-    assert all(not track.gate._history for track in selector.tracks.values())
+    assert chosen is equal_active
+    assert selection["active_track_id"] == first[1]["selected_track_id"]
+    assert selector.active_id == first[1]["selected_track_id"]
+    assert not selection["ownership_reset"]
+    assert previews[0]["selected"] and not previews[1]["eligible"]
+    assert previews[1]["gesture"] == "no_gesture"
 
 
-def test_same_track_must_qualify_again_after_equal_distance_reset():
+def test_same_track_stays_selected_after_equal_distance():
     selector = AutomaticHandSelector(RuntimeConfig())
     active, peer = observation(scale=.6), observation(x=.75, scale=.3, hand="Left")
     owner = feed(selector, [active, peer])[-1][1]["selected_track_id"]
     equal = observation(scale=.3)
-    assert selector.update([equal, peer], SHAPE, 1.)[0] is None
+    chosen, selection, _ = selector.update([equal, peer], SHAPE, 1.)
+    assert chosen is equal
+    assert selection["selected_track_id"] == owner
+    assert not selection["ownership_reset"]
     returning = feed(selector, [active, peer], start=11, count=10)
-    assert all(chosen is None for chosen, _, _ in returning[:3])
+    assert all(chosen is active for chosen, _, _ in returning)
     assert returning[-1][0] is active
     assert returning[-1][1]["selected_track_id"] == owner
 
@@ -286,7 +293,7 @@ def test_invalid_cloud_does_not_count_as_second_same_distance_hand(reason):
     assert feed(selector, [active, cloud])[-1][0] is active
 
 
-def test_runtime_resets_same_identity_on_equal_distance_and_requires_fresh_confirmation(monkeypatch):
+def test_runtime_keeps_same_identity_on_equal_distance(monkeypatch):
     import cv2
     import backend.model_runtime as runtime_module
 
@@ -326,21 +333,32 @@ def test_runtime_resets_same_identity_on_equal_distance_and_requires_fresh_confi
 
     rows[:] = [observation(scale=.3), peer]
     clock[0] = 2.5
-    paused = engine.process_frame(encoded, session)
-    assert paused["runtime_prediction"] == "no_gesture"
-    assert paused["runtime_action"] == "Wait / No Action"
-    assert paused["hand_selection"]["active_track_id"] is None
-    assert session.selected_track_id is None
+    continued = engine.process_frame(encoded, session)
+    assert continued["runtime_prediction"] == "like"
+    assert continued["hand_selection"]["active_track_id"] == owner
+    assert continued["hand_selection"]["selected_track_id"] == owner
+    assert not continued["hand_selection"]["ownership_reset"]
+    assert session.selected_track_id == owner
 
     rows[:] = [active, peer]
-    for frame in range(20):
-        clock[0] = 2.6 + frame * .1
-        output = engine.process_frame(encoded, session)
-        if output["hand_selection"]["selected_track_id"] is not None:
-            assert output["hand_selection"]["selected_track_id"] == owner
-            assert output["quality"]["detector"]["reacquired"] is True
-            assert output["stable_frames"] == 1
-            assert output["runtime_action"] == "Wait / No Action"
-            break
-    else:
-        pytest.fail("Original hand did not requalify after clear separation")
+    clock[0] = 2.6
+    output = engine.process_frame(encoded, session)
+    assert output["hand_selection"]["selected_track_id"] == owner
+    assert output["quality"]["detector"]["reacquired"] is False
+
+    rows[:] = [observation(scale=.3), observation(x=.75, scale=.37, hand="Left")]
+    clock[0] = 2.7
+    spike = engine.process_frame(encoded, session)
+    assert spike["runtime_prediction"] == "like"
+    assert spike["hand_selection"]["selected_track_id"] == owner
+    assert spike["hand_selection"]["switch_pending"]
+    assert spike["runtime_action"] == "Wait / No Action"
+
+    rows[:] = [observation(scale=.3), peer]
+    clock[0] = 2.8
+    resumed = engine.process_frame(encoded, session)
+    assert resumed["runtime_prediction"] == "like"
+    assert resumed["hand_selection"]["selected_track_id"] == owner
+    assert not resumed["hand_selection"]["switch_pending"]
+    assert not resumed["hand_selection"]["ownership_reset"]
+    assert resumed["quality"]["detector"]["reacquired"] is False

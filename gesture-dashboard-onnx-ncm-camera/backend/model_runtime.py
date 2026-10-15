@@ -970,6 +970,10 @@ class InferenceEngine:
                 except ValueError:
                     return -0.5
             if isinstance(self.detector, HandDetector):
+                recent_tracks = sum(
+                    now - track.last_seen < session.hand_selector.policy.track_expiry_seconds
+                    for track in session.hand_selector.tracks.values())
+                session.hand_selector.detector_state["expected_hands"] = min(2, recent_tracks)
                 candidates = self.detector.detect_candidates(
                     rgb, state=session.hand_selector.detector_state, candidate_score=candidate_score)
                 chosen, selection, hands = session.hand_selector.update(candidates, rgb.shape, now)
@@ -1195,10 +1199,12 @@ class InferenceEngine:
         elif decision.execute:
             session.last_screen_direction = None
 
+        switch_pending = bool((detector_quality.get("selection") or {}).get("switch_pending"))
         follow = session.follow_object.observe(
             decision.predicted_gesture,
             stable=bool(
                 decision.execute
+                and not switch_pending
                 and decision.confidence >= self.config.follow_min_confidence
             ),
             confidence=decision.confidence,
@@ -1210,7 +1216,9 @@ class InferenceEngine:
         )
         runtime_action = "Wait / No Action"
         action_reason = decision.reason
-        if follow.completed:
+        if switch_pending:
+            action_reason = "confirming closer hand"
+        elif follow.completed:
             runtime_action = "Follow Object"
             action_reason = "Open Palm enabled object tracking"
         elif follow_was_active:

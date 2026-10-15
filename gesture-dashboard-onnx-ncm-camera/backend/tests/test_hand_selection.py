@@ -157,7 +157,7 @@ def test_equal_depth_valid_gestures_remain_ambiguous():
     assert results[-1][1]["reason"] == "hands_same_distance"
 
 
-def test_moderate_forward_motion_selects_right_then_left_and_equal_pauses():
+def test_moderate_forward_motion_selects_right_then_left_and_equal_keeps_left():
     selector = AutomaticHandSelector(RuntimeConfig())
     right = observation(x=.27, scale=.48, label="like")
     left = observation(x=.75, scale=.40, hand="Left", label="peace")
@@ -170,16 +170,69 @@ def test_moderate_forward_motion_selects_right_then_left_and_equal_pauses():
 
     left_front = observation(x=.75, scale=.56, hand="Left", label="peace")
     switched = feed(selector, [left_front, right], start=14, count=8)
-    assert switched[0][0] is None
+    assert switched[0][0] is right
+    assert switched[0][1]["switch_pending"]
+    assert not switched[0][2][1]["eligible"]
     assert switched[-1][0] is left_front
     assert switched[-1][2][0]["gesture"] == "peace"
     assert switched[-1][2][1]["gesture"] == "no_gesture"
 
     equal = observation(x=.75, scale=.48, hand="Left", label="peace")
     chosen, selection, previews = selector.update([right, equal], SHAPE, 2.2)
-    assert chosen is None
-    assert selection["reason"] == "hands_same_distance"
-    assert all(not hand["eligible"] for hand in previews)
+    assert chosen is equal
+    assert selection["reason"] == "active_hand_locked"
+    assert selection["selected_track_id"] == switched[-1][1]["selected_track_id"]
+    assert previews[0]["gesture"] == "no_gesture"
+    assert previews[1]["selected"]
+
+    right_front = observation(x=.27, scale=.65, label="like")
+    switched_back = feed(selector, [right_front, equal], start=23, count=8)
+    assert switched_back[0][0] is equal
+    assert switched_back[0][1]["switch_pending"]
+    assert switched_back[-1][0] is right_front
+    assert switched_back[-1][1]["selected_track_id"] != selection["selected_track_id"]
+
+
+def test_equal_distance_owner_survives_single_frame_closeness_spikes():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    owner = observation(scale=.6)
+    peer = observation(x=.75, scale=.3, hand="Left")
+    owner_id = feed(selector, [owner, peer])[-1][1]["selected_track_id"]
+    level_owner = observation(scale=.5)
+    level_peer = observation(x=.75, scale=.5, hand="Left")
+    assert feed(selector, [level_owner, level_peer], start=10, count=3)[-1][0] is level_owner
+
+    apparent_challenger = observation(x=.75, scale=.59, hand="Left")
+    for frame in range(13, 29):
+        peer_row = apparent_challenger if frame % 2 else level_peer
+        chosen, selection, previews = selector.update(
+            [level_owner, peer_row], SHAPE, frame * .1)
+        assert chosen is level_owner
+        assert selection["selected_track_id"] == owner_id
+        assert not selection["ownership_reset"]
+        assert previews[1]["gesture"] == "no_gesture"
+        if frame % 2:
+            assert selection["switch_pending"]
+            assert not previews[0]["eligible"]
+        else:
+            assert not selection["switch_pending"]
+
+
+def test_borderline_world_scale_keeps_clear_owner():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    owner = observation(scale=.6)
+    peer = observation(x=.75, scale=.3, hand="Left")
+    owner_id = feed(selector, [owner, peer])[-1][1]["selected_track_id"]
+    level_owner = projected_world(observation(scale=.5), 1200.)
+    slightly_larger_peer = projected_world(
+        observation(x=.75, scale=.5, hand="Left"), 1280.)
+    chosen, selection, _ = selector.update(
+        [slightly_larger_peer, level_owner], SHAPE, 1.)
+    assert chosen is level_owner
+    assert selection["selected_track_id"] == owner_id
+    assert selection["distance_method"] == "projected world landmarks"
+    assert selection["distance_scale_ratio"] < selector.policy.closer_projected_world_ratio
+    assert not selection["ownership_reset"]
 
 
 def test_close_together_hands_still_select_the_foreground_when_tracks_are_distinct():
@@ -206,7 +259,8 @@ def test_overlap_suppresses_actions_without_transferring_identity():
     rows = [observation(x=.4), observation(x=.41, hand="Left")]
     overlapped = selector.update(rows, SHAPE, 1.0)
     assert overlapped[0] is None
-    assert overlapped[1]["reason"] == "hands_same_distance"
+    assert overlapped[1]["reason"] == "ambiguous_tracks"
+    assert overlapped[1]["active_track_id"] == first[1]["selected_track_id"]
     assert all(not hand["selected"] for hand in overlapped[2])
     returned = selector.update([observation()], SHAPE, 1.1)
     assert returned[1]["selected_track_id"] == first[1]["selected_track_id"]
@@ -233,8 +287,9 @@ def test_closer_challenger_switches_the_first_successful_owner():
     original = feed(selector, [active])[-1]
     challenger = observation(x=.75, scale=.65, hand="Left")
     results = feed(selector, [active, challenger], start=10, count=9)
-    assert results[0][0] is None
-    assert results[0][1]["ownership_reset"]
+    assert results[0][0] is active
+    assert results[0][1]["switch_pending"]
+    assert not results[0][1]["ownership_reset"]
     assert results[-1][0] is challenger
     assert results[-1][1]["selected_track_id"] != original[1]["selected_track_id"]
 
@@ -312,6 +367,27 @@ def test_detector_keeps_full_frame_pass_and_deduplicates_recovery(monkeypatch):
     assert seen[0][0] == full and seen[2][0] == full
 
 
+def test_detector_recovers_recently_tracked_second_hand_on_first_dropout(monkeypatch):
+    detector = simulated_detector()
+    owner = observation(scale=.5)
+    peer = observation(x=.75, scale=.5, hand="Left")
+    full = (0, 0, 640, 480, 0, 0)
+    seen = []
+
+    def candidates(rgb, view, *, video):
+        seen.append(view)
+        rows = [peer] if view == full else [owner]
+        return [(r["area"], r["points"], None, None) for r in rows]
+
+    monkeypatch.setattr(detector, "_run_candidates", candidates)
+    state = {"shape": (480, 640), "frames": 0, "expected_hands": 2}
+    rows = detector.detect_candidates(
+        np.zeros(SHAPE, np.uint8), state=state, candidate_score=lambda row: 1)
+    assert len(seen) == 2
+    assert seen[0] == full
+    assert len(rows) == 2
+
+
 def test_runtime_switches_to_closer_challenger(monkeypatch):
     import cv2
     import backend.model_runtime as runtime_module
@@ -333,8 +409,10 @@ def test_runtime_switches_to_closer_challenger(monkeypatch):
     engine.detector = simulated_detector()
     engine.detector._last_diagnostics = {}
     rows = [observation()]
+    expected_counts = []
 
     def detect(rgb, *, state, candidate_score):
+        expected_counts.append(state.get("expected_hands"))
         for row in rows:
             candidate_score(row)
         engine.detector._last_diagnostics = {"candidate_count": len(rows)}
@@ -351,6 +429,8 @@ def test_runtime_switches_to_closer_challenger(monkeypatch):
         outputs.append(engine.process_frame(encoded, session))
     assert outputs[-1]["hand_selection"]["selected_track_id"] == 1
     assert any(r["runtime_action"] != "Wait / No Action" for r in outputs)
+    session.last_action_gesture = None
+    session.last_action_at = -10.
     rows.append(observation(x=.75, scale=.8, hand="Left"))
     outputs = []
     for i in range(6, 20):
@@ -358,10 +438,14 @@ def test_runtime_switches_to_closer_challenger(monkeypatch):
         output = engine.process_frame(encoded, session)
         outputs.append(output)
         assert len(output["hands"]) == 2
-    assert outputs[0]["runtime_prediction"] == "no_gesture"
+    assert outputs[0]["runtime_prediction"] == "like"
+    assert outputs[0]["hand_selection"]["switch_pending"]
+    assert outputs[0]["diagnostics"]["ONNX"]["execute"]
+    assert outputs[0]["runtime_action"] == "Wait / No Action"
     assert outputs[-1]["hand_selection"]["selected_track_id"] != 1
     assert outputs[-1]["runtime_prediction"] == "left"
     assert outputs[-1]["hands"][0]["gesture"] == "no_gesture"
+    assert expected_counts[-1] == 2
 
 
 def test_runtime_classifies_current_finger_pose_after_landmark_filter_accepts_it(monkeypatch):

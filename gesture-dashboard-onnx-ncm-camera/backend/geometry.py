@@ -1037,9 +1037,11 @@ class GeometryResolver:
                 if float(np.linalg.norm(world_xy)) > 1e-8:
                     dorsal_axis = world_xy
         dorsal_xy = float(np.degrees(np.arctan2(dorsal_axis[1], dorsal_axis[0])))
-        # Dorsal is a hand surface/shape, not a fixed camera-angle command.
-        # The relaxed-below-waist exclusion is applied by the body guard.
-        dorsal_allowed_direction = True
+        # The downward/back-of-hand command occupies the forward and lower
+        # screen semicircle. A sideways raised hand can have the same surface
+        # and nearly parallel fingers, especially when the model reports no
+        # known-gesture mass; it must not recover as Dorsal.
+        dorsal_allowed_direction = -1e-4 <= dorsal_xy <= 150.0001
         # Check finger shape in a palm-aligned frame so sideways/downward
         # rotations retain the same extension/togetherness requirements.
         dorsal_rotation = np.pi / 2 - np.arctan2(palm_axis[1], palm_axis[0])
@@ -1264,10 +1266,9 @@ class GeometryResolver:
             and float(non_thumb.mean()) <= .38
             and extensions[0] <= .85
         )
-        # A closed fist can show either its knuckles or the opposite side to
-        # the camera. The two observed NCM views below have different signed
-        # depth, so depth alone cannot veto a fist. Keep narrow 3-D cones for
-        # these views and still require the fingers and thumb to be tucked.
+        # A closed silhouette is only a Fist command when its wrist-to-knuckle
+        # axis points toward the camera. The same 2-D shape from the reverse
+        # view must be rejected, even at high classifier confidence.
         fist_depth_alignment = None
         fist_side_view_alignment = None
         reported_reverse_alignment = None
@@ -1341,6 +1342,7 @@ class GeometryResolver:
         )
         fist_depth_allowed = bool(
             (fist_depth_alignment is not None or not require_fist_depth)
+            and (fist_depth_alignment is None or fist_depth_alignment >= .08)
         )
         fist_allowed_direction = fist_depth_allowed
         fist_valid = bool(
@@ -1428,6 +1430,8 @@ class GeometryResolver:
             reason = "pose geometry accepted"
         elif raw == "fist" and require_fist_depth and fist_depth_alignment is None:
             reason = "fist depth landmarks unavailable"
+        elif raw == "fist" and not fist_allowed_direction:
+            reason = "fist fingers face away from the camera"
         elif raw == "like" and not like_finger_shape:
             reason = "like requires the thumb to lead and other fingers to stay folded"
         elif raw == "dorsal" and not deliberate_dorsal:
@@ -1486,8 +1490,10 @@ class GeometryResolver:
             "fist_reported_side_alignment": reported_side_alignment,
             "fist_reported_side_geometry": reported_side_fist_geometry,
             "fist_tilted_side_alignment": tilted_side_alignment,
-            "fist_rejected_view_alignment": None,
-            "fist_rejected_view": False,
+            "fist_rejected_view_alignment": fist_depth_alignment,
+            "fist_rejected_view": bool(
+                fist_depth_alignment is not None and not fist_allowed_direction
+            ),
             "fist_foreshortened_relabel": fist_foreshortened_relabel,
             "fist_retracted_finger_count": int(
                 foreshortened_fist["retracted_finger_count"]

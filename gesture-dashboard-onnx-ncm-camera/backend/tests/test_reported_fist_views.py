@@ -14,11 +14,11 @@ import backend.model_runtime as runtime_module
 from backend.tests.test_geometry import fist_at_xy_angle
 
 
-@pytest.mark.parametrize('xy,zx', [(-61, 142), (-64, 40), (-64, 140)])
+@pytest.mark.parametrize('xy,zx', [(-61, 142), (-64, 140), (-80, 164)])
 @pytest.mark.parametrize('confidence', [.96, .995, 1.0])
-def test_webcam_keeps_a_held_fist_when_only_its_world_view_changes(monkeypatch, xy, zx, confidence):
+def test_webcam_releases_fist_when_fingers_turn_away(monkeypatch, xy, zx, confidence):
     config = load_runtime_config()
-    points, accepted_world = fist_at_xy_angle(-130, -.575)
+    points, accepted_world = fist_at_xy_angle(-72, .17)
     depth_ratio = np.cos(np.deg2rad(xy)) / np.tan(np.deg2rad(zx))
     _, rotated_world = fist_at_xy_angle(xy, depth_ratio)
     row = np.zeros(len(config.class_names))
@@ -30,8 +30,8 @@ def test_webcam_keeps_a_held_fist_when_only_its_world_view_changes(monkeypatch, 
     engine._lock = threading.Lock()
     engine.resolver = GeometryResolver(config)
     detector = SimpleNamespace(ready=True, current_world=accepted_world)
-    # Hold the closed image track fixed to exercise a lagging smoother. The
-    # latest policy accepts a verified closed fist at every world orientation.
+    # Hold the closed image track fixed to exercise a lagging smoother. Depth
+    # must still reject the opposite view despite identical 2-D geometry.
     detector.detect = lambda image: points
     detector.world_landmarks = lambda: detector.current_world
     detector.diagnostics = lambda: {}
@@ -57,17 +57,19 @@ def test_webcam_keeps_a_held_fist_when_only_its_world_view_changes(monkeypatch, 
         monkeypatch.setattr(runtime_module.time, 'monotonic', lambda: now)
         result = engine.process_frame(frame, session)
         assert result['raw_prediction'] == 'fist'
-        assert result['runtime_prediction'] == 'fist'
+        assert result['runtime_prediction'] == 'no_gesture'
         assert result['runtime_action'] == 'Wait / No Action'
-        assert len(result['display_landmarks']) == 21
-        assert result['action_reason'] == 'duplicate command suppressed'
-        assert result['diagnostics']['ONNX']['prediction'] == 'fist'
+        assert result['display_landmarks'] == []
+        assert result['diagnostics']['ONNX']['prediction'] == 'no_gesture'
 
-    # Changing back preserves the held Fist and its command suppression. A
-    # camera angle change does not count as releasing and reissuing a command.
+    # A forward-facing pose becomes visible again but still needs a fresh
+    # stable hold before it can execute an action.
     detector.current_world = accepted_world
     monkeypatch.setattr(runtime_module.time, 'monotonic', lambda: 2.1)
     result = engine.process_frame(frame, session)
     assert result['runtime_prediction'] == 'fist'
     assert result['runtime_action'] == 'Wait / No Action'
-    assert result['action_reason'] == 'duplicate command suppressed'
+    for now in (2.2, 2.3, 2.4):
+        monkeypatch.setattr(runtime_module.time, 'monotonic', lambda: now)
+        result = engine.process_frame(frame, session)
+    assert result['runtime_prediction'] == 'fist'
