@@ -72,6 +72,52 @@ def simulated_detector():
     return detector
 
 
+def test_mediapipe_video_receives_recorded_clock_with_strict_ordering():
+    from types import SimpleNamespace
+    import threading
+    detector = HandDetector.__new__(HandDetector)
+    timestamps = []
+    detector._timestamp_lock = threading.Lock()
+    detector._last_timestamp_ms = -1
+    detector._last_diagnostics = {}
+    detector._mp = SimpleNamespace(Image=lambda **kwargs: kwargs,
+                                   ImageFormat=SimpleNamespace(SRGB="RGB"))
+    detector._landmarker = SimpleNamespace(detect_for_video=lambda image, timestamp:
+        (timestamps.append(timestamp) or SimpleNamespace(hand_landmarks=[])))
+    rgb = np.zeros((4, 4, 3), dtype=np.uint8)
+    for frame_time in (1000., 1000.2, 1000.2):
+        detector._frame_time = frame_time
+        detector._run_candidates(rgb, (0, 0, 4, 4, 0, 0), video=True)
+    assert timestamps == [1000000, 1000200, 1000201]
+
+
+def test_missing_pose_model_preserves_the_hand_detector_for_other_gestures(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import sys
+    import backend.hand_detection as module
+    vision = SimpleNamespace(
+        RunningMode=SimpleNamespace(VIDEO="video", IMAGE="image"),
+        HandLandmarkerOptions=lambda **kwargs: kwargs,
+        HandLandmarker=SimpleNamespace(create_from_options=lambda options:
+                                      SimpleNamespace(close=lambda: None)),
+    )
+    fake_mp = SimpleNamespace(tasks=SimpleNamespace(
+        BaseOptions=lambda **kwargs: kwargs, vision=vision))
+    monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
+    monkeypatch.setattr(module, "BodyGuard", lambda _: SimpleNamespace(
+        detector=None, error="Missing pose model", close=lambda: None))
+    model_path = tmp_path / "hand_landmarker.task"
+    model_path.write_bytes(b"hand-model-fixture")
+    detector = HandDetector(model_path, use_body_context=True)
+    try:
+        assert detector.ready
+        assert detector.error is None
+        assert detector._body_guard.detector is None
+        assert detector._body_guard.error == "Missing pose model"
+    finally:
+        detector.close()
+
+
 def test_recovery_prioritizes_central_side_views_without_expanding_search_set():
     detector = simulated_detector()
     height, width = 480, 640

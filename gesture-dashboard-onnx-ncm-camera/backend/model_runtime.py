@@ -18,7 +18,7 @@ from .follow_object import FollowObjectStateMachine
 from .geometry import GeometryResolver, landmarks_to_feature
 from .runtime import TemporalGate
 from .hand_detection import HandDetector, DETECTOR_SETTINGS
-from .body_guard import dorsal_body_rejection
+from .body_guard import DORSAL_CONTEXT_VETOES, dorsal_body_rejection
 from .hand_selection import AutomaticHandSelector, gate_arguments
 
 
@@ -876,9 +876,12 @@ class InferenceEngine:
         model_name: str | None = None,
         *,
         center_crop_ratio: float | None = None,
+        now: float | None = None,
     ) -> dict[str, Any]:
         total_started = time.perf_counter()
-        now = time.monotonic()
+        now = time.monotonic() if now is None else float(now)
+        if not np.isfinite(now) or now < 0:
+            raise ValueError("Frame time must be a finite nonnegative timestamp.")
         actual_fps = session.record_frame(now)
         try:
             import cv2
@@ -974,6 +977,7 @@ class InferenceEngine:
                     now - track.last_seen < session.hand_selector.policy.track_expiry_seconds
                     for track in session.hand_selector.tracks.values())
                 session.hand_selector.detector_state["expected_hands"] = min(2, recent_tracks)
+                session.hand_selector.detector_state["frame_time"] = now
                 candidates = self.detector.detect_candidates(
                     rgb, state=session.hand_selector.detector_state, candidate_score=candidate_score)
                 chosen, selection, hands = session.hand_selector.update(candidates, rgb.shape, now)
@@ -1095,7 +1099,7 @@ class InferenceEngine:
                         valid=False, reason="Move closer: dorsal hand has insufficient finger detail")
                 # Final smoothed landmarks can change the label from the one
                 # used to select the hand. Only final Dorsal is subject to the
-                # relaxed-arm below-waist rule.
+                # Dorsal body/presentation requirements.
                 context_reason = dorsal_body_rejection(
                     detector_quality.get("selected_body_context"),
                     self.config.class_names[int(np.argmax(resolved_rows[name]))])
@@ -1117,7 +1121,8 @@ class InferenceEngine:
             and direction_details.get("strong_geometry", False)
             and direction_details.get("model_supported_pose", False)
         )
-        if not pose_validation.get("valid", True):
+        if (not pose_validation.get("valid", True)
+                and pose_validation.get("reason") not in DORSAL_CONTEXT_VETOES):
             if isinstance(self.detector, HandDetector):
                 session.hand_selector.detector_state["pose_recovery_requested"] = True
             elif hasattr(self.detector, "request_pose_recovery"):

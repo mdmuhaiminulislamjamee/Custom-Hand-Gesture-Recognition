@@ -65,7 +65,7 @@ NEGATIVE_GROUPS = (
         ("relaxed_hand", "Show a loose, partly curled hand that is clearly neither a closed fist nor four straight Dorsal fingers."),
         ("thumb_little_sign", "Extend thumb and little finger while folding the others. This retired sign is not a command."),
         ("partial_fist", "Partly curl the fingers without closing a full Fist or opening the palm."),
-        ("downward_fist", "Make a closed fist with its palm axis pointing down. This is not a Fist command in this application."),
+        ("downward_fist", "Make a closed fist with its fingers directed down and away from the camera. The invalid view, rather than screen-down position alone, makes this no_gesture."),
         ("bent_index", "Bend the index finger halfway while keeping the others relaxed; do not point in a command direction."),
         ("three_fingers", "Extend three fingers with the others folded; avoid the two-finger Peace and four-finger Dorsal shapes."),
         ("four_fingers_spread", "Show four loosely spread fingers with the thumb tucked; avoid a together-finger Dorsal or full Open Palm."),
@@ -74,7 +74,7 @@ NEGATIVE_GROUPS = (
         ("crossed_fingers", "Cross index and middle fingers; keep the remaining fingers folded. This is not Peace."),
     )),
     ("Near-command shapes", "single", "hand_classifier", "Make the stated difference from the command obvious in the saved frame. Retake any image that could fairly be labeled as a real command.", (
-        ("index_middle_together", "Extend index and middle fingers close together, without the V separation required for Peace."),
+        ("index_middle_together", "Extend index and middle fingers close together. Straight touching fingers can be valid Peace; retain this ambiguous boundary for review, excluded from classifier negative training."),
         ("thumb_up_half", "Raise the thumb only partway or diagonally while the other fingers remain loose; do not form Like."),
         ("thumb_down_half", "Lower the thumb only partway or diagonally while the other fingers remain loose; do not form Thumb Down."),
         ("palm_thumb_tucked", "Show the palm with four fingers extended but the thumb clearly tucked; this is not a five-finger Open Palm."),
@@ -86,6 +86,7 @@ NEGATIVE_GROUPS = (
         ("fist_one_finger_loose", "Curl most fingers but leave the ring or little finger clearly partly open; do not make a closed Fist."),
     )),
     ("Resting Dorsal", "single", "context_only", "Capture ordinary rest, not an intentional command. Include shoulder, elbow and wrist when possible; vary seated and standing views.", (
+        ("dorsal_body_not_visible", "Show a Dorsal-like hand while shoulder, elbow or waist is cropped. Strict Dorsal requires observable body presentation, so the runtime must reject this case."),
         ("standing_arm_hanging", "Stand naturally with one arm hanging and the back of its relaxed hand toward the camera."),
         ("standing_hand_on_thigh", "Stand with a relaxed hand resting against the hip or thigh, fingers dropping downward."),
         ("seated_hand_on_lap", "Sit with a relaxed hand lying on the lap, back of hand visible."),
@@ -97,6 +98,7 @@ NEGATIVE_GROUPS = (
         ("hand_on_mouse", "Rest the hand naturally on a mouse without making a command."),
     )),
     ("Resting Fist", "single", "context_only", "Capture ordinary rest or grasping, not an intentional command. A closed hand alone can look identical to Fist.", (
+        ("fist_fingers_away", "Close the hand with its fingers facing away from the camera. This is not an accepted Fist command; retain the full image and orientation for context verification."),
         ("standing_loose_fist", "Stand with a loosely closed hand hanging at the side."),
         ("seated_fist_on_lap", "Sit with a naturally closed hand resting on the lap."),
         ("seated_fist_on_desk", "Sit with a naturally closed hand resting on the desk."),
@@ -143,9 +145,9 @@ def collection_plan():
             "down": "Point ONLY the index finger downward. Fold the middle, ring, and little fingers.",
             "open_palm": "Show your palm with all five fingers visible. Point up, left, or right; never down. Vary the wrist angle across captures.",
             "like": "Give a thumbs-up with the other four fingers folded.",
-            "dorsal": "Show the back of the hand with four fingers together pointing down.",
+            "dorsal": "Present the back of the hand above the waist with four fingers together pointing down. Keep shoulder, elbow, wrist and hip visible. A hanging or folded resting arm is not a command.",
             "ok": "Join thumb and index into a circle; extend the other three fingers.",
-            "fist": "Close all four fingers into the palm and keep the thumb naturally across them. Capture both hands pointing up, left, and right; do not label downward poses as Fist.",
+            "fist": "Close all four fingers into the palm and keep the thumb naturally across them. Present the fingers toward the camera, including oblique angles with both hands. Fingers facing away are no_gesture.",
             "thumb_down": "Point the thumb downward and keep the other four fingers folded.",
             "peace": "Extend index and middle fingers as a V. Fold ring and little fingers; vary wrist direction.",
             "rock": "Extend index and little finger. Fold middle and ring fingers. The thumb may be folded or extended.",
@@ -154,15 +156,19 @@ def collection_plan():
             plan.append(dict(id=f"{label}/{view}", label=label, title=LABEL_TITLES[label],
                              view=view, instruction=instruction, variation=VIEWS[view],
                              group="Commands", hand_mode="single", training_use="hand_classifier",
-                             target=12, per_hand_target=6, per_orientation_target=3))
+                             allowed_orientations=["toward_camera"] if label == "fist" else sorted(FINGER_ORIENTATIONS),
+                             target=12, per_hand_target=6, per_orientation_target=6 if label == "fist" else 3))
     for group, hand_mode, training_use, variation, cases in NEGATIVE_GROUPS:
         for view, instruction in cases:
             single = hand_mode == "single"
             plan.append(dict(id=f"no_gesture/{view}", label="no_gesture", title="No gesture",
                              view=view, instruction=instruction, variation=variation,
-                             group=group, hand_mode=hand_mode, training_use=training_use,
+                             group=group, hand_mode=hand_mode,
+                             training_use="context_only" if view in {"index_middle_together", "downward_fist"} else training_use,
+                             allowed_orientations=(["away_from_camera"] if view in {"fist_fingers_away", "downward_fist"}
+                                                   else sorted(FINGER_ORIENTATIONS)) if single else [],
                              target=12, per_hand_target=6 if single else None,
-                             per_orientation_target=3 if single else None))
+                             per_orientation_target=(6 if view in {"fist_fingers_away", "downward_fist"} else 3) if single else None))
     return plan
 
 
@@ -431,6 +437,10 @@ class CollectionStore:
         step = next((s for s in collection_plan() if s["id"] == step_id), None)
         if step is None:
             raise ValueError("Unknown collection prompt.")
+        if step["label"] == "fist" and finger_orientation == "away_from_camera":
+            raise ValueError("Fingers facing away are no_gesture. Use the reverse-facing Fist negative prompt.")
+        if step["view"] in {"fist_fingers_away", "downward_fist"} and finger_orientation == "toward_camera":
+            raise ValueError("Reverse-facing Fist negatives must have their fingers away from the camera.")
         if handedness not in {"left", "right", "both", "none", "unspecified"} or finger_orientation not in {*FINGER_ORIENTATIONS, "none", "unspecified"} or lighting not in {"normal", "dim", "backlit"} or distance not in {"near", "medium", "far"}:
             raise ValueError("Unknown recording condition.")
         with self._lock:

@@ -209,7 +209,10 @@ class TemporalGate:
         )
         expanded_thumb_fallback = bool(
             expanded_thumb_direction_recovery and geometry_supported and directional_recovery
-            and geometry_gesture in {"left", "right"} and known_gesture_mass >= .01
+            # The HUD rounds mass to two decimals: a displayed 0.01 may be
+            # as low as 0.005. This exception requires the strict thumb and
+            # single-index silhouette in addition to a longer hold.
+            and geometry_gesture in {"left", "right"} and known_gesture_mass >= .005
         )
         continued_direction_fallback = bool(
             continued_direction_recovery and geometry_supported and directional_recovery

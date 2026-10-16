@@ -1,7 +1,8 @@
 """Regression for removal of the former trouser-area restriction."""
 import pytest
 
-from backend.body_guard import RESTING_HAND_REASON, body_hand_context, dorsal_body_rejection
+from backend.body_guard import (RESTING_HAND_REASON, DORSAL_BODY_REQUIRED_REASON,
+                                body_hand_context, dorsal_body_rejection)
 from backend.config import RuntimeConfig
 from backend.tests.test_body_context_policy import SHAPE, standing_case
 
@@ -22,8 +23,8 @@ def test_raised_dorsal_has_no_expanded_trouser_buffer(height):
     assert dorsal_body_rejection(context, "dorsal") is None
 
 
-def test_legacy_trouser_context_flags_do_not_reject_other_gestures_or_raised_dorsal():
+def test_legacy_trouser_flags_do_not_prove_dorsal_presentation_or_reject_other_gestures():
     old = dict(near_trouser_region=True, hand_points_downward=True,
                below_waist=False, relaxed=False)
     for label in RuntimeConfig().class_names:
-        assert dorsal_body_rejection(old, label) is None
+        assert dorsal_body_rejection(old, label) == (DORSAL_BODY_REQUIRED_REASON if label == "dorsal" else None)

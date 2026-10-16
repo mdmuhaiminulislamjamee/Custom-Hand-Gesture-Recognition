@@ -6,7 +6,7 @@ import { validPlaneAngles, type PlaneAngles } from './landmark-angles';
 type Handedness = 'left' | 'right';
 type FingerOrientation = 'toward_camera' | 'away_from_camera';
 export type CameraSource = 'ncm' | 'webcam';
-type Step = { id: string; label: string; title: string; view: string; instruction: string; variation: string; group: string; hand_mode: 'single' | 'both' | 'none'; training_use: 'hand_classifier' | 'context_only' | 'detector_only'; target: number; per_hand_target: number | null; per_orientation_target: number | null };
+type Step = { id: string; label: string; title: string; view: string; instruction: string; variation: string; group: string; hand_mode: 'single' | 'both' | 'none'; training_use: 'hand_classifier' | 'context_only' | 'detector_only'; target: number; per_hand_target: number | null; per_orientation_target: number | null; allowed_orientations?: FingerOrientation[] };
 type HandCounts = { left?: number; right?: number; both?: number; none?: number; unspecified?: number };
 type OrientationCounts = { toward_camera?: number; away_from_camera?: number; none?: number; unspecified?: number };
 type RecentSample = { sample_id: string; label: string; view: string; handedness: string; finger_orientation?: string; image_path: string };
@@ -58,6 +58,7 @@ const orientationLabels: Record<string, string> = {
   unspecified: 'Angle not recorded',
 };
 const orientationLabel = (value?: string) => orientationLabels[value ?? 'unspecified'] ?? pretty(value ?? 'unspecified');
+const allowedOrientations = (step: Step | undefined): FingerOrientation[] => step?.allowed_orientations?.length ? step.allowed_orientations : step?.label === 'fist' ? ['toward_camera'] : ['toward_camera', 'away_from_camera'];
 const handCountsFor = (summary: Summary | null, step: Step | undefined) => ({
   left: step ? summary?.counts_by_hand?.[step.id]?.left ?? 0 : 0,
   right: step ? summary?.counts_by_hand?.[step.id]?.right ?? 0 : 0,
@@ -70,7 +71,7 @@ const stepComplete = (summary: Summary, step: Step) => {
   if (step.per_orientation_target) {
     return (['right', 'left'] as Handedness[]).every(hand => {
       const orientations = orientationCountsFor(summary, step, hand);
-      return orientations.toward_camera >= step.per_orientation_target! && orientations.away_from_camera >= step.per_orientation_target!;
+      return allowedOrientations(step).every(orientation => orientations[orientation] >= step.per_orientation_target!);
     });
   }
   return (summary.counts[step.id] ?? 0) >= step.target;
@@ -79,7 +80,7 @@ const preferredCombination = (summary: Summary, step: Step | undefined): { hand:
   if (!step?.per_orientation_target) return { hand: 'right', orientation: 'toward_camera' };
   for (const hand of ['right', 'left'] as Handedness[]) {
     const counts = orientationCountsFor(summary, step, hand);
-    for (const orientation of ['toward_camera', 'away_from_camera'] as FingerOrientation[]) {
+    for (const orientation of allowedOrientations(step)) {
       if (counts[orientation] < step.per_orientation_target) return { hand, orientation };
     }
   }
@@ -96,7 +97,7 @@ const gestureGuides: Record<string, GestureGuide> = {
   like: { src: '/gesture-guides/thumbs-up.png', alt: 'Thumbs-up with the other four fingers folded' },
   dorsal: { src: '/gesture-guides/dorsal.png', alt: 'Back of the hand with four fingers together and pointing down' },
   ok: { src: '/gesture-guides/ok.png', alt: 'OK sign with thumb and index finger forming a circle' },
-  fist: { symbol: '✊', alt: 'Closed fist with all four fingers folded into the palm' },
+  fist: { symbol: '✊', alt: 'Closed fist with all four fingers folded into the palm and presented toward the camera at an allowed angle' },
   peace: { symbol: '✌', alt: 'Index and middle fingers extended as a V in any direction' },
   rock: { symbol: '🤘', alt: 'Index and little finger extended; thumb may be folded or extended' },
   thumb_down: { src: '/gesture-guides/thumbs-up.png', alt: 'Thumb pointing downward with the other four fingers folded' },
@@ -110,7 +111,7 @@ const negativeGuides: Record<string, GestureGuide> = {
   relaxed_hand: { src: '/gesture-guides/relaxed-hand-negative.png', alt: 'Relaxed loosely curled hand; this is not a command' },
   thumb_little_sign: { symbol: '🤙', alt: 'Thumb and little finger extended; this is not a command' },
   partial_fist: { symbol: '○', alt: 'Four fingers partly raised or bent; this is not a closed fist command' },
-  downward_fist: { symbol: '✊', alt: 'Closed fist pointing down; this is not a command' },
+  downward_fist: { symbol: '✊', alt: 'Closed fist with the fingers directed down and away from the camera; this is not a command' },
 };
 const negativeGroupSymbols: Record<string, string> = {
   'No hand': '○', 'Unrelated hand shapes': '✋', 'Near-command shapes': '◇', 'Resting Dorsal': '↘',
@@ -302,6 +303,42 @@ export default function DataCollection({
     finally { setBusy(false); setCountdown(null); }
   }, [api, cameraSource, captureWebcamFrame, request]);
 
+  async function uploadPhoto(file?: File) {
+    if (!file || !participant || !step || busy || snapshot) return;
+    setBusy(true); setError(''); setMessage('');
+    const generation = ++captureGeneration.current;
+    let bitmap: ImageBitmap | null = null;
+    try {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/bmp'].includes(file.type.toLowerCase()) && !(file.type === '' && /\.(jpe?g|png|webp|bmp)$/i.test(file.name))) {
+        throw new Error('Choose a JPEG, PNG, WebP, or BMP photo.');
+      }
+      if (!file.size || file.size > 20_000_000) throw new Error('Choose a nonempty photo no larger than 20 MB.');
+      bitmap = await createImageBitmap(file);
+      if (!bitmap.width || !bitmap.height) throw new Error('The photo has invalid dimensions.');
+      const scale = Math.min(1, 2560 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('This browser could not prepare the photo.');
+      context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const jpeg = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('The photo could not be converted to JPEG.')), 'image/jpeg', .93));
+      if (jpeg.size > 8_000_000) throw new Error('The converted photo exceeds 8 MB. Resize it and upload it again.');
+      if (generation !== captureGeneration.current) return;
+      const form = new FormData();
+      form.append('image', jpeg, `${file.name.replace(/\.[^.]+$/, '') || 'uploaded-photo'}.jpg`);
+      const response = await fetch(`${api}/api/collection/image-preview?source=${cameraSource}`, { method: 'POST', body: form });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload.detail === 'string' ? payload.detail : 'The uploaded photo could not be prepared for review.');
+      if (generation === captureGeneration.current) {
+        setSnapshot(payload as Snapshot);
+        setMessage(`Photo prepared for review as ${cameraSource === 'webcam' ? 'PC webcam' : 'NCM board camera'} data. Confirm the human label before saving.`);
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'The photo could not be opened.'); }
+    finally { bitmap?.close(); setBusy(false); }
+  }
+
   const save = useCallback(async () => {
     if (!snapshot || !step) return;
     setBusy(true); setError('');
@@ -411,6 +448,7 @@ export default function DataCollection({
   return <div hidden={!active} className="collection-page">
     <div className="section-heading"><div><p className="eyebrow">05 · TRAINING IMAGES</p><h2>Data Collection</h2><p className="collection-intro">Collect commands, ordinary resting poses, and difficult no-gesture scenes. You can jump straight to a section below.</p></div>
       <div className="heading-actions">
+        <label className="secondary-button file-button" aria-disabled={busy || !participant || !step || !!snapshot}>Upload photo<input type="file" accept="image/jpeg,image/png,image/webp,image/bmp" aria-label="Upload a photo for the current collection prompt" disabled={busy || !participant || !step || !!snapshot} onChange={event => { void uploadPhoto(event.target.files?.[0]); event.target.value = ''; }} /></label>
         <label className="camera-source-control">Camera source<select aria-label="Data collection camera source" value={cameraSource} disabled={connected || busy} onChange={event => setCameraSource(event.target.value as CameraSource)}><option value="ncm">NCM board camera</option><option value="webcam">PC webcam</option></select></label>
         <button type="button" className="primary-button" disabled={!ready || busy} onClick={toggleCamera}>{connected ? `Disconnect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}` : `Connect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}`}</button>
       </div></div>
@@ -422,7 +460,7 @@ export default function DataCollection({
           <label>Continue a participant<select aria-label="Continue a participant" value={participant} disabled={busy || !!snapshot} onChange={e => { if (e.target.value) void selectParticipant(e.target.value); }}><option value="">Select a person</option>{summary?.participants.map(id => <option key={id} value={id}>{id}</option>)}</select></label>
           <form onSubmit={e => { e.preventDefault(); void selectParticipant(newParticipant); }}><label>New participant ID<input aria-label="New participant ID" placeholder="person-001" maxLength={48} value={newParticipant} disabled={busy || !!snapshot} onChange={e => setNewParticipant(e.target.value)} /></label><button className="secondary-button wide" disabled={!newParticipant.trim() || busy || !!snapshot}>Create / open participant</button></form>
           <p className="collection-help">Use the same ID for the same person on every visit. Use IDs instead of names, and collect with their permission. Photos may include faces and stay on this PC.</p>
-          <div className="collection-condition-grid"><label>Hand shown<select value={singleHand ? handedness : step?.hand_mode === 'both' ? 'both' : 'none'} disabled={!singleHand || busy || !!snapshot} onChange={e => setHandedness(e.target.value as Handedness)}>{singleHand ? <><option value="right">Right hand</option><option value="left">Left hand</option></> : <option value={step?.hand_mode === 'both' ? 'both' : 'none'}>{step?.hand_mode === 'both' ? 'Both hands' : 'No hand required'}</option>}</select></label><label>Finger angle<select value={singleHand ? fingerOrientation : 'none'} disabled={!singleHand || busy || !!snapshot} onChange={e => setFingerOrientation(e.target.value as FingerOrientation)}>{singleHand ? <><option value="toward_camera">Toward camera</option><option value="away_from_camera">Away from camera</option></> : <option value="none">Not applicable</option>}</select></label></div>
+          <div className="collection-condition-grid"><label>Hand shown<select value={singleHand ? handedness : step?.hand_mode === 'both' ? 'both' : 'none'} disabled={!singleHand || busy || !!snapshot} onChange={e => setHandedness(e.target.value as Handedness)}>{singleHand ? <><option value="right">Right hand</option><option value="left">Left hand</option></> : <option value={step?.hand_mode === 'both' ? 'both' : 'none'}>{step?.hand_mode === 'both' ? 'Both hands' : 'No hand required'}</option>}</select></label><label>Finger angle<select value={singleHand ? fingerOrientation : 'none'} disabled={!singleHand || busy || !!snapshot} onChange={e => setFingerOrientation(e.target.value as FingerOrientation)}>{singleHand ? allowedOrientations(step).map(orientation => <option key={orientation} value={orientation}>{orientation === 'toward_camera' ? 'Toward camera' : 'Away from camera'}</option>) : <option value="none">Not applicable</option>}</select></label></div>
           <div className="collection-condition-grid"><label>Lighting<select value={lighting} disabled={busy || !!snapshot} onChange={e => setLighting(e.target.value)}><option value="normal">Normal</option><option value="dim">Dim</option><option value="backlit">Window behind</option></select></label><label>Distance<select value={distance} disabled={busy || !!snapshot} onChange={e => setDistance(e.target.value)}><option value="near">Near</option><option value="medium">Medium</option><option value="far">Far</option></select></label></div>
           <label>Notes (optional)<textarea value={note} disabled={busy || !!snapshot} maxLength={500} onChange={e => setNote(e.target.value)} placeholder="e.g. index finger missed at this angle" /></label>
         </div>
@@ -435,7 +473,7 @@ export default function DataCollection({
             {step.training_use !== 'hand_classifier' && <small>{step.training_use === 'context_only' ? 'Posture/context example: saved for future context-aware training and testing; excluded from single-hand classifier training.' : 'Detector/tracking example: saved as a reviewed raw image; excluded from single-hand classifier training.'}</small>}
             {step.per_orientation_target ? <div className="collection-hand-options" role="group" aria-label="Choose the hand and finger angle to collect">
               {(['right', 'left'] as Handedness[]).map(hand => <section key={hand} className={handedness === hand ? 'active' : ''}><header><span>{hand === 'right' ? 'R' : 'L'}</span><strong>{hand === 'right' ? 'Right hand' : 'Left hand'}</strong><small>{handCounts[hand]} / {step.per_hand_target}</small></header><div>
-                {(['toward_camera', 'away_from_camera'] as FingerOrientation[]).map(orientation => {
+                {allowedOrientations(step).map(orientation => {
                   const orientationCounts = orientationCountsFor(summary, step, hand);
                   const activeChoice = handedness === hand && fingerOrientation === orientation;
                   return <button key={orientation} type="button" className={activeChoice ? 'active' : ''} aria-pressed={activeChoice} disabled={busy || !!snapshot} onClick={() => { setHandedness(hand); setFingerOrientation(orientation); }}><span aria-hidden="true">{orientation === 'toward_camera' ? '⇣' : '⇡'}</span><strong>{orientationLabel(orientation)}</strong><small>{orientationCounts[orientation]} / {step.per_orientation_target}</small></button>;
@@ -460,7 +498,7 @@ export default function DataCollection({
           <div className="collection-preview">
             <div className="collection-preview-pane collection-image-preview">
               <span className="collection-preview-label">{snapshot ? 'CAPTURED IMAGE' : connected && active ? 'LIVE CAMERA' : 'CAMERA'}</span>
-              {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? cameraSource === 'webcam' ? <WebcamPreview stream={webcamStream} /> : <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live NCM board camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect the camera to begin</strong><p>Select a participant, follow the prompt, and capture an image.</p></div>}
+              {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? cameraSource === 'webcam' ? <WebcamPreview stream={webcamStream} /> : <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live NCM board camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect a camera or upload a photo</strong><p>Select a participant, follow the prompt, and capture or upload an image. Uploaded photos enter the same label review before saving.</p></div>}
             </div>
             <HandLandmarkPreview landmarks={displayedLandmarks} angles={displayedAngles} expectHand={requiresHands} />
             {countdown !== null && <div className="collection-countdown" role="status">{countdown}</div>}

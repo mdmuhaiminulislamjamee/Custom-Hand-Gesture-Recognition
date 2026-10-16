@@ -1,9 +1,10 @@
-"""Identify relaxed hanging and folded arms from confident body landmarks.
+"""Require a visible, presented arm for Dorsal commands.
 
 This is a posture rule, not clothing segmentation or measured hand/body depth.
 It uses current hand pixels against confident arm/torso landmarks. Only a
-Dorsal gesture on a relaxed arm below the waist is suppressed. The pose
-cache belongs to a camera session; no body observations cross camera streams.
+Dorsal gesture needs positive presentation evidence; missing body observations
+and relaxed hanging or folded arms are rejected. The pose cache belongs to a
+camera session; no body observations cross camera streams.
 """
 from __future__ import annotations
 
@@ -17,6 +18,12 @@ import numpy as np
 POSE_MODEL_NAME = "pose_landmarker_lite.task"
 POSE_MODEL_SHA256 = "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
 RESTING_HAND_REASON = "relaxed_hand_near_hip_or_thigh"
+DORSAL_BODY_REQUIRED_REASON = "dorsal_requires_body_context"
+DORSAL_PRESENTATION_REQUIRED_REASON = "dorsal_requires_presented_hand"
+DORSAL_CONTEXT_VETOES = frozenset({RESTING_HAND_REASON, DORSAL_BODY_REQUIRED_REASON,
+                                  DORSAL_PRESENTATION_REQUIRED_REASON})
+DORSAL_MAX_WRIST_HEIGHT = .85
+DORSAL_MAX_PALM_HEIGHT = -.05
 ARM_POSTURE_CONFIDENCE = .65
 RELAXED_ELBOW_MIN_ANGLE_DEG = 135.
 HANGING_UPPER_ARM_MIN_DOWN_ALIGNMENT = .60
@@ -126,6 +133,8 @@ def body_hand_context(points, image_shape, poses):
         folded = _folded_resting_arm(hand, shoulder, elbow, body_wrist, palm_scale)
         return dict(body_index=person, arm_side=side, below_waist=False,
                     relaxed=folded, folded_resting_arm=folded, hanging_arm=False,
+                    waist_confident=False, presentation_confident=False,
+                    dorsal_presented=False,
                     arm_confident=True, arm_landmark_indices=[shoulder_id, elbow_id, wrist_id],
                     waist_landmark_index=None, wrist_below_waist=False,
                     elbow_angle_deg=None, upper_arm_down_alignment=None,
@@ -150,12 +159,14 @@ def body_hand_context(points, image_shape, poses):
     upper_alignment = None
     lower_alignment = None
     hanging_arm = False
+    arm_geometry_valid = False
     arm_confident = _visible(pose, (shoulder_id, elbow_id, wrist_id, hip_id),
                              ARM_POSTURE_CONFIDENCE)
     if arm_confident:
         upper, lower = elbow - shoulder, body_wrist - elbow
         upper_length, lower_length = np.linalg.norm(upper), np.linalg.norm(lower)
         if min(upper_length, lower_length) >= .14 * torso:
+            arm_geometry_valid = True
             straightness = float(np.clip(np.dot(upper, lower) /
                                          (upper_length * lower_length), -1., 1.))
             elbow_angle = float(np.degrees(np.arccos(-straightness)))
@@ -175,10 +186,16 @@ def body_hand_context(points, image_shape, poses):
     folded_resting_arm = bool(arm_confident and _folded_resting_arm(
         hand, shoulder, elbow, body_wrist, palm_scale))
     relaxed = bool((hanging_arm and below_waist) or folded_resting_arm)
+    presentation_confident = bool(arm_confident and arm_geometry_valid)
+    dorsal_presented = bool(presentation_confident and not relaxed
+                            and wrist_height <= DORSAL_MAX_WRIST_HEIGHT
+                            and palm_height <= DORSAL_MAX_PALM_HEIGHT)
     return dict(body_index=person, arm_side=side,
                 below_waist=below_waist, relaxed=relaxed,
                 folded_resting_arm=folded_resting_arm,
                 hanging_arm=hanging_arm, arm_confident=arm_confident,
+                waist_confident=True, presentation_confident=presentation_confident,
+                dorsal_presented=dorsal_presented,
                 arm_landmark_indices=[shoulder_id, elbow_id, wrist_id],
                 waist_landmark_index=hip_id,
                 wrist_below_waist=wrist_below_waist,
@@ -195,16 +212,31 @@ def body_hand_context(points, image_shape, poses):
 
 
 def dorsal_body_rejection(context, label):
-    """Suppress Dorsal on a confident hanging or folded resting arm.
+    """Allow Dorsal only with confident above-waist presentation evidence.
 
-    Legacy trouser-region diagnostics have no effect. Below-waist location
-    alone is insufficient: the elbow and hanging arm must be established.
+    This defines observable command eligibility, rather than inferring intent.
+    Cropped/weak/unmatched body evidence is unknown and cannot authorize Dorsal.
+    Other gesture classes are independent of this policy.
     """
-    if (context and label == "dorsal" and (
-            (context.get("below_waist") and context.get("relaxed"))
-            or context.get("folded_resting_arm"))):
+    if label != "dorsal":
+        return None
+    if is_relaxed_context(context):
         return RESTING_HAND_REASON
+    if (not context or not context.get("arm_confident")
+            or not context.get("waist_confident")
+            or not context.get("presentation_confident")
+            or context.get("presentation_current") is False):
+        return DORSAL_BODY_REQUIRED_REASON
+    if not context.get("dorsal_presented"):
+        return DORSAL_PRESENTATION_REQUIRED_REASON
     return None
+
+
+def is_relaxed_context(context):
+    """Only measured resting evidence may enter the resting-posture cache."""
+    return bool(context and context.get("arm_confident") and (
+        (context.get("below_waist") and context.get("relaxed"))
+        or context.get("folded_resting_arm")))
 
 
 def retain_relaxed_posture(rows, image_shape, *, state, now):
@@ -237,14 +269,13 @@ def retain_relaxed_posture(rows, image_shape, *, state, now):
             context = dict(inherited["context"], posture_held=True,
                            posture_age_seconds=round(now - inherited["seen"], 3))
             row["body_context"] = context
-        if not dorsal_body_rejection(context, "dorsal"):
-            continue
-        updated.append(inherited if inherited is not None else dict(
-            wrist=np.asarray(row["points"])[0] * dimensions,
-            scale=max(float(row["metrics"]["palm_scale_px"]), 1.),
-            side=row.get("handedness"), context=dict(context), seen=now))
+        if is_relaxed_context(context):
+            updated.append(inherited if inherited is not None else dict(
+                wrist=np.asarray(row["points"])[0] * dimensions,
+                scale=max(float(row["metrics"]["palm_scale_px"]), 1.),
+                side=row.get("handedness"), context=dict(context), seen=now))
         reason = dorsal_body_rejection(context, row.get("resolved_label"))
-        if reason and row.get("rejection_reason") in {None, RESTING_HAND_REASON}:
+        if reason and row.get("rejection_reason") in {None, *DORSAL_CONTEXT_VETOES}:
             row["rejection_reason"] = reason
             row["recovery_score"] = -1.
     # A fully missed hand can return within the bounded hold. A visible hand
@@ -281,10 +312,11 @@ class BodyGuard:
         if self.detector is None:
             return [], dict(ready=False, error=self.error, body_count=0)
         import cv2
-        now = time.monotonic()
+        now = state.get("frame_time")
+        now = time.monotonic() if now is None else float(now)
         cache = state.setdefault("body_guard", {})
         shape = tuple(rgb.shape[:2])
-        if cache.get("shape") != shape:
+        if cache.get("shape") != shape or now < cache.get("attempted_at", now):
             cache.clear()
             cache["shape"] = shape
         refreshed = now - cache.get("attempted_at", float("-inf")) >= POSE_REFRESH_SECONDS
@@ -294,6 +326,7 @@ class BodyGuard:
             # Contact evidence must use fresh shared-world coordinates, never
             # the longer occlusion cache used by the waist policy.
             cache["contact_poses"] = []
+            cache["current_observed_at"] = None
             started = time.perf_counter()
             height, width = shape
             scale = min(1., 512 / max(height, width))
@@ -332,27 +365,31 @@ class BodyGuard:
                     old_scale = max(np.linalg.norm(old[23, :2] - old[11, :2]), .10)
                     replaced = any(np.linalg.norm(new[[23, 24], :2].mean(axis=0) - old_center)
                                    < .40 * old_scale for new in poses)
-                    if now - seen <= POSE_HOLD_SECONDS and not replaced:
+                    if 0 <= now - seen <= POSE_HOLD_SECONDS and not replaced:
                         retained.append((old, seen))
                 cache["recent"] = ([(pose, now) for pose in poses] + retained)[:4]
+                cache["current_observed_at"] = now
                 cache["error"] = None
             except Exception as error:
                 cache["error"] = str(error)
             duration_ms = (time.perf_counter() - started) * 1000
         recent = [(pose, seen) for pose, seen in cache.get("recent", [])
-                  if now - seen <= POSE_HOLD_SECONDS]
+                  if 0 <= now - seen <= POSE_HOLD_SECONDS]
         cache["recent"] = recent
         return [pose for pose, _ in recent], dict(
             ready=cache.get("error") is None, error=cache.get("error"), body_count=len(recent),
             refreshed=refreshed, inference_ms=round(duration_ms, 2),
             oldest_pose_age_ms=round(max((now - seen for _, seen in recent), default=0.) * 1000),
+            presentation_body_indices=[index for index, (_, seen) in enumerate(recent)
+                                       if seen == cache.get("current_observed_at")],
         )
 
     def contact_observations(self, *, state):
         cache = state.get("body_guard", {})
         if self.detector is None or cache.get("error"):
             return []
-        now = time.monotonic()
+        now = state.get("frame_time")
+        now = time.monotonic() if now is None else float(now)
         return [pose for pose in cache.get("contact_poses", [])
                 if 0 <= now - pose["observed_at"] <= .20]
 

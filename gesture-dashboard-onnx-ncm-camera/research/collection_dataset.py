@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -49,6 +50,24 @@ def load_collection_dataset(dataset_root: Path):
         if digest != row.get("image_sha256") or row.get("sample_id") != digest[:24]:
             raise ValueError(f"Image checksum mismatch: {sidecar.name}")
         key = relative.as_posix()
+        provenance = row.get("video_provenance") or {}
+        clip_id = provenance.get("clip_id")
+        if clip_id and re.fullmatch(r"[a-f0-9]{32}", str(clip_id)):
+            clip_path = root / "videos" / "clips" / clip_id / "clip.json"
+            if clip_path.is_file():
+                clip = json.loads(clip_path.read_text(encoding="utf-8"))
+                timestamp = provenance.get("timestamp_seconds")
+                current_segment = next((segment for segment in clip.get("segments", [])
+                    if isinstance(timestamp, (float, int))
+                    and segment["start"] <= timestamp < segment["end"]), None)
+                current_prompt = (None if not current_segment else
+                    f"no_gesture/{current_segment.get('negative_reason', '')}"
+                    if current_segment["label"] == "no_gesture" else
+                    f"{current_segment['label']}/casual")
+                if not clip.get("reviewed") or current_prompt != row["step_id"]:
+                    excluded.append(dict(image_path=key, training_use="superseded_video_annotation",
+                                         reason="video_label_changed_reextract_reviewed_spans"))
+                    continue
         if digest in seen:
             previous = seen[digest]
             if previous != (participant, row["label"]):
@@ -56,6 +75,10 @@ def load_collection_dataset(dataset_root: Path):
             skipped.append(dict(image_path=key, reason="duplicate_image"))
             continue
         seen[digest] = (participant, row["label"])
+        if row["label"] == "fist" and row.get("finger_orientation") == "away_from_camera":
+            excluded.append(dict(image_path=key, training_use="context_only",
+                                 reason="reverse_facing_fist_requires_orientation_review"))
+            continue
         if prompt["training_use"] != "hand_classifier":
             excluded.append(dict(image_path=key, training_use=prompt["training_use"]))
             continue

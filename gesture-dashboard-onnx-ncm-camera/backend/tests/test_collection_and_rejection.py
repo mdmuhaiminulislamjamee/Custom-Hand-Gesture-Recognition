@@ -86,11 +86,13 @@ def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp
 
 def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_angles():
     plan = collection_plan()
-    assert len(plan) == 133
+    assert len(plan) == 135
     assert len({step['id'] for step in plan}) == len(plan)
     assert all(step['target'] == 12 for step in plan)
-    assert all(step['per_hand_target'] == 6 and step['per_orientation_target'] == 3
+    assert all(step['per_hand_target'] == 6 and step['per_orientation_target'] * len(step['allowed_orientations']) == 6
                for step in plan if step['hand_mode'] == 'single')
+    assert all(step['allowed_orientations'] == ['toward_camera']
+               for step in plan if step['label'] == 'fist')
     assert all(step['per_hand_target'] is None and step['per_orientation_target'] is None
                for step in plan if step['hand_mode'] in {'none', 'both'})
     assert {step['group'] for step in plan if step['label'] == 'no_gesture'} == {
@@ -304,6 +306,51 @@ def test_context_negatives_are_saved_but_not_fitted_as_single_hand_shapes(tmp_pa
     assert audit['excluded_by_design'][0]['training_use'] == 'context_only'
 
 
+def test_reverse_facing_fist_cannot_be_saved_as_positive(tmp_path):
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    store.observe(1, jpeg_bytes(), {})
+    with pytest.raises(ValueError, match='reverse-facing Fist'):
+        store.save(token=store.freeze()['token'], participant_id='person-001',
+                   session_id='session-1', step_id='fist/casual',
+                   handedness='right', finger_orientation='away_from_camera')
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id='fist/casual',
+                       handedness='right', finger_orientation='toward_camera')
+    path = Path(saved['image_path']).with_suffix('.json')
+    metadata = json.loads(path.read_text())
+    metadata['finger_orientation'] = 'away_from_camera'
+    path.write_text(json.dumps(metadata), encoding='utf-8')
+    from research.collection_dataset import load_collection_dataset
+    data, report = load_collection_dataset(tmp_path)
+    assert len(data['y']) == 0
+    assert report['excluded_by_design'][0]['reason'] == 'reverse_facing_fist_requires_orientation_review'
+
+
+def test_video_relabeling_excludes_old_extracted_labels(tmp_path):
+    from backend.geometry import landmarks_to_feature
+    from research.collection_dataset import load_collection_dataset
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    points = representative_hand()
+    store.observe(1, jpeg_bytes(), dict(landmarks=points.tolist(),
+                                      feature_vector=landmarks_to_feature(points).tolist()))
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id='open_palm/casual')
+    path = Path(saved['image_path']).with_suffix('.json')
+    metadata = json.loads(path.read_text())
+    metadata['video_provenance'] = {'clip_id': 'a' * 32, 'timestamp_seconds': 1.0}
+    path.write_text(json.dumps(metadata), encoding='utf-8')
+    clip = tmp_path / 'videos' / 'clips' / ('a' * 32)
+    clip.mkdir(parents=True)
+    (clip / 'clip.json').write_text(json.dumps({'reviewed': True, 'segments': [
+        {'start': 0, 'end': 2, 'label': 'no_gesture', 'negative_reason': 'relaxed_hand'}
+    ]}), encoding='utf-8')
+    data, report = load_collection_dataset(tmp_path)
+    assert len(data['y']) == 0
+    assert report['excluded_by_design'][0]['training_use'] == 'superseded_video_annotation'
+
+
 def test_tracking_gap_does_not_rearm_a_held_action_too_soon():
     from backend.model_runtime import RuntimeSession
     session = RuntimeSession(RuntimeConfig(target_fps=10))
@@ -413,3 +460,30 @@ def test_collection_webcam_preview_processes_and_freezes_the_exact_uploaded_jpeg
     assert frozen['prediction'] == 'thumb_down'
     assert frozen['has_features'] is True
     assert frozen['image_url'].startswith('data:image/jpeg;base64,')
+
+
+def test_imported_photo_works_without_camera_and_normalizes_png_before_analysis(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    import backend.app as module
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-import')
+    monkeypatch.setattr(module, 'collection_store', store)
+    observed = {}
+    async def process(content, session, model_name):
+        observed['jpeg'] = content
+        return {'status': 'no_hand', 'runtime_prediction': 'no_gesture'}
+    monkeypatch.setattr(module, '_process_frame_with_limit', process)
+    png = BytesIO()
+    Image.new('RGB', (80, 60), (30, 60, 90)).save(png, 'PNG')
+    client = TestClient(module.app)
+    response = client.post('/api/collection/image-preview?source=ncm',
+                           files={'image': ('photo.png', png.getvalue(), 'image/png')})
+    assert response.status_code == 200, response.text
+    frozen = response.json()
+    assert frozen['source'] == 'ncm'
+    assert frozen['has_features'] is False
+    assert observed['jpeg'].startswith(b'\xff\xd8')
+    saved = store.save(token=frozen['token'], participant_id='person-import',
+                       session_id='session-import', step_id='dorsal/casual')
+    assert Path(saved['image_path']).read_bytes() == observed['jpeg']
+    assert client.post('/api/collection/image-preview', files={'image': ('bad.jpg', b'invalid', 'image/jpeg')}).status_code == 400

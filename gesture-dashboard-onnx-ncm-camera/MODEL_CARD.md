@@ -2,6 +2,16 @@
 
 The active model is `TwelveGestureBalancedMLP`, a 76-feature MediaPipe hand-landmark classifier for the Windows dashboard and iOS handover. It emits twelve command probabilities and a separate `known_gesture_mass` score. `no_gesture` is a rejection label with no action. The retired thumb-and-little-finger call sign is trained as `no_gesture`.
 
+The Windows runtime now requires confident above-waist arm/body presentation for
+Dorsal. Hanging/folded resting arms, low presentation, and missing/uncertain
+body evidence are rejected. This is a runtime policy change, not new model
+weights; hand-only closeups cannot authorize Dorsal. The new Video Lab evaluates
+that full policy on reviewed clips. Model Training creates isolated twelve-class
+ONNX candidates from eligible reviewed hand features, with validation-only epoch
+selection and explicit frozen-test evaluation. Context negatives remain outside
+the 76-feature classifier. Mobile ports require equivalent posture checks before
+claiming policy parity.
+
 ## Contract
 
 - Input: `landmark_features`, `float32 [N, 76]`.
@@ -27,6 +37,8 @@ A Fist requires closed-hand geometry regardless of model confidence. The live de
 The depth check rejects the newly reported XY/YZ/ZX `-80/-150/+164` closed-hand view, along with earlier reverse-depth examples such as `-64/-161/+126` and `-20/-150/+102`, even when the model gives Fist high confidence. A positive-depth view such as `-68/+161/+50` remains eligible if the fingers and thumb are actually tucked. These regressions use reconstructed axes and synthetic hand shapes; the screenshot pixels have not been replayed through MediaPipe.
 
 The desktop resolver also recovers the reported Peace side views from an incorrect Up prediction when two independently tracked, straight index/middle fingers extend well beyond the ring/little fingertips. This includes nearly touching fingers. World landmarks, when supplied, must corroborate the two-finger geometry. Dorsal uses the displayed signed XY palm-axis range from 0 through 150 degrees clockwise from screen-right; world XY is authoritative when available. The reported `-35` degree view is outside that command range and resolves to No Gesture, including at zero known-gesture mass. Within the range, a verified dorsal surface with four straight, parallel, close fingers can recover even at known mass 0.05, after a 0.45-second hold. Unknown/palmar surfaces do not receive this low-mass exception. Regression fixtures approximate the screenshot skeletons; they are not raw camera landmark captures or screenshot pixel replays. These desktop changes are not included in the immutable iOS handover snapshots.
+
+The NCM view at XY/YZ/ZX `+25/-75/+151` shows one long screen-right index, three folded fingers, and a thumb arched on the opposite side of the index. The desktop resolver treats this strict silhouette as Left even when ONNX reports approximately `0.01` known-gesture mass; horizontal mirroring maps it to Right. This recovery requires mass at least `0.005` and a 0.50-second stable hold. The regression reconstructs visible landmarks and HUD angles; it is not a replay of the camera image.
 
 ## Offline measurements
 

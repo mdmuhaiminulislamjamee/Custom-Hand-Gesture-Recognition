@@ -1,10 +1,11 @@
-"""Only a confident relaxed arm below the waist suppresses Dorsal."""
+"""Dorsal needs positive arm/waist presentation and rejects resting or unknown posture."""
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from backend.body_guard import (BodyGuard, RESTING_HAND_REASON,
+from backend.body_guard import (BodyGuard, RESTING_HAND_REASON, DORSAL_BODY_REQUIRED_REASON,
+                                DORSAL_PRESENTATION_REQUIRED_REASON,
                                 body_hand_context, dorsal_body_rejection, retain_relaxed_posture)
 from backend.hand_detection import hand_pixel_metrics
 from backend.config import CLASS_NAMES
@@ -77,13 +78,13 @@ def test_relaxed_arm_does_not_depend_on_hand_direction_or_extended_fingers(orien
 
 @pytest.mark.parametrize("side", ["Left", "Right"])
 @pytest.mark.parametrize("angle", [60., 90., 110.])
-def test_deliberately_bent_arm_below_waist_stays_eligible(side, angle):
+def test_bent_arm_below_waist_needs_presentation_even_when_not_relaxed(side, angle):
     offset = 170 * np.tan(np.radians((180 - angle) / 2))
     hand, pose = arm_case(side=side, elbow=(450 - offset, 350))
     context = body_hand_context(hand, SHAPE, [pose])
     assert context["below_waist"]
     assert not context["relaxed"]
-    assert dorsal_body_rejection(context, "dorsal") is None
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_PRESENTATION_REQUIRED_REASON
 
 
 @pytest.mark.parametrize("side", ["Left", "Right"])
@@ -92,16 +93,17 @@ def test_straight_arm_and_hand_above_waist_stays_eligible(side):
     context = body_hand_context(hand, SHAPE, [pose])
     assert context["hanging_arm"]
     assert not context["below_waist"] and not context["relaxed"]
+    assert context["presentation_confident"] and context["dorsal_presented"]
     assert dorsal_body_rejection(context, "dorsal") is None
 
 
-def test_palm_just_above_waist_is_not_suppressed_by_wrist_tolerance():
+def test_palm_just_above_waist_needs_presentation_margin():
     hand, pose = arm_case(elbow=(450, 300), wrist=(450, 420))
     context = body_hand_context(hand, SHAPE, [pose])
     assert context["hanging_arm"] and context["wrist_below_waist"]
     assert -.05 < context["palm_height"] < 0
     assert not context["below_waist"] and not context["relaxed"]
-    assert dorsal_body_rejection(context, "dorsal") is None
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_PRESENTATION_REQUIRED_REASON
 
 
 def test_raised_horizontal_arm_is_not_relaxed():
@@ -138,16 +140,16 @@ def test_seated_folded_arm_requires_a_dropped_open_hand(orientation):
     pose[24, 2:] = 0
     context = body_hand_context(hand, SHAPE, [pose])
     assert context and not context["folded_resting_arm"]
-    assert dorsal_body_rejection(context, "dorsal") is None
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BODY_REQUIRED_REASON
 
 
-def test_bent_arm_that_does_not_fold_back_across_shoulder_remains_eligible():
+def test_bent_arm_with_missing_waist_cannot_authorize_dorsal():
     hand, pose = arm_case(shoulder=(815, 230), elbow=(865, 315),
                           wrist=(815, 405), hip=(820, 650))
     pose[24, 2:] = 0
     context = body_hand_context(hand, SHAPE, [pose])
     assert context and not context["folded_resting_arm"]
-    assert dorsal_body_rejection(context, "dorsal") is None
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BODY_REQUIRED_REASON
 
 
 def test_elbow_angle_uses_pose_wrist_landmark_16():
@@ -160,12 +162,12 @@ def test_elbow_angle_uses_pose_wrist_landmark_16():
 
 @pytest.mark.parametrize("index", [12, 14, 16, 24])
 @pytest.mark.parametrize("confidence_column", [2, 3])
-def test_weak_arm_or_waist_evidence_cannot_block_dorsal(index, confidence_column):
+def test_weak_arm_or_waist_evidence_cannot_authorize_dorsal(index, confidence_column):
     hand, pose = arm_case()
     pose[index, confidence_column] = .64
     context = body_hand_context(hand, SHAPE, [pose])
     assert not context or not context["relaxed"]
-    assert dorsal_body_rejection(context, "dorsal") is None
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BODY_REQUIRED_REASON
 
 
 @pytest.mark.parametrize("context", [None, {}, {"below_waist": True},
@@ -174,8 +176,8 @@ def test_weak_arm_or_waist_evidence_cannot_block_dorsal(index, confidence_column
                                       {"below_waist": True, "relaxed": False,
                                        "near_trouser_region": True,
                                        "hand_points_downward": True}])
-def test_location_or_legacy_trouser_flags_alone_do_not_block(context):
-    assert dorsal_body_rejection(context, "dorsal") is None
+def test_missing_and_legacy_context_cannot_authorize_dorsal(context):
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BODY_REQUIRED_REASON
     for label in CLASS_NAMES:
         if label != "dorsal":
             assert dorsal_body_rejection(context, label) is None
@@ -231,7 +233,8 @@ def test_stationary_relaxed_hand_stays_suppressed_during_brief_pose_dropout():
         assert row["body_context"]["posture_held"]
     row = resting_row(context=False)
     retain_relaxed_posture([row], SHAPE, state=state, now=1.66)
-    assert row["rejection_reason"] is None
+    assert row["rejection_reason"] == DORSAL_BODY_REQUIRED_REASON
+    assert state["relaxed_postures"] == []
 
 
 @pytest.mark.parametrize("change", ["movement", "raised", "bent", "other_hand", "ambiguous", "new_stream"])
@@ -247,7 +250,11 @@ def test_posture_hold_releases_on_movement_or_contrary_evidence(change):
         row["handedness"] = "Left"
     rows = [row, resting_row(context=False)] if change == "ambiguous" else [row]
     retain_relaxed_posture(rows, SHAPE, state={} if change == "new_stream" else state, now=1.1)
-    assert all(r["rejection_reason"] is None for r in rows)
+    assert all(r["rejection_reason"] == DORSAL_BODY_REQUIRED_REASON for r in rows)
+    assert all(r.get("body_context", {}).get("posture_held") is not True
+               for r in rows if r.get("body_context"))
+    if change != "new_stream":
+        assert state["relaxed_postures"] == []
 
 
 @pytest.mark.parametrize("label", [label for label in CLASS_NAMES if label != "dorsal"])
@@ -257,3 +264,69 @@ def test_resting_memory_never_blocks_other_gestures(label):
     row = resting_row(context=False, label=label)
     retain_relaxed_posture([row], SHAPE, state=state, now=1.2)
     assert row["rejection_reason"] is None
+
+
+@pytest.mark.parametrize("context", [None, {}, {"arm_confident": False},
+                                   {"arm_confident": True, "waist_confident": False}])
+def test_unknown_context_never_enters_relaxed_posture_memory(context):
+    state = {}
+    row = resting_row()
+    row["body_context"] = context
+    retain_relaxed_posture([row], SHAPE, state=state, now=1.)
+    assert row["rejection_reason"] == DORSAL_BODY_REQUIRED_REASON
+    assert state["relaxed_postures"] == []
+
+
+def test_presented_hand_after_resting_releases_resting_memory():
+    state = {}
+    retain_relaxed_posture([resting_row()], SHAPE, state=state, now=1.)
+    hand, pose = arm_case(elbow=(450, 265), wrist=(450, 350))
+    row = resting_row()
+    row.update(points=hand, body_context=body_hand_context(hand, SHAPE, [pose]))
+    retain_relaxed_posture([row], SHAPE, state=state, now=1.1)
+    assert row["rejection_reason"] is None
+    assert state["relaxed_postures"] == []
+
+
+def test_cached_presented_body_cannot_authorize_after_current_pose_dropout():
+    hand, pose = arm_case(elbow=(450, 265), wrist=(450, 350))
+    context = body_hand_context(hand, SHAPE, [pose])
+    assert dorsal_body_rejection(context, "dorsal") is None
+    context["presentation_current"] = False
+    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BODY_REQUIRED_REASON
+
+
+def test_pose_dropout_veto_uses_video_frame_clock(monkeypatch):
+    import backend.hand_detection as module
+    from backend.tests.test_hand_detection import simulated_detector
+    monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
+    hand, pose = arm_case(elbow=(450, 265), wrist=(450, 350))
+    landmarks = [SimpleNamespace(x=x, y=y, visibility=visibility, presence=presence)
+                 for x, y, visibility, presence in pose]
+    detections = iter(([landmarks], []))
+    guard = BodyGuard.__new__(BodyGuard)
+    guard.error = None
+    guard.detector = SimpleNamespace(detect=lambda image: SimpleNamespace(
+        pose_landmarks=next(detections), pose_world_landmarks=[]))
+    guard.mp = SimpleNamespace(Image=lambda **kwargs: kwargs,
+                               ImageFormat=SimpleNamespace(SRGB="SRGB"))
+    detector = simulated_detector()
+    detector._body_guard = guard
+    detector._run_candidates = lambda rgb, view, *, video: [(.1, hand, None, None)]
+    def score(row):
+        row["resolved_label"] = "dorsal"
+        return 1.
+    state = {"frame_time": 1000.}
+    image = np.full(SHAPE, 145, np.uint8)
+    rows = detector.detect_candidates(image, state=state, candidate_score=score)
+    assert rows[0]["rejection_reason"] is None
+    state["frame_time"] = 1000.1
+    rows = detector.detect_candidates(image, state=state, candidate_score=score)
+    assert rows[0]["rejection_reason"] is None
+    state["frame_time"] = 1000.16
+    rows = detector.detect_candidates(image, state=state, candidate_score=score)
+    # The old pose is still retained for resting rejection diagnostics, but
+    # cannot authorize another command after the current detector missed it.
+    assert detector.diagnostics()["body_guard"]["body_count"] == 1
+    assert rows[0]["body_context"]["presentation_current"] is False
+    assert rows[0]["rejection_reason"] == DORSAL_BODY_REQUIRED_REASON

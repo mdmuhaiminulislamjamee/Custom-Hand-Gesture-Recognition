@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from .face_guard import FaceGuard, face_context_observation
-from .body_guard import (BodyGuard, POSE_MODEL_NAME, RESTING_HAND_REASON,
+from .body_guard import (BodyGuard, POSE_MODEL_NAME, DORSAL_CONTEXT_VETOES,
                          RELAXED_ELBOW_MIN_ANGLE_DEG, body_hand_context, dorsal_body_rejection,
                          retain_relaxed_posture)
 
@@ -23,7 +23,7 @@ DETECTOR_SETTINGS = {
     "recovery_detection_confidence": 0.20,
     "recovery_presence_confidence": 0.30,
     "face_guard": "disabled; gestures may overlap the face",
-    "body_guard": "Pose Lite hanging-below-waist or folded resting arm; Dorsal only",
+    "body_guard": "Dorsal requires confident arm and waist, above-waist presentation; relaxed or unknown posture rejected",
     "relaxed_elbow_min_angle_deg": RELAXED_ELBOW_MIN_ANGLE_DEG,
     "body_pose_refresh_ms": 150,
     "body_pose_occlusion_hold_ms": 400,
@@ -93,6 +93,7 @@ class HandDetector:
         self._landmarker = self._recovery = self._mp = None
         self._timestamp_lock = threading.Lock()
         self._last_timestamp_ms = -1
+        self._frame_time = None
         self._last_diagnostics = {}
         self._view = None
         self._shape = None
@@ -126,8 +127,8 @@ class HandDetector:
                     running_mode=mp.tasks.vision.RunningMode.IMAGE))
             if use_body_context:
                 self._body_guard = BodyGuard(model_path.with_name(POSE_MODEL_NAME))
-                if self._body_guard.detector is None:
-                    raise RuntimeError(self._body_guard.error)
+                # Missing body evidence disables Dorsal through its strict
+                # verifier, while hand-only commands remain usable.
             self.ready = True
             if not use_body_context and model_path.with_name("blaze_face_short_range.tflite").exists():
                 self._face_guard = FaceGuard(model_path.with_name("blaze_face_short_range.tflite"))
@@ -150,7 +151,9 @@ class HandDetector:
                                data=np.ascontiguousarray(np.rot90(crop, turns)))
         if video:
             with self._timestamp_lock:
-                current = int(time.monotonic_ns() // 1_000_000)
+                frame_time = getattr(self, "_frame_time", None)
+                current = (int(frame_time * 1000) if frame_time is not None
+                           else int(time.monotonic_ns() // 1_000_000))
                 timestamp = max(current, self._last_timestamp_ms + 1)
                 self._last_timestamp_ms = timestamp
             self._last_diagnostics.update(timestamp_ms=timestamp, timestamp_adjusted=timestamp != current)
@@ -189,11 +192,15 @@ class HandDetector:
         """
         if not self.ready:
             return []
+        self._frame_time = state.get("frame_time")
         started = time.perf_counter()
         height, width = rgb_image.shape[:2]
         if state.get("shape") != (height, width):
+            frame_time = state.get("frame_time")
             state.clear()
             state["shape"] = (height, width)
+            if frame_time is not None:
+                state["frame_time"] = frame_time
         state["frames"] = state.get("frames", 0) + 1
         full = (0, 0, width, height, 0, 0)
         same_context = getattr(self, "_multi_context", None) is state
@@ -235,6 +242,9 @@ class HandDetector:
                         self._last_diagnostics["body_guard"] = dict(diagnostics, checked=True)
                     if self._last_diagnostics["body_guard"]["ready"]:
                         context = body_hand_context(points, rgb_image.shape, poses)
+                        current_indices = self._last_diagnostics["body_guard"].get("presentation_body_indices")
+                        if context is not None and current_indices is not None:
+                            context["presentation_current"] = context["body_index"] in current_indices
                 row = dict(points=points, world_landmarks=world, metrics=metrics, area=area, view=view,
                            handedness=getattr(category, "category_name", None),
                            handedness_confidence=float(getattr(category, "score", 0) or 0),
@@ -253,7 +263,7 @@ class HandDetector:
 
         rows = observations(full, same_context)
         requested = state.pop("pose_recovery_requested", False)
-        context_vetoes = {RESTING_HAND_REASON}
+        context_vetoes = DORSAL_CONTEXT_VETOES
         needs_recovery = (requested or not rows or any(
                               row["recovery_score"] < 1 and row["rejection_reason"] not in context_vetoes
                               for row in rows)
@@ -287,7 +297,7 @@ class HandDetector:
                 if distance < .80:
                     matched.add(index)
                     # Changing the detector crop must not rescue a hand that
-                    # was explicitly resting beside the thigh in this frame.
+                    # lacks Dorsal body/presentation evidence in this frame.
                     if rows[index]["rejection_reason"] in context_vetoes:
                         continue
                     if alternative["rejection_reason"] in context_vetoes:
@@ -305,7 +315,9 @@ class HandDetector:
                 state["view_misses"] = state.get("view_misses", 0) + 1
                 if state["view_misses"] >= 2:
                     state["view"] = None
-        retain_relaxed_posture(rows, rgb_image.shape, state=state, now=time.monotonic())
+        frame_time = state.get("frame_time")
+        retain_relaxed_posture(rows, rgb_image.shape, state=state,
+                               now=time.monotonic() if frame_time is None else float(frame_time))
         self._last_diagnostics["candidate_count"] = len(rows)
         if any(not row["rejection_reason"] for row in rows):
             self._last_diagnostics["rejection_reason"] = None
@@ -358,6 +370,7 @@ class HandDetector:
         ]
 
     def detect(self, rgb_image, candidate_score=None):
+        self._frame_time = None
         if not self.ready:
             return None
         self._last_world_landmarks = None

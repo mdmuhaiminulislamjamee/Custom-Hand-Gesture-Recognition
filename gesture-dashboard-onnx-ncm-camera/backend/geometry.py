@@ -43,6 +43,54 @@ def expanded_thumb_pointing_geometry(points):
     )
 
 
+def arched_thumb_pointing_geometry(points):
+    """Recover a long horizontal index beside an arched, separated thumb.
+
+    In the NCM side view the thumb's two joint angles can look bent while its
+    tip still lies well beyond the wrist and above the pointing index. Require
+    all three other fingertips on the opposite side of that index and well
+    behind it before allowing low-mass directional recovery.
+    """
+    points = np.asarray(points, dtype=np.float32).reshape(21, 2)
+    scale = max(_palm_gap_scale(points), 1e-8)
+    index = points[8] - points[5]
+    reach = float(np.linalg.norm(index))
+    unit = index / max(reach, 1e-8)
+    index_path = sum(float(np.linalg.norm(points[b] - points[a]))
+                     for a, b in ((5, 6), (6, 7), (7, 8)))
+    other_extensions = [finger_extension_score(points, m, m + 1, m + 2, m + 3)
+                        for m in (9, 13, 17)]
+    other_tips = points[[12, 16, 20]]
+    other_reaches = np.linalg.norm(other_tips - points[[9, 13, 17]], axis=1) / scale
+    lead = float(np.min((points[8] - other_tips) @ unit) / scale)
+    thumb = points[4] - points[2]
+    thumb_norm = float(np.linalg.norm(thumb))
+    thumb_path = (float(np.linalg.norm(points[3] - points[2]))
+                  + float(np.linalg.norm(points[4] - points[3])))
+    # Signed 2-D cross products keep this test invariant to horizontal
+    # mirroring and to whether the thumb is above or below the index.
+    def side(point):
+        offset = point - points[5]
+        return float((unit[0] * offset[1] - unit[1] * offset[0]) / scale)
+    thumb_base_side = side(points[2])
+    thumb_sign = 1.0 if thumb_base_side >= 0 else -1.0
+    return bool(
+        abs(float(unit[0])) >= .94
+        and finger_extension_score(points, 5, 6, 7, 8) >= .90
+        and reach / max(index_path, 1e-8) >= .97
+        and reach / scale >= 1.20 and lead >= .70
+        and max(other_extensions) <= .40 and float(other_reaches.max()) <= .90
+        and finger_extension_score(points, 1, 2, 3, 4) >= .30
+        and thumb_norm / max(thumb_path, 1e-8) >= .88
+        and float(np.linalg.norm(points[4] - points[0])) / scale >= 1.30
+        and abs(float(np.dot(thumb / max(thumb_norm, 1e-8), unit))) <= .87
+        and float(np.linalg.norm(points[4] - points[8])) / scale >= .80
+        and abs(thumb_base_side) >= .40
+        and thumb_sign * side(points[4]) >= .06
+        and all(thumb_sign * side(tip) <= -.20 for tip in other_tips)
+    )
+
+
 def _unit_direction(vector: np.ndarray, description: str) -> np.ndarray:
     norm = float(np.linalg.norm(vector))
     if norm < 1e-8:
@@ -547,7 +595,10 @@ class GeometryResolver:
                     and max(other_world_extensions) <= .55
                     and max(other_world_reaches) <= .65
                 )
-        expanded_thumb_pointing = expanded_thumb_pointing_geometry(points)
+        arched_thumb_pointing = arched_thumb_pointing_geometry(points)
+        expanded_thumb_pointing = bool(
+            expanded_thumb_pointing_geometry(points) or arched_thumb_pointing
+        )
         continued_direction = bool(
             world_index_only and world_projection_fraction < .20
             and preferred_direction in {"left", "right", "up", "down"}
@@ -879,6 +930,7 @@ class GeometryResolver:
             "reverse_palm_edge_down": reverse_palm_edge_down,
             "prominent_index_down": prominent_index_down,
             "expanded_thumb_pointing": expanded_thumb_pointing,
+            "arched_thumb_pointing": arched_thumb_pointing,
             "world_index_only": world_index_only,
             "world_directional": world_directional,
             "continued_direction": continued_direction,

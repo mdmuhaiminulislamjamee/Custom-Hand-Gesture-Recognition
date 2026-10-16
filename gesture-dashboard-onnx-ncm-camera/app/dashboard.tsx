@@ -7,6 +7,8 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from '
 import RangeDiagnostics, { type RangePrediction } from './range-diagnostics';
 import { estimateGestureDistance } from './range-math';
 import DataCollection, { type CameraSource } from './data-collection';
+import VideoLab from './video-lab';
+import ModelLab from './model-lab';
 import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './landmark-angles';
 
 const API_URL = process.env.NEXT_PUBLIC_GESTURE_API_URL ?? 'http://127.0.0.1:8200';
@@ -287,7 +289,7 @@ function WebcamVideo({ stream, className }: { stream: MediaStream | null; classN
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'live' | 'analytics' | 'feedback' | 'setup' | 'data_collection'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'analytics' | 'feedback' | 'setup' | 'data_collection' | 'video_lab' | 'model_training'>('live');
   const [health, setHealth] = useState<Health | null>(null);
   const [metrics, setMetrics] = useState<MetricResponse>({ files: [], rows: {} });
   const [actions, setActions] = useState<ActionEvent[]>([]);
@@ -1294,7 +1296,7 @@ export default function Dashboard() {
       </header>
 
       <nav className="nav-rail" aria-label="Dashboard sections">
-        {(['live', 'analytics', 'feedback', 'setup', 'data_collection'] as const).map((tab, index) => (
+        {(['live', 'analytics', 'feedback', 'setup', 'data_collection', 'video_lab', 'model_training'] as const).map((tab, index) => (
           <button className={`nav-item ${activeTab === tab ? 'active' : ''}`} type="button" key={tab} onClick={() => setActiveTab(tab)}>
             <span>0{index + 1}</span>{humanize(tab)}
           </button>
@@ -1323,6 +1325,8 @@ export default function Dashboard() {
           setCameraSource={changeCameraSource}
           toggleCamera={toggleCamera}
         />
+        <VideoLab api={API_URL} active={activeTab === 'video_lab'} ready={serverReady} connected={cameraActive && activeCameraSource === cameraSource} cameraSource={cameraSource} webcamStream={webcamStream} streamRevision={streamRevision} setCameraSource={changeCameraSource} toggleCamera={toggleCamera} />
+        <ModelLab api={API_URL} active={activeTab === 'model_training'} />
         <div hidden={activeTab !== 'live' && activeTab !== 'feedback'}><RangeDiagnostics prediction={prediction} connected={cameraActive} /></div>
         {activeTab === 'live' && <>
           <div className="section-heading">

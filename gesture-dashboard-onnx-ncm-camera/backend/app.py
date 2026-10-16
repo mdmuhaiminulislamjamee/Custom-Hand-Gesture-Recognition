@@ -20,7 +20,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .artifact_integrity import ArtifactRegistry
@@ -38,6 +38,8 @@ from .online_learning import OnlineLearningService
 from .runtime import InferenceStartLimiter
 from .storage import FeedbackRecord, FeedbackStore, artifact_status, load_metric_files
 from .data_collection import CollectionStore
+from .model_lab import ModelLab
+from .video_lab import VideoLabStore, create_video_router
 
 
 ALLOWED_ORIGINS = {
@@ -115,6 +117,8 @@ ncm_camera = NcmCameraClient(NcmCameraConfig.from_environment())
 action_history: deque[dict[str, Any]] = deque(maxlen=500)
 active_sessions: dict[str, RuntimeSession] = {}
 collection_store = CollectionStore()
+model_lab = ModelLab(collection_store.root)
+video_lab = VideoLabStore(collection_store.root / "videos")
 
 
 async def _process_frame_with_limit(
@@ -140,6 +144,8 @@ async def application_lifespan(_: FastAPI):
     if ncm_camera.config.auto_connect:
         ncm_camera.start()
     yield
+    model_lab.close()
+    video_lab.close()
     ncm_camera.stop()
     engine.close()
 
@@ -509,6 +515,70 @@ def _collection_call(request: Request, method, **kwargs):
         raise HTTPException(status_code=503, detail=f"Collection storage unavailable: {error}") from error
 
 
+def _lab_origin(request: Request):
+    origin = request.headers.get("origin")
+    if origin and origin not in ALLOWED_ORIGINS:
+        raise HTTPException(status_code=403, detail="Origin is not allowed.")
+
+
+def _candidate_replay_engine(job_id: str):
+    from .model_runtime import OnnxClassifier
+    path = model_lab.candidate_path(job_id)
+    isolated = InferenceEngine(runtime_config, MODELS_DIRECTORY, load_models=False)
+    try:
+        classifier = OnnxClassifier(path, path.with_name("candidate_metadata.json"), runtime_config)
+        isolated.model_manager.models = {"ONNX": classifier}
+        isolated.model_manager.errors = []
+        isolated.model_manager.selected_model_name = "ONNX"
+        isolated.model_manager.bundle_metadata = {
+            "model_sha256": classifier.metadata["onnx_sha256"],
+            "model_name": "Reviewed camera candidate", "candidate_job_id": job_id,
+            "online_adapter": "disabled_for_fixed_replay",
+        }
+        if not isolated.detector.ready:
+            raise ValueError(isolated.detector.error or "Replay detector is unavailable")
+        return isolated
+    except Exception:
+        isolated.close()
+        raise
+
+
+app.include_router(create_video_router(video_lab, collection_store, engine, runtime_config,
+                                      _lab_origin, candidate_engine_factory=_candidate_replay_engine))
+
+
+class ModelLabPayload(BaseModel):
+    kind: Literal["audit", "train", "evaluate"]
+    epochs: int = Field(default=50, ge=1, le=500)
+    candidate_job_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+
+
+@app.get("/api/model-lab/status")
+def model_lab_status(request: Request):
+    return _collection_call(request, model_lab.status)
+
+
+@app.post("/api/model-lab/jobs")
+def start_model_lab_job(request: Request, payload: ModelLabPayload):
+    return _collection_call(request, model_lab.start, **payload.model_dump())
+
+
+@app.get("/api/model-lab/jobs/{job_id}")
+def model_lab_job(request: Request, job_id: str):
+    return _collection_call(request, model_lab.get, job_id=job_id)
+
+
+@app.post("/api/model-lab/jobs/{job_id}/cancel")
+def cancel_model_lab_job(request: Request, job_id: str):
+    return _collection_call(request, model_lab.cancel, job_id=job_id)
+
+
+@app.get("/api/model-lab/jobs/{job_id}/candidate")
+def download_model_lab_candidate(request: Request, job_id: str):
+    path = _collection_call(request, model_lab.candidate_path, job_id=job_id)
+    return FileResponse(path, media_type="application/octet-stream", filename=f"gesture-candidate-{job_id[:8]}.onnx")
+
+
 @app.get("/api/collection")
 def collection_summary(request: Request, participant_id: str | None = None):
     return _collection_call(request, collection_store.summary, participant_id=participant_id)
@@ -529,8 +599,13 @@ async def collection_preview(
         if not ncm_camera.status()["connected"]:
             raise HTTPException(status_code=409, detail="Connect the board camera before capturing.")
         return _collection_call(request, collection_store.freeze)
+    return await _uploaded_collection_preview(request, image, source)
+
+
+async def _uploaded_collection_preview(request: Request, image: UploadFile | None, source: str):
+    _lab_origin(request)
     if image is None:
-        raise HTTPException(status_code=400, detail="A webcam JPEG frame is required.")
+        raise HTTPException(status_code=400, detail="An image is required.")
     if image.content_type and not (
         image.content_type.startswith("image/")
         or image.content_type == "application/octet-stream"
@@ -541,6 +616,21 @@ async def collection_preview(
         raise HTTPException(status_code=400, detail="The uploaded webcam frame is empty.")
     if len(content) > production_settings.max_image_bytes:
         raise HTTPException(status_code=413, detail="Webcam frame exceeds the configured size limit.")
+    from io import BytesIO
+    from PIL import Image
+    try:
+        with Image.open(BytesIO(content)) as decoded:
+            width, height = decoded.size
+            if max(width, height) > 4096 or width * height > 12_000_000:
+                raise HTTPException(status_code=413, detail="Use an image no larger than 4096 pixels per side and 12 megapixels.")
+            if decoded.format != "JPEG":
+                encoded = BytesIO()
+                decoded.convert("RGB").save(encoded, "JPEG", quality=95)
+                content = encoded.getvalue()
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=400, detail="The uploaded image could not be decoded.") from error
     session = RuntimeSession(runtime_config)
     result = await _process_frame_with_limit(content, session, None)
     runtime_metrics.record_frame(result)
@@ -550,8 +640,15 @@ async def collection_preview(
         frame_id=time.time_ns(),
         jpeg=content,
         result=result,
-        source="webcam",
+        source=source,
     )
+
+
+@app.post("/api/collection/image-preview")
+async def collection_image_preview(request: Request, image: UploadFile = File(...),
+                                   source: Literal["ncm", "webcam"] = "webcam"):
+    """Freeze an imported photo without requiring a connected camera."""
+    return await _uploaded_collection_preview(request, image, source)
 
 
 @app.post("/api/collection/samples")
