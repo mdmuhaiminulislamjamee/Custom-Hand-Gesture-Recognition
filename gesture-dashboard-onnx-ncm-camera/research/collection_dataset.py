@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from backend.config import CLASS_NAMES
+from backend.config import CLASS_NAMES, DISABLED_GESTURES
 from backend.data_collection import collection_plan, identifier
 from backend.geometry import landmarks_to_feature
 from research.multiview import _empty_capture, direction_from_landmarks, participant_split
@@ -25,7 +25,7 @@ def load_collection_dataset(dataset_root: Path):
         raise ValueError("Unsupported dashboard collection schema")
     labels = [*CLASS_NAMES, "no_gesture"]
     prompts = {s["id"]: s for s in collection_plan()}
-    rows, skipped, excluded, seen = [], [], [], {}
+    rows, skipped, excluded, seen, relabeled = [], [], [], {}, []
     image_count = 0
     for sidecar in sorted((root / "participants").glob("*/*/*/*/*.json")):
         if not sidecar.resolve().is_relative_to(root):
@@ -37,6 +37,13 @@ def load_collection_dataset(dataset_root: Path):
         participant = identifier(row["participant_id"], "Participant")
         session = identifier(row["session_id"], "Session")
         prompt = prompts.get(row.get("step_id"))
+        retired = row.get("label") in DISABLED_GESTURES
+        if retired and row.get("step_id") == f"dorsal/{row.get('view')}":
+            # Preserve the reviewed source image and its provenance. Apply the
+            # current label policy only to the derived training row.
+            prompt = prompts.get(f"no_gesture/dorsal_{row.get('view')}")
+            if prompt is not None:
+                prompt = {**prompt, "label": row["label"], "view": row["view"]}
         if prompt is None or row.get("label") != prompt["label"] or row.get("view") != prompt["view"]:
             raise ValueError(f"Label/prompt mismatch: {sidecar.name}")
         relative = Path(row["image_path"])
@@ -64,7 +71,12 @@ def load_collection_dataset(dataset_root: Path):
                     f"no_gesture/{current_segment.get('negative_reason', '')}"
                     if current_segment["label"] == "no_gesture" else
                     f"{current_segment['label']}/casual")
-                if not clip.get("reviewed") or current_prompt != row["step_id"]:
+                expected_prompt = row["step_id"]
+                if retired:
+                    expected_prompt = f"no_gesture/dorsal_{row['view']}"
+                    if current_prompt and current_prompt.startswith("dorsal/"):
+                        current_prompt = f"no_gesture/dorsal_{current_prompt.split('/')[1]}"
+                if not clip.get("reviewed") or current_prompt != expected_prompt:
                     excluded.append(dict(image_path=key, training_use="superseded_video_annotation",
                                          reason="video_label_changed_reextract_reviewed_spans"))
                     continue
@@ -103,9 +115,13 @@ def load_collection_dataset(dataset_root: Path):
             if direction != row["label"]:
                 skipped.append(dict(image_path=key, reason="review_direction_or_redetect_landmarks"))
                 continue
-        rows.append(dict(X=reconstructed, landmarks=points, y=labels.index(row["label"]),
+        effective_label = "no_gesture" if retired else row["label"]
+        if retired:
+            relabeled.append(dict(image_path=key, original_label=row["label"], label=effective_label,
+                                  reason="retired_dorsal_hard_negative"))
+        rows.append(dict(X=reconstructed, landmarks=points, y=labels.index(effective_label),
                          sample_id=digest[:24], participant_id=participant, session_id=session,
-                         split=participant_split(participant), label=row["label"],
+                         split=participant_split(participant), label=effective_label,
                          view=row["view"], image_path=key))
     data = _empty_capture()
     if rows:
@@ -113,5 +129,6 @@ def load_collection_dataset(dataset_root: Path):
                 for k, v in data.items()}
     return data, dict(schema_version=2, raw_images=image_count, usable_feature_rows=len(rows),
                       raw_cases_for_review=skipped, excluded_by_design=excluded,
+                      policy_relabels=relabeled,
                       split_policy="Deterministic participant-level 70/15/15; audit coverage before training",
                       note="Context and detector cases remain reviewed raw images; the single-hand landmark classifier trains only on hand-shape cases with valid landmarks.")

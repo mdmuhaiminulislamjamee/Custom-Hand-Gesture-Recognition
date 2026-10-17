@@ -60,6 +60,7 @@ public enum GestureGeometryResolver {
         let valid: Bool
         let reason: String
         let dorsalSupported: Bool
+        let dorsalHardNegative: Bool
         let palmSupported: Bool
         let likeSupported: Bool
         let fistSupported: Bool
@@ -110,8 +111,9 @@ public enum GestureGeometryResolver {
         let resolvedIndex = argmax(adjusted)
         let resolved = GestureFeatureExtractor.classNames[resolvedIndex]
         let isDirectional = directionalNames.contains(resolved)
-        let valid = isDirectional ? directional.valid : shape.valid
-        let reason = isDirectional ? directional.reason : shape.reason
+        let hardNegative = resolved == "dorsal" || shape.dorsalSupported || shape.dorsalHardNegative
+        let valid = !hardNegative && (isDirectional ? directional.valid : shape.valid)
+        let reason = hardNegative ? "dorsal is a hard negative" : (isDirectional ? directional.reason : shape.reason)
         let geometrySupported =
             (resolved == "dorsal" && shape.dorsalSupported)
             || (resolved == "open_palm" && shape.palmSupported)
@@ -133,15 +135,15 @@ public enum GestureGeometryResolver {
 
         return GestureGeometryResolution(
             probabilities: adjusted,
-            gesture: resolved,
+            gesture: hardNegative ? GestureFeatureExtractor.rejectLabel : resolved,
             valid: valid,
             reason: reason,
-            geometrySupported: geometrySupported,
+            geometrySupported: !hardNegative && geometrySupported,
             directionalRecovery: directionalRecovery,
             reversePalmEdgeDown: directional.reversePalmEdgeDown,
             downRecovery: downRecovery,
             sidewaysPalmRecovery: resolved == "open_palm" && shape.sidewaysPalmRecovery,
-            dorsalRangeRecovery: resolved == "dorsal" && shape.dorsalRangeRecovery
+            dorsalRangeRecovery: false
         )
     }
 
@@ -496,6 +498,7 @@ public enum GestureGeometryResolver {
         else if raw == "ok" && (closestOtherThumbGap < 0.70 || closestOtherThumbGap - gap < 0.25) { reason = "ok requires only the index fingertip to touch the thumb" }
         else { reason = "\(raw) hand shape failed geometry checks" }
         return ShapeState(probabilities: adjusted, valid: valid, reason: reason, dorsalSupported: dorsalSupported,
+            dorsalHardNegative: dorsalVisible && (nonThumb.min() ?? 0) >= 0.45 && mean(nonThumb) >= 0.68,
             palmSupported: palmSupported, likeSupported: likeSupported, fistSupported: fistSupported,
             thumbDownSupported: thumbDownSupported, peaceSupported: peaceSupported,
             sidewaysPalmRecovery: sidewaysPalmRecovery, dorsalRangeRecovery: dorsalRangeRecovery)

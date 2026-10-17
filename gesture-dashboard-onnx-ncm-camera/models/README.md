@@ -27,32 +27,19 @@ left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down, peace, roc
 `no_gesture` is the internal rejection/feedback label, not a thirteenth output.
 Peace maps to Turn 90 Degrees and Rock to Backup.
 Open Palm is eligible when the palm axis points up, left, or right, including
-oblique side angles. Downward Open Palm poses are rejected. Fist and Thumbs Down are
-handedness-neutral. Fist is generally accepted when the palm axis points up
-or sideways; strongly downward poses are rejected.
-Raised, camera-facing Fists also use a compact curl-back resolver for angles
-where perspective hides the finger bend. A compact side-view fist is also
-accepted within 18 degrees of the supplied XY +8, YZ +68, ZX +72 orientation
-or its horizontal mirror. The desktop resolver also accepts a closed fist near
-XY -130, YZ -143, ZX -132, and can recover a compact side fist near XY -5,
-YZ +117, ZX +80 from an invalid Thumbs Down prediction. These resolvers can
-replace an invalid Like or Thumbs Down prediction when the thumb and finger
-geometry confirms a fist.
+oblique side angles. Downward Open Palm poses are rejected. Fist and Thumbs Down are handedness-neutral. Fist accepts
+horizontal left, up-left, up, up-right and horizontal right, including a
+30-degree forward pitch toward the camera. Any tilt below horizontal is
+`no_gesture`, even when ONNX is confident or a Fist was previously held.
+Live Fist recognition requires world landmarks and closed-hand geometry.
+A compact tucked-thumb shape with closed 3-D finger joints may recover an
+incorrect classifier label throughout the upper arc. A genuine thumb command
+keeps its own validation. Deeper, uncertain reverse-facing views remain
+rejected unless the established dorsal-surface recovery confirms the fist.
 
-The desktop runtime rejects the supplied closed-hand views at XY/YZ/ZX
-`-64/-161/+126`, `-68/+161/+50`, and `-20/-150/+102` as No Gesture,
-with six degrees of tolerance around each 3-D axis. It also recovers a closed
-side fist near `-3/-99/+107` from an invalid Thumbs Down label, within ten
-degrees. The rejection checks take precedence over all Fist recovery paths;
-horizontal mirrors use the same rules.
-
-The latest webcam negatives also reject XY/ZX `-61/+142` and `-64/+40`,
-with the same six-degree tolerance. The second screenshot's displayed
-XY/YZ `-64/-150` implies ZX `+140` rather than `+40`, so that interpretation
-is covered too. These vetoes override the reverse-facing Fist exception
-and immediately clear a previously held Fist, regardless of model confidence.
-Regression tests reconstruct the displayed axes; raw screenshot landmarks
-were not available for a camera replay.
+These are current desktop resolver rules. Immutable mobile handover snapshots
+retain the behavior shipped in their own version. Automated angular and pitch
+regressions are not measurements of live camera accuracy.
 
 ## Historical ten-command qualification summary
 
@@ -116,3 +103,5 @@ release, create and reserve a new participant-disjoint final cohort before
 qualification; do not reuse this release's test caches as fresh evidence.
 Historical eight-command CSVs are preserved under
 `artifacts/v18_20/baseline/release_evidence/`, outside this runtime bundle.
+
+Dorsal is retired. Index 6 is reserved for compatibility with the immutable ONNX graph, and runtime gates reject it as `no_gesture`. Active commands, actions and feedback choices exclude Dorsal. New collection and Model Lab training use all former Dorsal samples as hard negatives. The current ONNX weights have not been retrained for this policy.

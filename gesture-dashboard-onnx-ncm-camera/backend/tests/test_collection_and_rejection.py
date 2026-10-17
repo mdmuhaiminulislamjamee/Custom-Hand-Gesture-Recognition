@@ -79,7 +79,7 @@ def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp
     CollectionStore(tmp_path).initialize()
 
     migrated = json.loads(descriptor_path.read_text(encoding='utf-8'))
-    assert migrated['class_names'] == [*RuntimeConfig().class_names, 'no_gesture']
+    assert migrated['class_names'] == RuntimeConfig().feedback_labels
     assert migrated['raw_images'] == 'Original NCM or webcam JPEGs, no overlays or augmentation'
     assert migrated['operator_note'] == 'keep this custom value'
 
@@ -96,7 +96,7 @@ def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_ang
     assert all(step['per_hand_target'] is None and step['per_orientation_target'] is None
                for step in plan if step['hand_mode'] in {'none', 'both'})
     assert {step['group'] for step in plan if step['label'] == 'no_gesture'} == {
-        'No hand', 'Unrelated hand shapes', 'Near-command shapes', 'Resting Dorsal', 'Resting Fist',
+        'Dorsal hard negatives', 'No hand', 'Unrelated hand shapes', 'Near-command shapes', 'Resting Dorsal', 'Resting Fist',
         'Incidental pointing', 'Occlusion and motion', 'Two hands',
     }
 
@@ -306,11 +306,26 @@ def test_context_negatives_are_saved_but_not_fitted_as_single_hand_shapes(tmp_pa
     assert audit['excluded_by_design'][0]['training_use'] == 'context_only'
 
 
+@pytest.mark.parametrize('hand', ['left', 'right'])
+@pytest.mark.parametrize('orientation', ['toward_camera', 'away_from_camera'])
+def test_downward_fist_negative_can_be_collected_for_either_camera_facing(tmp_path, hand, orientation):
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    store.observe(1, jpeg_bytes(), {})
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id='no_gesture/downward_fist',
+                       handedness=hand, finger_orientation=orientation)
+    metadata = json.loads(Path(saved['image_path']).with_suffix('.json').read_text(encoding='utf-8'))
+    assert metadata['label'] == 'no_gesture'
+    assert metadata['finger_orientation'] == orientation
+    assert metadata['training_use'] == 'context_only'
+
+
 def test_reverse_facing_fist_cannot_be_saved_as_positive(tmp_path):
     store = CollectionStore(tmp_path)
     store.add_participant('person-001')
     store.observe(1, jpeg_bytes(), {})
-    with pytest.raises(ValueError, match='reverse-facing Fist'):
+    with pytest.raises(ValueError, match='Opposite-facing fists'):
         store.save(token=store.freeze()['token'], participant_id='person-001',
                    session_id='session-1', step_id='fist/casual',
                    handedness='right', finger_orientation='away_from_camera')
@@ -484,6 +499,6 @@ def test_imported_photo_works_without_camera_and_normalizes_png_before_analysis(
     assert frozen['has_features'] is False
     assert observed['jpeg'].startswith(b'\xff\xd8')
     saved = store.save(token=frozen['token'], participant_id='person-import',
-                       session_id='session-import', step_id='dorsal/casual')
+                       session_id='session-import', step_id='no_gesture/dorsal_casual')
     assert Path(saved['image_path']).read_bytes() == observed['jpeg']
     assert client.post('/api/collection/image-preview', files={'image': ('bad.jpg', b'invalid', 'image/jpeg')}).status_code == 400

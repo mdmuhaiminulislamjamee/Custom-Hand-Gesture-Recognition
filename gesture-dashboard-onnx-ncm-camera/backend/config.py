@@ -35,7 +35,12 @@ CLASS_NAMES = [
     "fist", "thumb_down", "peace", "rock",
 ]
 REJECT_LABEL = "no_gesture"
-FEEDBACK_LABELS = [*CLASS_NAMES, REJECT_LABEL]
+MODEL_LABELS = [*CLASS_NAMES, REJECT_LABEL]
+# Keep the immutable ONNX tensor order; retired outputs are rejection evidence.
+DISABLED_GESTURES = frozenset({"dorsal"})
+ACTIVE_CLASS_NAMES = [name for name in CLASS_NAMES if name not in DISABLED_GESTURES]
+FEEDBACK_LABELS = [*ACTIVE_CLASS_NAMES, REJECT_LABEL]
+DORSAL_REJECTION_REASON = "dorsal is a hard negative"
 
 GESTURE_TO_ACTION = {
     "left": "Move Left",
@@ -44,7 +49,6 @@ GESTURE_TO_ACTION = {
     "down": "Move Down",
     "open_palm": "Enable / Disable Object Tracking",
     "like": "Play / Pause",
-    "dorsal": "Return to Default Position",
     "ok": "Start / Stop Recording",
     "fist": "Mute",
     "thumb_down": "Volume Down",
@@ -193,6 +197,8 @@ class RuntimeConfig:
     def public_dict(self) -> dict[str, Any]:
         return {
             "class_names": self.class_names,
+            "active_class_names": ACTIVE_CLASS_NAMES,
+            "disabled_gestures": sorted(DISABLED_GESTURES),
             "feedback_labels": self.feedback_labels,
             "reject_label": self.reject_label,
             "gesture_to_action": self.gesture_to_action,
@@ -244,13 +250,16 @@ def load_runtime_config(models_directory: Path = MODELS_DIRECTORY) -> RuntimeCon
     feature_names = list(data.get("feature_names") or FEATURE_NAMES)
     if feature_names != FEATURE_NAMES:
         raise ValueError("Runtime configuration does not contain the exact 76-D feature order.")
-    feedback_labels = list(data.get("feedback_labels") or FEEDBACK_LABELS)
+    feedback_labels = [name for name in (data.get("feedback_labels") or FEEDBACK_LABELS)
+                       if name not in DISABLED_GESTURES]
     if feedback_labels != FEEDBACK_LABELS:
-        raise ValueError("Feedback labels must contain the twelve commands plus no_gesture.")
+        raise ValueError("Feedback labels must contain the active commands plus no_gesture.")
     reject_label = str(data.get("reject_label", REJECT_LABEL))
     if reject_label != REJECT_LABEL:
         raise ValueError("The runtime rejection label must be no_gesture.")
     gesture_to_action = dict(data.get("gesture_to_action") or GESTURE_TO_ACTION)
+    for name in DISABLED_GESTURES:
+        gesture_to_action.pop(name, None)
     if gesture_to_action != GESTURE_TO_ACTION:
         raise ValueError("Gesture actions do not match the twelve-command release contract.")
     return RuntimeConfig(

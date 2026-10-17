@@ -23,7 +23,7 @@ from typing import Any, Callable
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from .config import CLASS_NAMES
+from .config import ACTIVE_CLASS_NAMES, CLASS_NAMES, DISABLED_GESTURES
 from .data_collection import atomic_json, collection_plan, identifier
 
 
@@ -115,6 +115,8 @@ def validate_segments(segments, duration):
         if label not in {*CLASS_NAMES, "no_gesture", "uncertain"}:
             raise ValueError("Unknown gesture label.")
         reason = str(row.get("negative_reason") or "")
+        if label in DISABLED_GESTURES:
+            label, reason = "no_gesture", "dorsal_casual"
         if label == "no_gesture":
             if reason not in prompts:
                 raise ValueError("Select a known negative reason for every no_gesture span.")
@@ -270,7 +272,10 @@ class VideoLabStore:
             path = self._inside("clips", clip_id, "clip.json")
             if not path.is_file():
                 raise ValueError("The selected video does not exist.")
-            return json.loads(path.read_text(encoding="utf-8"))
+            clip = json.loads(path.read_text(encoding="utf-8"))
+            if clip.get("segments"):
+                clip["segments"] = validate_segments(clip["segments"], clip["duration_seconds"])
+            return clip
 
     def media_path(self, clip_id):
         clip = self.get_clip(clip_id)
@@ -299,7 +304,7 @@ class VideoLabStore:
                     except (ValueError, OSError):
                         continue
             return dict(clips=sorted(clips, key=lambda c: c["created_at_utc"], reverse=True),
-                        classes=[*CLASS_NAMES, "no_gesture", "uncertain"],
+                        classes=[*ACTIVE_CLASS_NAMES, "no_gesture", "uncertain"],
                         scenarios=reviewed_scenarios(), max_upload_bytes=MAX_UPLOAD_BYTES,
                         max_duration_seconds=MAX_DURATION_SECONDS)
 
@@ -391,7 +396,7 @@ class VideoLabStore:
 
     @staticmethod
     def _predict(runtime, jpeg, session, timestamp, config):
-        # Keep the full frame so body verification can see shoulder/elbow/hip.
+        # Keep the full frame for hand search and consistent preview coordinates.
         result = runtime.process_frame(jpeg, session, now=1000.0 + timestamp)
         if result.get("status") not in {"predicted", "no_hand"}:
             raise ValueError(result.get("message") or "Runtime is unavailable; replay cannot be scored.")
@@ -442,7 +447,6 @@ class VideoLabStore:
                     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
                     metadata["feature_space"] = "smoothed_landmarks_in_full_frame"
                     metadata["world_landmarks"] = result.get("world_landmarks")
-                    metadata["body_context"] = (result.get("quality") or {}).get("detector", {}).get("selected_body_context")
                     metadata["video_provenance"] = dict(clip_id=clip["id"], sha256=clip["sha256"],
                                                         frame_index=index, timestamp_seconds=timestamp,
                                                         annotations_revision=clip["annotations_revision"],
@@ -495,7 +499,7 @@ class VideoLabStore:
                       model=candidate_job_id or "production", annotations_revision=clip["annotations_revision"],
                       model_metadata=model_metadata, source_fps=clip["fps"],
                       replay_fps=min(10.0, config.target_fps), metrics=metrics, events=events, timeline=timeline,
-                      policy="Causal full-runtime replay including detection, geometry, body verification, tracking, holds, action cooldown, and release. Uncertain spans and unlabeled gaps are replayed but unscored. Each positive span represents one intended action.")
+                      policy="Causal hand-only runtime replay including detection, geometry, tracking, holds, action cooldown, and release. Uncertain spans and unlabeled gaps are replayed but unscored. Each positive span represents one intended action.")
         with self._lock:
             current = self.get_clip(clip["id"])
             current["reports"].append(report)

@@ -66,9 +66,8 @@ public final class GestureTemporalGate {
         let runnerUp = ordered.dropLast().last ?? 0
         let margin = rawConfidence - runnerUp
         let gesture = GestureFeatureExtractor.classNames[argmax(row)]
+        if gesture == "dorsal" { return reject("dorsal is a hard negative") }
         let recoveryMassOK = knownGestureMass >= geometryRecoveryMassFloor
-        let dorsalFallback = resolution.geometrySupported && gesture == "dorsal"
-            && (recoveryMassOK || resolution.dorsalRangeRecovery)
         let directionalFallback = resolution.directionalRecovery
             && resolution.geometrySupported
             && ["left", "right", "up", "down"].contains(gesture)
@@ -79,7 +78,7 @@ public final class GestureTemporalGate {
                 ? (knownGestureMass >= 0.12 || resolution.sidewaysPalmRecovery)
                 : recoveryMassOK)
 
-        if knownGestureMass < knownMassFloor && !(dorsalFallback || directionalFallback || supportedHand) {
+        if knownGestureMass < knownMassFloor && !(directionalFallback || supportedHand) {
             return reject("outside the twelve-gesture vocabulary")
         }
         if rawConfidence < confidenceFloor { return reject("below confidence floor") }
@@ -108,7 +107,6 @@ public final class GestureTemporalGate {
         }
         let heldSeconds = max(0, timestamp - (labelStartedAt ?? timestamp))
         var requiredHold = minimumHoldSeconds
-        if dorsalFallback && knownGestureMass < knownMassFloor { requiredHold = max(requiredHold, 0.35) }
         if directionalFallback && knownGestureMass < knownMassFloor { requiredHold = max(requiredHold, 0.40) }
         if supportedHand && knownGestureMass < knownMassFloor { requiredHold = max(requiredHold, 0.45) }
         let execute = confidence >= confidenceFloor
@@ -121,8 +119,6 @@ public final class GestureTemporalGate {
             reason = "insufficient consecutive stable frames"
         } else if heldSeconds < requiredHold {
             reason = "gesture hold requirement not reached"
-        } else if dorsalFallback && knownGestureMass < knownMassFloor {
-            reason = "stable Dorsal geometry"
         } else if directionalFallback && knownGestureMass < knownMassFloor {
             reason = "stable directional geometry"
         } else {

@@ -14,10 +14,14 @@ are approximate. When both hands have coherent world landmarks, selection compar
 their image-to-world projected scale. It falls back to apparent palm size when
 that comparison is unavailable. Neither cue measures camera depth.
 
-Every frame includes a full-frame detection pass. A bounded second pass can
-recover a difficult hand from a rotated/cropped view. Each hand is associated
+Every frame includes a full-frame detection pass. Up to two bounded recovery passes can
+recover difficult hands from rotated/cropped views. Each hand is associated
 with a persistent track using palm position, shape, size, and a soft handedness
-cue. Each track has its own confidence, geometry, vocabulary, and temporal
+cue. Three confident observations establish the hand's left/right identity;
+the identity stays with its continuously tracked physical hand. Clearly separated
+two-hand tracks survive duplicate or swapped detector labels and detection-order
+changes. Ambiguous overlap still pauses actions; a lone opposite hand cannot
+inherit a missing owner's track. Each track has its own confidence, geometry, vocabulary, and temporal
 checks. Classifier history and landmark smoothing reset on a change of hand.
 The dashboard NCM path now analyzes the full image, matching the BAT viewer.
 Previews use a fitted full image and both skeletons follow the same coordinates.
@@ -42,8 +46,11 @@ Recalibrate any saved range calibration that was made with the old central crop.
   assignment still pauses actions.
 - When the other hand appears clearly in front, the selected hand stays visible
   while the challenger is checked. New actions pause during this check. The
-  challenger takes ownership only after **3 observations and 0.25 seconds** of
-  a sustained lead; a one-frame size spike cannot switch hands. Only the
+  challenger takes ownership only after raw and filtered distance evidence agree
+  for **3 observations and 0.25 seconds**. Apparent palm and coherent projected
+  world scales use a time-adjusted EMA (0.50 per 100 ms). Borderline noisy bursts
+  cannot complete a switch using a hold accumulated before filtered evidence
+  agrees. Only the
   selected hand can show a recognized gesture; inactive previews remain
   `no_gesture`.
 - An invalid but physically tracked foreground hand remains selected but does
@@ -51,7 +58,7 @@ Recalibrate any saved range calibration that was made with the old central crop.
   even when another hand remains visible. That hand must complete a fresh
   gesture hold before it can act. No output uses stale landmarks, and a
   high-confidence opposite handedness cannot inherit the owner's track.
-- Track position continues updating during body rejections. A unique,
+- Track position continues updating during geometry rejections. A unique,
   confidently identified returning hand can recover its owner ID after a large
   movement. That recovery resets smoothing and gesture confirmation, so stale
   commands cannot execute at the new position. Ambiguous or opposite hands
@@ -62,13 +69,14 @@ Recalibrate any saved range calibration that was made with the old central crop.
 - An intermediate projected scale difference (**1.05–1.10 times**) or a
   similarly small, inconsistent palm-size difference keeps a clearly tracked
   owner. A larger but inconsistent difference or uncertain track assignment
-  pauses actions without transferring ownership.
-- If two hands were recently tracked and a frame finds only one, the detector
-  attempts its bounded second pass on that frame. Recovery still requires
+  pauses actions without transferring ownership. When the owner's current
+  landmarks and identity remain clear, it stays visible and selected during
+  this pause. Missing or ambiguously overlapping hands do not use that path.
+- If a frame finds only one hand, the detector searches for its peer on both
+  sides of that hand, including when the person is off-centre. Recovery still requires
   fresh landmarks; missing hands cannot produce a gesture action.
 - Live selection requires at least **18 palm pixels**, **40 hand-span pixels**,
-  and **12 pixels along the short side** of the hand. Dorsal additionally requires
-  **24 palm pixels**. These checks use analysis-image pixels before recovery crop
+  and **12 pixels along the short side** of the hand. These checks use analysis-image pixels before recovery crop
   magnification. Tiny observations can remain visible in gray without triggering
   an action. The older 8/24/10 detector floors below still apply to collecting raw
   observations; they are no longer sufficient for live action eligibility.
@@ -78,11 +86,14 @@ values for real camera trials, not a measured accuracy guarantee. Palm rotation,
 different hand anatomy, inaccurate world landmarks, occlusion, and lighting can
 still bias the comparison. A single RGB camera cannot resolve every near-equal
 or fully occluded two-hand arrangement.
-The body-position restriction applies only to Dorsal on a relaxed hanging arm
-below the waist or a folded resting arm with a dropped hand. Face overlap does
-not pause live gestures. These are
-RGB estimates rather than measured camera depth or
-cloth/skin contact.
+Live inference uses hand landmarks only. Body, arm and waist position, face overlap, and clothing are not gesture vetoes. Hand shape, source detail and stability still determine recognition.
+
+Both hand overlays use motion-adaptive smoothing local to their track. The
+selected hand's accepted landmark filter supplies its recognized overlay.
+Raw landmarks and current finger poses still drive classification; the display
+filter does not authorize commands or invent hands during a missed detection.
+Dorsal is a hard negative regardless of foreground clearance, hand count, distance
+or wrist angle. It cannot activate a command.
 
 Suggested live checks, in both the BAT camera and dashboard:
 
@@ -102,10 +113,10 @@ Suggested live checks, in both the BAT camera and dashboard:
    then a fresh selection and gesture hold after 0.80 seconds. If the selected
    hand remains physically tracked but its gesture is invalid, expect it to
    remain selected without an action.
-8. Check Dorsal with a straight or slightly bent hanging arm below the waist,
-   and with a folded arm resting beside a desk while the hand hangs downward;
-   expect no gesture. Raise the arm and hold a deliberate Dorsal; expect
-   recognition. Check both arms and verify that other classes remain eligible.
+8. Show all commands in front of plain, dark and patterned clothing, at chest
+   and lap level and with the body cropped. Complete valid hands remain eligible.
+   Check that low-detail, incomplete and unknown hand shapes remain rejected.
+   A resting hand that matches a command can qualify under the hand-only policy.
 
 Record false actions, missed intended gestures, and time to selection. Automated
 tests cover selection and state transitions; the actual camera trial is still
@@ -155,99 +166,33 @@ angles, camera distance, or a calibrated measurement of the user's arm.
 
 ## Detection changes and evidence
 
-### Dorsal on a relaxed hanging or folded arm
+### Hand-only detection and clothing recovery
 
-The BAT viewer and dashboard match each hand to confident MediaPipe body
-landmarks: right shoulder/elbow/wrist **12/14/16** with hip **24**, or left
-shoulder/elbow/wrist **11/13/15** with hip **23**. After classification, only
-**Dorsal** with a below-waist hand and a relaxed hanging arm is `no_gesture`.
-The elbow's interior angle must be at least **135 degrees**, and both upper arm
-and forearm must point down along the torso. Shoulder, elbow, wrist and hip
-visibility/presence must each be at least **0.65**. The palm centre must be at or
-below the hip's waist plane; wrist matching allows a small tolerance for a
-sloping torso and mildly bent hanging arm.
+Body and face inference are disabled. All former Dorsal poses are `no_gesture`,
+including deliberately presented hands and views with the body cropped.
+Geometry and source-pixel checks still reject incomplete or ambiguous hands.
+Legacy body helpers and models remain available for offline reference only.
 
-For a seated desk view with the waist cropped, a second narrow check uses a
-confident shoulder, elbow and wrist. It suppresses Dorsal when the upper arm
-drops, the elbow folds outward, the forearm returns across the shoulder line,
-and the fingers hang downward. A bent arm by itself does not trigger this rule.
+Cold-start recovery repeatedly checks an upright central crop while continuing
+the other search views. A productive view retains fresh VIDEO tracking in the
+bounded recovery passes while every frame still starts with a full-frame scan.
+Two crop streams retain independent VIDEO tracking histories, so finding one
+hand does not reset the other's tracker. Recent
+hand locations guide padded crops for up to 650 ms, with
+missing hands prioritized over already visible hands. These local retries
+alternate with a progressing global rotation/crop search. Original and enhanced
+contrast are both searched; enhancement can reduce detector recall on some palms.
+Every frame still
+starts with full-frame detection; cached coordinates never count as detected
+landmarks and never execute a command. Recovery state belongs to each camera
+session and expires when observations are too old or image size changes.
 
-A raised arm or a bent arm outside the folded resting pattern remains eligible
-for Dorsal. There is no horizontal trouser margin and no
-body-position restriction on Fist, Up, Down, Left, Right or the other classes.
-The same rule checks the final smoothed prediction; crop recovery cannot bypass
-a confirmed relaxed Dorsal rejection. Ordinary gesture holds still apply.
-
-Per-hand `body_context` includes `below_waist`, `relaxed`, `hanging_arm`,
-`folded_resting_arm`,
-`arm_confident`, `arm_landmark_indices`, `waist_landmark_index`,
-`elbow_angle_deg`, `upper_arm_down_alignment`, `forearm_down_alignment`,
-`wrist_height` and `palm_height`. Missing or weak body evidence does not impose
-a body-position veto.
-
-Dorsal, Open Palm and Fist no longer have fixed screen-angle rejection ranges.
-They still require the intended finger shape and palm/back-of-hand evidence.
-The defining directions of Up, Down, Left, Right, Like and Thumb Down remain
-part of recognizing those gestures.
-
-Live gestures are not rejected because of face position or contact. The Face
-Landmarker model has been removed from the runtime and installer. No face
-inference or contact hold runs in the live hand detector. The old face-contact
-helper is retained only for offline regression/reference work.
-
-Dorsal requires four straight, together, approximately parallel fingers, with
-the thumb beside the index finger and the back of the hand visible. The thumb
-gap to the index-finger segment must be at most 0.50 of wrist-to-middle-MCP
-length. This shape rule applies at every screen rotation and location,
-including in front of the face. A loose spread-thumb hand does not qualify.
-This is an explicit gesture definition, not an attempt to infer intent.
-
-Pose Lite also checks the folded resting arm when the hip is out of frame.
-Other gestures have no body-position veto. Missing body landmarks cannot
-establish either relaxed posture, so keep the shoulder, elbow and wrist visible
-when validating this rule.
-A confirmed resting posture survives a brief missing body estimate for up to
-650 ms, only while the same hand stays in place at a similar size. Movement,
-an explicit raised/bent-arm estimate or ambiguous hand matching clears it.
-Reused posture evidence never extends its own timeout.
-
-Regression checks cover the traced chin-rest screenshot, both hands, rotated
-and scaled deliberate Dorsal, relaxed arms, and above-waist/bent-arm positives.
-Screenshot traces and synthetic posture tests are not measured camera accuracy.
-
-Horizontal Left/Right accepts an expanded thumb. A strict long straight index,
-separate extended thumb and three deeply curled fingers additionally supports
-the reported low-mass L-shaped pose in `backend/geometry.py`. This narrow
-recovery still requires at least 0.01 vocabulary mass, a 500 ms hold and no
-online negative evidence. Other Left/Right shapes retain the usual mass gates;
-Peace/Rock/open fingers and diagonal directions cannot use this recovery.
-
-This uses [MediaPipe Pose Landmarker Lite](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker),
-with the official version-1 model pinned by SHA-256 in `backend/body_guard.py`.
-The model is included in `models/pose_landmarker_lite.task`; setup can restore it
-using `scripts/download_pose_landmarker.py`. A missing or corrupt model prevents
-startup instead of silently disabling the check.
-
-Pose inference uses a maximum dimension of 512 pixels, runs at most once every
-150 ms when a usable hand is present, and retains a missed body for at most
-400 ms. The current hand is checked on every frame, including recovered views.
-Pose history is isolated by camera session. Per-frame diagnostics include
-`quality.detector.body_guard` and each rejected hand's `body_context` evidence.
-
-This is a posture heuristic, not detection of cloth contact or measured depth.
-The head and knees may be cropped. A reliable hip is required for the
-below-waist case; the folded-arm case can work without it. If the body cannot
-be located, the body-position rule leaves the hand eligible; the other gesture
-and selection checks still apply. A clearly enlarged foreground hand is excluded
-from body matching. To intentionally perform Dorsal, raise the arm away from
-the hanging or folded resting posture.
-
-Restart the BAT viewer or dashboard backend to load this change. During live
-trials, compare both relaxed hands beside the trousers, one raised gesture with
-the other hand relaxed, a clear listed gesture beside the face, unknown poses
-beside the face, and an intentional dorsal pose above the waist.
-Repeat with the head cropped, different clothing and lighting. Live accuracy
-and the extra pose inference cost have not yet been measured on these cases.
+Automated regressions cover removal of body vetoes for all twelve commands,
+contrast enhancement, recovery after a tracking miss, missing second hands,
+search progression, history expiry, session separation and the frame budget.
+These checks do not measure live detection accuracy against clothing. Validate
+on recorded deployment-camera footage across backgrounds, lighting and motion.
+Fully hidden fingers, severe blur and absent image detail remain limits.
 
 The old NCM path reduced the central camera region to 320 × 320 pixels and
 rejected hands below 1.8% of that region's area. The updated path preserves native
@@ -258,9 +203,12 @@ that the camera did not capture.
 
 The detector can recover through a rotated or overlapping cropped view and local
 contrast correction. Coordinates are mapped back to the original unmirrored
-camera view before classification. A second pass is attempted only while the
-first pass remains within its 55 ms allowance; there are at most two passes per
-frame. The normal detection thresholds and command confidence/hold rules remain
+camera view before classification. Recovery starts within 55 ms; a further peer
+pass may start within 85 ms. There are at most three passes per frame, and at
+most two resident recovery VIDEO streams. Extra recovery can reduce frame rate.
+The webcam runner requests 1280 × 720 capture, with driver fallback, to retain
+more distant finger detail. Source-pixel eligibility checks still apply.
+The normal detection thresholds and command confidence/hold rules remain
 in place. Recovery searches use lower candidate thresholds, then the existing
 classifier and geometry rules qualify candidates. A rejected finger arrangement
 triggers reacquisition rather than indefinite tracking of the wrong arrangement.

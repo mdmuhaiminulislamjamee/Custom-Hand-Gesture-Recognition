@@ -14,11 +14,19 @@ from typing import Callable
 
 import numpy as np
 
-from backend.config import CLASS_NAMES, RuntimeConfig
+from backend.config import CLASS_NAMES, DISABLED_GESTURES, RuntimeConfig
 from backend.data_collection import atomic_json
 from research.collection_dataset import load_collection_dataset
 
 LABELS = [*CLASS_NAMES, "no_gesture"]
+ACTIVE_INDICES = [i for i, name in enumerate(LABELS) if name not in DISABLED_GESTURES]
+
+
+def apply_label_policy(data):
+    labels = np.asarray(data["y"]).copy()
+    for name in DISABLED_GESTURES:
+        labels[labels == LABELS.index(name)] = LABELS.index("no_gesture")
+    return {**data, "y": labels}
 
 
 def audit_dataset(root: Path):
@@ -45,7 +53,8 @@ def audit_dataset(root: Path):
     for split in ("train", "val", "test"):
         if coverage[split]["participants"] < 2:
             issues.append(f"{split}: fewer than two independent participants with usable hand features")
-        missing = [label for label, count in coverage[split]["classes"].items() if count == 0]
+        missing = [label for label, count in coverage[split]["classes"].items()
+                   if count == 0 and label not in DISABLED_GESTURES]
         if missing:
             issues.append(f"{split}: missing classes: {', '.join(missing)}")
     result = {
@@ -67,11 +76,14 @@ def audit_dataset(root: Path):
 
 
 def mix_training(base, captured, per_class=1024, seed=1900):
-    """Keep every class, cap captured share and repeats, then shuffle."""
+    """Balance active commands/rejection, including retired Dorsal negatives."""
+    base, captured = apply_label_policy(base), apply_label_policy(captured)
     rng = np.random.default_rng(seed)
     rows, labels = [], []
     counts = {}
     for index, label in enumerate(LABELS):
+        if label in DISABLED_GESTURES:
+            continue
         public = np.flatnonzero(base["y"] == index)
         local = np.flatnonzero(captured["y"] == index)
         if not len(public):
@@ -107,6 +119,7 @@ def score_model(path: Path, data, config=None):
     from sklearn.metrics import classification_report, confusion_matrix, f1_score
     from research.v18_20 import predict_onnx
 
+    data = apply_label_policy(data)
     if not len(data["y"]):
         return {"rows": 0, "available": False}
     config = config or RuntimeConfig()
@@ -114,7 +127,8 @@ def score_model(path: Path, data, config=None):
     if probabilities.shape != (len(data["y"]), len(CLASS_NAMES)):
         raise ValueError("Candidate output does not match the twelve-command contract")
     ordered = np.sort(probabilities, axis=1)
-    accepted = ((mass >= config.known_mass_floor)
+    accepted = (np.isin(probabilities.argmax(1), ACTIVE_INDICES)
+                & (mass >= config.known_mass_floor)
                 & (ordered[:, -1] >= config.confidence_floor)
                 & (ordered[:, -1] - ordered[:, -2] >= config.probability_margin_floor))
     predicted = np.where(accepted, probabilities.argmax(1), len(CLASS_NAMES))
@@ -124,7 +138,7 @@ def score_model(path: Path, data, config=None):
                                    target_names=LABELS, output_dict=True, zero_division=0)
     return {
         "rows": len(truth), "available": True,
-        "macro_f1": float(f1_score(truth, predicted, labels=np.arange(len(LABELS)),
+        "macro_f1": float(f1_score(truth, predicted, labels=ACTIVE_INDICES,
                                    average="macro", zero_division=0)),
         "accepted_precision": float(np.mean(predicted[accepted] == truth[accepted])) if accepted.any() else None,
         "unknown_false_accept_rate": float(np.mean(accepted[negative])) if negative.any() else None,
@@ -147,8 +161,9 @@ def train(root: Path, output: Path, project: Path, epochs=50, log: Callable = pr
     atomic_json(output / "audit.json", audit)
     if not audit["can_train"]:
         raise ValueError("Training needs reviewed usable frames from independent training and validation participants. Run the dataset audit for details.")
-    log("Preparing participant-isolated public data for all twelve commands and rejection.", flush=True)
+    log("Preparing participant-isolated public data for eleven active commands and rejection, including retired Dorsal negatives.", flush=True)
     base, public_val, public_test, base_audit = prepare(per_class=1024)
+    base, public_val, public_test = map(apply_label_policy, (base, public_val, public_test))
     subsets = {split: {"X": captured["X"][captured["split"] == split],
                        "y": captured["y"][captured["split"] == split]}
                for split in ("train", "val", "test")}
@@ -169,7 +184,7 @@ def train(root: Path, output: Path, project: Path, epochs=50, log: Callable = pr
         for epoch in range(epochs):
             model.partial_fit(x, mixed["y"], classes=np.arange(len(LABELS)))
             f1 = float(f1_score(val["y"], model.predict(validation_x),
-                                labels=np.arange(len(LABELS)), average="macro", zero_division=0))
+                                labels=ACTIVE_INDICES, average="macro", zero_division=0))
             history.append({"epoch": epoch + 1, "validation_raw_macro_f1": f1})
             log(f"Epoch {epoch + 1}/{epochs}: validation macro F1 {f1:.5f}", flush=True)
             if f1 > best_score + .0001:

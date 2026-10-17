@@ -87,7 +87,7 @@ def rotate_to_xy(points, xy):
 
 @pytest.mark.parametrize('xy', [0, 1, 15, 30, 67, 90, 120, 149])
 @pytest.mark.parametrize('mirror', [False, True])
-def test_reported_dorsal_accepts_rotated_four_finger_shape_with_low_mass(xy, mirror):
+def test_reported_dorsal_rejects_rotated_four_finger_shape_at_low_mass(xy, mirror):
     points = reported_dorsal()
     if mirror:
         points[:, 0] *= -1
@@ -101,8 +101,8 @@ def test_reported_dorsal_accepts_rotated_four_finger_shape_with_low_mass(xy, mir
         world_landmarks=world_for_image(points),
     )
     pose = details['pose_validation']
-    assert pose['gesture'] == 'dorsal'
-    assert pose['valid'] and pose['geometry_supported']
+    assert pose['gesture'] == 'no_gesture'
+    assert not pose['valid'] and not pose['geometry_supported']
     gate = TemporalGate(config)
     for now in (1., 1.1, 1.2, 1.3, 1.4, 1.5):
         decision = gate.update(
@@ -112,8 +112,9 @@ def test_reported_dorsal_accepts_rotated_four_finger_shape_with_low_mass(xy, mir
         )
         if now < 1.4:
             assert not decision.execute
-    assert decision.predicted_gesture == 'dorsal' and decision.execute
+    assert decision.predicted_gesture == 'no_gesture' and not decision.execute
     assert decision.known_gesture_mass == .05
+
 
 
 @pytest.mark.parametrize('xy', [-90, -35, -1, 151, 180])
@@ -128,7 +129,7 @@ def test_dorsal_rejects_hand_outside_command_direction(xy):
         world_landmarks=world_for_image(points),
     )
     assert not details['pose_validation']['valid']
-    assert details['pose_validation']['gesture'] == 'dorsal'
+    assert details['pose_validation']['gesture'] == 'no_gesture'
     assert not details['pose_validation']['dorsal_range_recovery']
     assert not details['hand_shape']['dorsal_allowed_direction']
     decision = TemporalGate(config).update(
@@ -138,6 +139,7 @@ def test_dorsal_rejects_hand_outside_command_direction(xy):
         dorsal_range_recovery=details['pose_validation']['dorsal_range_recovery'],
     )
     assert decision.predicted_gesture == 'no_gesture'
+
 
 
 @pytest.mark.parametrize('variant', ['palmar', 'unknown_surface', 'curled'])
@@ -180,8 +182,9 @@ def test_dorsal_world_axis_angle_vetoes_even_verified_finger_shape(world_xy):
         world_landmarks=world_for_image(rotate_to_xy(points, world_xy)),
     )
     assert not details['pose_validation']['valid']
-    assert details['pose_validation']['gesture'] == 'dorsal'
+    assert details['pose_validation']['gesture'] == 'no_gesture'
     assert not details['pose_validation']['dorsal_range_recovery']
+
 
 
 @pytest.mark.parametrize('finger', [5, 9, 13, 17])
@@ -236,7 +239,7 @@ def test_reported_peace_shapes_resolve_production_onnx_directions():
             assert decision.predicted_gesture == 'peace' and decision.execute
 
 
-def test_live_inference_emits_low_mass_dorsal_action(monkeypatch):
+def test_live_inference_rejects_low_mass_dorsal_without_action(monkeypatch):
     import cv2
     import threading
     from types import SimpleNamespace
@@ -265,6 +268,6 @@ def test_live_inference_emits_low_mass_dorsal_action(monkeypatch):
         result = engine.process_frame(encoded.tobytes(), session)
         if now < 1.45:
             assert result['runtime_action'] == 'Wait / No Action'
-    assert result['runtime_prediction'] == 'dorsal'
-    assert result['runtime_action'] == config.gesture_to_action['dorsal']
+    assert result['runtime_prediction'] == 'no_gesture'
+    assert result['runtime_action'] == 'Wait / No Action'
     assert result['known_gesture_mass'] == .05

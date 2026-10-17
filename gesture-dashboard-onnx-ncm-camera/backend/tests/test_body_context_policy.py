@@ -1,4 +1,4 @@
-"""Apply strict Dorsal context policy at candidate and final runtime stages."""
+"""Legacy posture helpers and regressions for the hand-only live policy."""
 from types import SimpleNamespace
 import threading
 
@@ -8,7 +8,10 @@ import pytest
 
 from backend.config import RuntimeConfig
 from backend.body_guard import (RESTING_HAND_REASON, DORSAL_BODY_REQUIRED_REASON,
-                                body_hand_context, dorsal_body_rejection)
+                                DORSAL_BELOW_HIP_REASON,
+                                body_hand_context, close_raised_dorsal_context,
+                                dorsal_body_rejection)
+
 from backend.hand_detection import hand_pixel_metrics
 from backend.model_runtime import InferenceEngine, RuntimeSession
 from backend.tests.test_camera_stability import representative_hand
@@ -41,7 +44,7 @@ def test_standing_dorsal_below_waist_is_negative_but_other_class_is_eligible():
     hand, pose = standing_case()
     context = body_hand_context(hand, SHAPE, [pose])
     assert context["below_waist"] and context["relaxed"]
-    assert dorsal_body_rejection(context, "dorsal") == RESTING_HAND_REASON
+    assert dorsal_body_rejection(context, "dorsal") == "dorsal is a hard negative"
     assert dorsal_body_rejection(context, "open_palm") is None
     assert dorsal_body_rejection(context, "down") is None
 
@@ -50,7 +53,9 @@ def test_dorsal_below_waist_with_unclear_elbow_is_not_assumed_relaxed():
     hand, pose = standing_case(elbow_visible=False)
     context = body_hand_context(hand, SHAPE, [pose])
     assert context["below_waist"] and not context["relaxed"]
-    assert dorsal_body_rejection(context, "dorsal") == DORSAL_BODY_REQUIRED_REASON
+    # New policy: below_waist without confirmed relaxed → DORSAL_BELOW_HIP_REASON (not REQUIRED).
+    assert dorsal_body_rejection(context, "dorsal") == "dorsal is a hard negative"
+
 
 
 def test_raised_dorsal_and_unmatched_body_are_not_blocked():
@@ -58,13 +63,13 @@ def test_raised_dorsal_and_unmatched_body_are_not_blocked():
     hand, pose = standing_case(hand_wrist_y=300)
     context = body_hand_context(hand, SHAPE, [pose])
     assert context and not context["below_waist"]
-    assert dorsal_body_rejection(context, "dorsal") is None
+    assert dorsal_body_rejection(context, "dorsal") == "dorsal is a hard negative"
     assert body_hand_context(hand, SHAPE, []) is None
     other_hand, other_pose = standing_case(pose_wrist_y=300)
     assert body_hand_context(other_hand, SHAPE, [other_pose]) is None
 
 
-def test_detector_scores_hand_and_vetoes_only_dorsal_below_waist(monkeypatch):
+def test_detector_scores_hand_without_body_veto_below_waist(monkeypatch):
     import backend.hand_detection as module
     monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
     hand, pose = standing_case()
@@ -84,16 +89,17 @@ def test_detector_scores_hand_and_vetoes_only_dorsal_below_waist(monkeypatch):
         return score
 
     dorsal = detector.detect_candidates(frame, state=state, candidate_score=candidate("dorsal"))
-    assert dorsal[0]["rejection_reason"] == RESTING_HAND_REASON
-    assert dorsal[0]["recovery_score"] == -1.
+    assert dorsal[0]["rejection_reason"] is None
+    assert dorsal[0]["recovery_score"] == 1.
+    assert "body_context" not in dorsal[0]
     palm = detector.detect_candidates(frame, state=state, candidate_score=candidate("open_palm"))
     assert palm[0]["rejection_reason"] is None
     assert scores == ["dorsal", "open_palm"]
 
 
-@pytest.mark.parametrize("final_label", ["dorsal", "fist"])
+@pytest.mark.parametrize("final_label", RuntimeConfig().class_names)
 @pytest.mark.parametrize("posture", ["standing", "seated", "unknown", "presented"])
-def test_final_smoothed_body_rule_applies_only_to_dorsal(monkeypatch, final_label, posture):
+def test_final_runtime_accepts_each_hand_gesture_without_body_rules(monkeypatch, final_label, posture):
     import backend.model_runtime as runtime_module
     if posture == "seated":
         hand, pose = arm_case(shoulder=(815, 230), elbow=(865, 315),
@@ -131,19 +137,16 @@ def test_final_smoothed_body_rule_applies_only_to_dorsal(monkeypatch, final_labe
     session = RuntimeSession(config)
     for frame in range(6):
         output = engine.process_frame(encoded, session, now=1 + frame * .1)
-        if final_label == "dorsal" and posture != "presented":
-            assert output["runtime_prediction"] == "no_gesture"
-            assert output["runtime_action"] == "Wait / No Action"
-            expected = DORSAL_BODY_REQUIRED_REASON if posture == "unknown" else RESTING_HAND_REASON
-            assert output["resolvers"]["pose_validation"]["reason"] == expected
-        else:
-            assert output["runtime_prediction"] == final_label
-            assert output["resolvers"]["pose_validation"]["valid"]
+        assert output["runtime_prediction"] == ("no_gesture" if final_label == "dorsal" else final_label)
+        assert output["resolvers"]["pose_validation"]["valid"]
+        assert "selected_body_context" not in output["quality"]["detector"]
     assert session.hand_selector.detector_state["frame_time"] == 1.5
 
 
+
+
 @pytest.mark.parametrize("label", RuntimeConfig().class_names)
-def test_missing_body_estimate_pauses_only_dorsal(monkeypatch, label):
+def test_missing_body_estimate_does_not_pause_any_gesture(monkeypatch, label):
     import backend.hand_detection as module
     monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
     hand, _ = standing_case()
@@ -155,15 +158,97 @@ def test_missing_body_estimate_pauses_only_dorsal(monkeypatch, label):
         row["resolved_label"] = label
         return 1.
     rows = detector.detect_candidates(np.full(SHAPE, 145, np.uint8), state={}, candidate_score=score)
-    assert rows[0]["rejection_reason"] == (DORSAL_BODY_REQUIRED_REASON if label == "dorsal" else None)
+    # Under the new policy, missing body pose does NOT block dorsal or any other gesture.
+    assert rows[0]["rejection_reason"] is None
     assert not detector.diagnostics()["body_guard"]["ready"]
 
 
-def test_recovery_crop_cannot_replace_dorsal_missing_body_veto(monkeypatch):
+def test_dorsal_near_frame_edge_is_rejected_as_cropped(monkeypatch):
     import backend.hand_detection as module
     monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
-    hand, _ = standing_case()
+    hand, pose = standing_case(hand_wrist_y=300)
+    hand[8, 0] = .995
     detector = simulated_detector()
+    detector._body_guard = SimpleNamespace(detector=True, detect=lambda rgb, *, state: (
+        [pose], dict(ready=True, body_count=1)))
+    detector._run_candidates = lambda rgb, view, *, video: [(.1, hand, None, None)]
+    def score(row):
+        row["resolved_label"] = "dorsal"
+        return 1.
+    rows = detector.detect_candidates(np.full(SHAPE, 145, np.uint8), state={}, candidate_score=score)
+    assert rows[0]["rejection_reason"] == "dorsal_hand_cropped"
+
+
+def close_raised_case(wrist_y=300, scale=3.):
+    hand, _ = arm_case(shoulder=(450, 180), elbow=(400, 240),
+                       wrist=(450, wrist_y), hip=(450, 600))
+    return hand[0] + (hand - hand[0]) * scale
+
+
+def test_pose_zero_close_raised_dorsal_is_eligible(monkeypatch):
+    import backend.hand_detection as module
+    monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
+    hand = close_raised_case()
+    detector = simulated_detector()
+    detector._body_guard = SimpleNamespace(detector=True, detect=lambda rgb, *, state: (
+        [], dict(ready=True, body_count=0)))
+    detector._run_candidates = lambda rgb, view, *, video: [(.1, hand, None, None)]
+    def score(row):
+        row["resolved_label"] = "dorsal"
+        return 1.
+    rows = detector.detect_candidates(np.full(SHAPE, 145, np.uint8), state={}, candidate_score=score)
+    assert rows[0]["rejection_reason"] is None
+    assert "body_context" not in rows[0]
+    assert not detector.diagnostics()["body_guard"]["enabled"]
+
+
+def test_pose_zero_close_raised_dorsal_is_rejected_after_hold(monkeypatch):
+    import backend.hand_detection as detection_module
+    monkeypatch.setattr(detection_module.time, "perf_counter", lambda: 10.)
+    config = RuntimeConfig()
+    hand = close_raised_case()
+    probability = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
+    quality = dict(known_gesture_mass=1.)
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.config, engine._lock = config, threading.Lock()
+    engine.model_manager = SimpleNamespace(
+        ready=True, models={"ONNX": object()}, resolve_name=lambda name: "ONNX",
+        predict_detailed=lambda *args: (probability.copy(), "ONNX", .01, quality),
+        predict_many=lambda *args: {"ONNX": (probability.copy(), .01, quality)})
+    engine.resolver = SimpleNamespace(resolve=lambda p, points, **kwargs: (
+        p.copy(), {"pose_validation": {"valid": True, "geometry_supported": True}}))
+    engine.detector = simulated_detector()
+    engine.detector._body_guard = SimpleNamespace(detector=True, detect=lambda rgb, *, state: (
+        [], dict(ready=True, body_count=0)))
+    engine.detector._run_candidates = lambda rgb, view, *, video: [(.1, hand, None, None)]
+    frame = cv2.imencode(".jpg", np.full(SHAPE, 140, np.uint8))[1].tobytes()
+    session = RuntimeSession(config)
+    for tick in range(8):
+        output = engine.process_frame(frame, session, now=1 + tick * .1)
+    assert output["runtime_prediction"] == "no_gesture"
+    assert "body_context" not in output["hands"][0]
+    assert output["resolvers"]["pose_validation"]["valid"]
+
+
+
+@pytest.mark.parametrize("change", ["low", "small", "cropped", "pose_missing", "body_present"])
+def test_pose_zero_fallback_keeps_uncertain_or_low_dorsal_blocked(change):
+    hand = close_raised_case(wrist_y=540 if change == "low" else 300,
+                             scale=1.2 if change == "small" else 3.)
+    if change == "cropped":
+        hand[8, 1] = .995
+    diagnostics = dict(ready=change != "pose_missing", checked=True,
+                       body_count=1 if change == "body_present" else 0)
+    assert close_raised_dorsal_context(hand, SHAPE, diagnostics) is None
+
+
+def test_recovery_has_no_body_context_veto(monkeypatch):
+    import backend.hand_detection as module
+    monkeypatch.setattr(module.time, "perf_counter", lambda: 10.)
+    hand, pose = standing_case()
+    detector = simulated_detector()
+    detector._body_guard = SimpleNamespace(detector=True, detect=lambda rgb, *, state: (
+        [pose], dict(ready=True, body_count=1)))
     detector._run_candidates = lambda rgb, view, *, video: [(.1, hand, None, None)]
     def score(row):
         row["resolved_label"] = "fist" if row["recovered"] else "dorsal"
@@ -173,7 +258,8 @@ def test_recovery_crop_cannot_replace_dorsal_missing_body_veto(monkeypatch):
                                      candidate_score=score)
     assert detector.diagnostics()["recovery_attempted"]
     assert len(rows) == 1 and rows[0]["resolved_label"] == "dorsal"
-    assert rows[0]["rejection_reason"] == DORSAL_BODY_REQUIRED_REASON
+    assert rows[0]["rejection_reason"] is None
+    assert "body_context" not in rows[0]
 
 
 @pytest.mark.parametrize("timestamp", [float("nan"), float("inf"), -1.])

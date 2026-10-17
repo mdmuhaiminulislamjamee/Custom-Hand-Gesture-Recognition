@@ -1,6 +1,6 @@
 # Swift integration sources
 
-Use the final guide in [IOS_INTEGRATION.md](../handover_docs/IOS_INTEGRATION.md) and the dated bundle produced by `scripts/create_final_handover.py`. These sources now include the 6 October Like/Down changes and current Peace, Dorsal, Fist, OK, low-mass recovery and tracking-gap rules.
+Use the final guide in [IOS_INTEGRATION.md](../handover_docs/IOS_INTEGRATION.md) and the dated bundle produced by `scripts/create_final_handover.py`. Dorsal is retired: the root Swift action map and decision gates reject it as `no_gesture`. Its legacy ONNX tensor slot remains reserved. Dated handover archives are unchanged. Full parity with the latest Windows geometry and a Mac/device acceptance run are required before a new native release.
 
 The five root Swift files implement the 76-feature extractor and post-landmark decisions. `ios/` contains the ONNX adapter, landmark engine, MediaPipe starter and Xcode templates. `tests/` contains Python reference expectations and a Mac compiler/test runner.
 

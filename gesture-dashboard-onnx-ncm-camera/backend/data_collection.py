@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 
 from PIL import Image
 
-from .config import CLASS_NAMES
+from .config import ACTIVE_CLASS_NAMES, CLASS_NAMES
 
 
 DEFAULT_COLLECTION_ROOT = Path(os.getenv("GESTURE_COLLECTION_DIR", "D:/Data-Collection"))
@@ -52,6 +52,10 @@ LABEL_TITLES.update({
 # Context and detector cases are reviewed raw images, but cannot safely train a
 # classifier whose only input is one hand's 76 landmark features.
 NEGATIVE_GROUPS = (
+    ("Dorsal hard negatives", "single", "hand_classifier", "Dorsal is retired. Every former Dorsal pose is no_gesture; vary angle, distance, background and lighting for both hands.", tuple(
+        (f"dorsal_{view}", "Show the back of the complete hand with four fingers extended, together or spread, and the thumb beside the index. This is no_gesture at every wrist angle, including against clothes.")
+        for view in ("front", "yaw_left", "yaw_right", "casual")
+    )),
     ("No hand", "none", "detector_only", "Vary the person, background, lighting and camera position; keep every hand out of view.", (
         ("background", "Keep both hands out of view. Vary your head position and the background."),
         ("face_ear", "Keep hands out of view while your face and ears are visible."),
@@ -65,7 +69,7 @@ NEGATIVE_GROUPS = (
         ("relaxed_hand", "Show a loose, partly curled hand that is clearly neither a closed fist nor four straight Dorsal fingers."),
         ("thumb_little_sign", "Extend thumb and little finger while folding the others. This retired sign is not a command."),
         ("partial_fist", "Partly curl the fingers without closing a full Fist or opening the palm."),
-        ("downward_fist", "Make a closed fist with its fingers directed down and away from the camera. The invalid view, rather than screen-down position alone, makes this no_gesture."),
+        ("downward_fist", "Close the fist and tilt its wrist-to-knuckle direction below horizontal, from right toward down or left toward down. Include fingers toward the camera and a 30-degree forward pitch; all these lower angles are no_gesture."),
         ("bent_index", "Bend the index finger halfway while keeping the others relaxed; do not point in a command direction."),
         ("three_fingers", "Extend three fingers with the others folded; avoid the two-finger Peace and four-finger Dorsal shapes."),
         ("four_fingers_spread", "Show four loosely spread fingers with the thumb tucked; avoid a together-finger Dorsal or full Open Palm."),
@@ -86,7 +90,7 @@ NEGATIVE_GROUPS = (
         ("fist_one_finger_loose", "Curl most fingers but leave the ring or little finger clearly partly open; do not make a closed Fist."),
     )),
     ("Resting Dorsal", "single", "context_only", "Capture ordinary rest, not an intentional command. Include shoulder, elbow and wrist when possible; vary seated and standing views.", (
-        ("dorsal_body_not_visible", "Show a Dorsal-like hand while shoulder, elbow or waist is cropped. Strict Dorsal requires observable body presentation, so the runtime must reject this case."),
+        ("dorsal_body_not_visible", "Show the back of the hand with the body cropped. Former Dorsal commands are always no_gesture, including when deliberately presented."),
         ("standing_arm_hanging", "Stand naturally with one arm hanging and the back of its relaxed hand toward the camera."),
         ("standing_hand_on_thigh", "Stand with a relaxed hand resting against the hip or thigh, fingers dropping downward."),
         ("seated_hand_on_lap", "Sit with a relaxed hand lying on the lap, back of hand visible."),
@@ -98,7 +102,7 @@ NEGATIVE_GROUPS = (
         ("hand_on_mouse", "Rest the hand naturally on a mouse without making a command."),
     )),
     ("Resting Fist", "single", "context_only", "Capture ordinary rest or grasping, not an intentional command. A closed hand alone can look identical to Fist.", (
-        ("fist_fingers_away", "Close the hand with its fingers facing away from the camera. This is not an accepted Fist command; retain the full image and orientation for context verification."),
+        ("fist_fingers_away", "Close the hand with its fingers facing away from the camera. This opposite-facing view is no_gesture; retain the full image and orientation for review."),
         ("standing_loose_fist", "Stand with a loosely closed hand hanging at the side."),
         ("seated_fist_on_lap", "Sit with a naturally closed hand resting on the lap."),
         ("seated_fist_on_desk", "Sit with a naturally closed hand resting on the desk."),
@@ -136,7 +140,7 @@ NEGATIVE_GROUPS = (
 
 def collection_plan():
     plan = []
-    for label in CLASS_NAMES:
+    for label in ACTIVE_CLASS_NAMES:
         views = list(VIEWS) if label in {*CLASS_NAMES[:4], "peace", "rock"} else ["front", "yaw_left", "yaw_right", "casual"]
         instruction = {
             "left": "Extend ONLY the index finger toward your left (right side of the unmirrored preview).",
@@ -145,9 +149,8 @@ def collection_plan():
             "down": "Point ONLY the index finger downward. Fold the middle, ring, and little fingers.",
             "open_palm": "Show your palm with all five fingers visible. Point up, left, or right; never down. Vary the wrist angle across captures.",
             "like": "Give a thumbs-up with the other four fingers folded.",
-            "dorsal": "Present the back of the hand above the waist with four fingers together pointing down. Keep shoulder, elbow, wrist and hip visible. A hanging or folded resting arm is not a command.",
             "ok": "Join thumb and index into a circle; extend the other three fingers.",
-            "fist": "Close all four fingers into the palm and keep the thumb naturally across them. Present the fingers toward the camera, including oblique angles with both hands. Fingers facing away are no_gesture.",
+            "fist": "Close all four fingers into the palm and keep the thumb across them. Sweep from horizontal left through up to horizontal right with both hands. Include a 30-degree pitch toward the camera. Fists below horizontal are no_gesture.",
             "thumb_down": "Point the thumb downward and keep the other four fingers folded.",
             "peace": "Extend index and middle fingers as a V. Fold ring and little fingers; vary wrist direction.",
             "rock": "Extend index and little finger. Fold middle and ring fingers. The thumb may be folded or extended.",
@@ -164,11 +167,12 @@ def collection_plan():
             plan.append(dict(id=f"no_gesture/{view}", label="no_gesture", title="No gesture",
                              view=view, instruction=instruction, variation=variation,
                              group=group, hand_mode=hand_mode,
-                             training_use="context_only" if view in {"index_middle_together", "downward_fist"} else training_use,
-                             allowed_orientations=(["away_from_camera"] if view in {"fist_fingers_away", "downward_fist"}
+                             training_use=("hand_classifier" if view == "dorsal_body_not_visible" else
+                                           "context_only" if view in {"index_middle_together", "downward_fist", "fist_fingers_away"} else training_use),
+                             allowed_orientations=(["away_from_camera"] if view == "fist_fingers_away"
                                                    else sorted(FINGER_ORIENTATIONS)) if single else [],
                              target=12, per_hand_target=6 if single else None,
-                             per_orientation_target=(6 if view in {"fist_fingers_away", "downward_fist"} else 3) if single else None))
+                             per_orientation_target=(6 if view == "fist_fingers_away" else 3) if single else None))
     return plan
 
 
@@ -210,7 +214,7 @@ class CollectionStore:
             required = {
                 "schema_version": 2,
                 "type": "gesture_image_collection",
-                "class_names": [*CLASS_NAMES, "no_gesture"],
+                "class_names": [*ACTIVE_CLASS_NAMES, "no_gesture"],
                 "direction_semantics": "NCM unmirrored: image +x is left, -x is right, -y is up",
                 "labels": "Human-confirmed; model predictions are diagnostics only",
                 "split_policy": "Keep each participant in one split during retraining",
@@ -438,8 +442,8 @@ class CollectionStore:
         if step is None:
             raise ValueError("Unknown collection prompt.")
         if step["label"] == "fist" and finger_orientation == "away_from_camera":
-            raise ValueError("Fingers facing away are no_gesture. Use the reverse-facing Fist negative prompt.")
-        if step["view"] in {"fist_fingers_away", "downward_fist"} and finger_orientation == "toward_camera":
+            raise ValueError("Opposite-facing fists are no_gesture. Use the reverse-facing Fist negative prompt.")
+        if step["view"] == "fist_fingers_away" and finger_orientation == "toward_camera":
             raise ValueError("Reverse-facing Fist negatives must have their fingers away from the camera.")
         if handedness not in {"left", "right", "both", "none", "unspecified"} or finger_orientation not in {*FINGER_ORIENTATIONS, "none", "unspecified"} or lighting not in {"normal", "dim", "backlit"} or distance not in {"near", "medium", "far"}:
             raise ValueError("Unknown recording condition.")

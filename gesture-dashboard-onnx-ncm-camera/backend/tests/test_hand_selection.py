@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from backend.config import RuntimeConfig
+from backend.hand_selection import DORSAL_HANDS_SIMILAR_REASON
 from backend.hand_detection import hand_pixel_metrics
 from backend.hand_selection import AutomaticHandSelector
 from backend.model_runtime import InferenceEngine, RuntimeSession
@@ -446,6 +447,57 @@ def test_runtime_switches_to_closer_challenger(monkeypatch):
     assert outputs[-1]["runtime_prediction"] == "left"
     assert outputs[-1]["hands"][0]["gesture"] == "no_gesture"
     assert expected_counts[-1] == 2
+
+
+def test_runtime_dorsal_stays_negative_at_every_foreground_distance(monkeypatch):
+    import cv2
+    import threading
+    config = RuntimeConfig()
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.config, engine._lock = config, threading.Lock()
+    probability = observation(label="dorsal")["probabilities"]
+    quality = {"known_gesture_mass": 1.0}
+    engine.model_manager = SimpleNamespace(
+        ready=True, models={"ONNX": object()}, resolve_name=lambda name: "ONNX",
+        predict_detailed=lambda *args: (probability.copy(), "ONNX", .01, quality),
+        predict_many=lambda *args: {"ONNX": (probability.copy(), .01, quality)},
+    )
+    engine.resolver = SimpleNamespace(resolve=lambda p, points, **kwargs: (
+        p, {"pose_validation": {"valid": True, "geometry_supported": True}}))
+    engine.detector = simulated_detector()
+    raised = dict(arm_confident=True, waist_confident=True,
+                  presentation_confident=True, dorsal_presented=True,
+                  presentation_current=True)
+    first = observation(x=.27, scale=.40, label="dorsal")
+    second = observation(x=.75, scale=.40, label="dorsal", hand="Left")
+    first["body_context"] = raised
+    second["body_context"] = raised
+    rows = [first]
+
+    def detect(rgb, *, state, candidate_score):
+        for row in rows:
+            candidate_score(row)
+        engine.detector._last_diagnostics = {"candidate_count": len(rows)}
+        return rows
+    monkeypatch.setattr(engine.detector, "detect_candidates", detect)
+    frame = cv2.imencode(".jpg", np.full(SHAPE, 140, np.uint8))[1].tobytes()
+    session = RuntimeSession(config)
+    for tick in range(8):
+        output = engine.process_frame(frame, session, now=1 + tick * .1)
+    assert output["runtime_prediction"] == "no_gesture"
+    rows.append(second)
+    for tick in range(8, 13):
+        output = engine.process_frame(frame, session, now=1 + tick * .1)
+    assert output["hand_selection"]["dorsal_foreground_clear"] is False
+    assert output["runtime_prediction"] == "no_gesture"
+    assert output["runtime_action"] == "Wait / No Action"
+    second.update(observation(x=.75, scale=.68, label="dorsal", hand="Left"))
+    second["body_context"] = raised
+    for tick in range(13, 30):
+        output = engine.process_frame(frame, session, now=1 + tick * .1)
+    assert output["runtime_action"] == "Wait / No Action"
+    assert output["runtime_prediction"] == "no_gesture"
+
 
 
 def test_runtime_classifies_current_finger_pose_after_landmark_filter_accepts_it(monkeypatch):

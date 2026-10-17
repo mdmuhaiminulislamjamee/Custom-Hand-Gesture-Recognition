@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from .config import FEEDBACK_DIRECTORY, MODELS_DIRECTORY, RuntimeConfig
+from .config import DISABLED_GESTURES, FEEDBACK_DIRECTORY, MODELS_DIRECTORY, RuntimeConfig
 
 
 @dataclass(slots=True)
@@ -47,6 +47,10 @@ class FeedbackStore:
         self.images_directory.mkdir(parents=True, exist_ok=True)
 
     def save(self, feedback: FeedbackRecord) -> dict[str, Any]:
+        if feedback.actual_label in DISABLED_GESTURES:
+            feedback.actual_label = self.config.reject_label
+        if feedback.predicted_label in DISABLED_GESTURES:
+            feedback.predicted_label = self.config.reject_label
         if feedback.actual_label not in self.config.feedback_labels:
             raise ValueError(f"Unknown actual label: {feedback.actual_label}")
         if feedback.predicted_label not in self.config.feedback_labels:
@@ -131,7 +135,6 @@ class FeedbackStore:
 def artifact_status(models_directory: Path = MODELS_DIRECTORY) -> list[dict[str, Any]]:
     expected = [
         ("MediaPipe hand detector", "hand_landmarker.task", True),
-        ("Relaxed-hand body pose guard", "pose_landmarker_lite.task", True),
         ("Runtime configuration", "gesture_mobile_runtime_config.json", True),
         ("Qualified ONNX classifier", "gesture_mlp_production.onnx", True),
         ("ONNX parity metadata", "gesture_mlp_onnx_metadata.json", True),

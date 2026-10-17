@@ -113,7 +113,7 @@ def test_cache_without_probabilities_can_use_base_predictor(tmp_path: Path):
     assert cache["valid"] is True
     assert cache["usable"] is True
     assert cache["probabilities_stored"] is False
-    assert cache["covered_classes"] == len(CLASS_NAMES)
+    assert cache["covered_classes"] == len(CLASS_NAMES) - 1
     assert cache["has_reject_rows"] is True
 
 

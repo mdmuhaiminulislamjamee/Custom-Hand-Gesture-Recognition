@@ -142,7 +142,7 @@ def test_torso_exception_does_not_hide_another_actual_face_region():
     assert result["candidate"]
 
 
-def test_live_detector_uses_current_pose_without_face_mesh(monkeypatch):
+def test_live_detector_ignores_body_pose_and_face_mesh(monkeypatch):
     import backend.body_guard as body_module
     import backend.hand_detection as hand_module
 
@@ -181,11 +181,9 @@ def test_live_detector_uses_current_pose_without_face_mesh(monkeypatch):
         assert rows[0]["rejection_reason"] is None
         assert not rows[0]["face_context"]["enabled"]
         assert not rows[0]["face_context"]["contact_confirmed"]
-        assert rows[0]["body_context"] is not None
+        assert "body_context" not in rows[0]
         assert not rows[0]["face_context"]["suppressed"]
-        current = body_guard.contact_observations(state=state)
-        assert len(current) == 1
-        assert current[0]["world_landmarks"] is None
-        assert current[0]["observed_at"] == clock[0]
+        assert not detector.diagnostics()["body_guard"]["enabled"]
+        assert "body_poses" not in state
         assert detector.diagnostics()["face_contact_rejected_count"] == 0
     assert scored

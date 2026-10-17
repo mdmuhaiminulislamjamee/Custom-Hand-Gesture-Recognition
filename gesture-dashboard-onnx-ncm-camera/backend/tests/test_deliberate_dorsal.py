@@ -37,7 +37,7 @@ def test_deliberate_dorsal_and_chin_rest_across_views(angle, mirror, scale, inte
     resolved, details = GeometryResolver(config).resolve(
         probabilities, points, handedness=side, handedness_confidence=.99)
     assert details["hand_shape"]["dorsal_deliberate_shape"] is intentional
-    expected = intentional and details["hand_shape"]["dorsal_allowed_direction"]
+    expected = False
     assert details["pose_validation"]["valid"] is expected
     gate = TemporalGate(config)
     for timestamp in (1., 1.1, 1.2, 1.3, 1.6):
@@ -49,19 +49,29 @@ def test_deliberate_dorsal_and_chin_rest_across_views(angle, mirror, scale, inte
         assert decision.predicted_gesture == "dorsal"
 
 
-@pytest.mark.parametrize("fault", ["thumb_spread", "fingers_spread", "finger_curled"])
+
+@pytest.mark.parametrize("fault", ["finger_curled"])
 def test_confident_model_cannot_override_loose_dorsal_shape(fault):
     points = reported_dorsal().copy()
-    if fault == "thumb_spread":
-        points[4] += [100, -30]
-    elif fault == "fingers_spread":
-        for finger, offset in zip((5, 9, 13, 17), (100, 30, -30, -100)):
-            points[finger + 1:finger + 4, 0] += np.linspace(offset / 3, offset, 3)
-    else:
-        points[12] = points[9]
+    points[12] = points[9]
     config = RuntimeConfig()
     probabilities = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
     _, details = GeometryResolver(config).resolve(
         probabilities, points, handedness="Right", handedness_confidence=.99)
     assert not details["hand_shape"]["dorsal_deliberate_shape"]
+    assert not details["pose_validation"]["valid"]
+
+
+@pytest.mark.parametrize("variation", ["fingers_spread", "spread_with_expanded_thumb"])
+def test_spread_fingers_and_thumb_are_dorsal_hard_negatives(variation):
+    points = reported_dorsal().copy()
+    for finger, offset in zip((5, 9, 13, 17), (100, 30, -30, -100)):
+        points[finger + 1:finger + 4, 0] += np.linspace(offset / 3, offset, 3)
+    if variation == "spread_with_expanded_thumb":
+        points[4] += [60, -20]
+    config = RuntimeConfig()
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
+    _, details = GeometryResolver(config).resolve(
+        probabilities, points, handedness="Right", handedness_confidence=.99)
+    assert details["hand_shape"]["dorsal_deliberate_shape"]
     assert not details["pose_validation"]["valid"]

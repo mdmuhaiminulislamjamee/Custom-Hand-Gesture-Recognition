@@ -4,7 +4,7 @@ Open **05 Data Collection** at http://127.0.0.1:3200.
 
 1. Choose **Webcam** or **NCM camera**. Authorize the browser webcam when prompted, or connect the board for NCM. Create an ID such as `person-001`; reuse that ID for the same person on later visits.
 2. Follow **Collect now**, or click **Go to no-gesture collection**. Use **Jump to a section** for resting Dorsal, resting Fist, incidental pointing, near-command or unrelated hand shapes, occlusion, two hands, or no-hand scenes.
-3. For single-hand prompts, choose the indicated hand and camera angle. Positive Fist uses only fingers toward the camera, including oblique angles; reverse-facing Fist negatives use only fingers away. Each hand needs six varied images for those prompts. Other single-hand prompts use three images per hand/angle combination. Two-hand and no-hand prompts set the hand condition automatically. Set lighting and distance. Press **Capture image** or **Space**; a three-second timer gives you time to pose. The live camera and detected hand landmarks are shown side by side.
+3. For single-hand prompts, choose the indicated hand and camera angle. Collect Fist across the upper arc from horizontal left through up to horizontal right, with both hands and a 30-degree pitch toward the camera. Collect lower angles as `no_gesture`. Collect the opposite-facing closed hand under the reverse-facing `no_gesture` prompt. Each hand needs six varied images for these one-orientation prompts; other single-hand prompts need three per hand and orientation. Two-hand and no-hand prompts set the hand condition automatically. Set lighting and distance. Press **Capture image** or **Space**; a three-second timer gives you time to pose. The live camera and detected hand landmarks are shown side by side.
 4. Review the frozen photo and its matching landmark view, then select **Confirm label & save image** or press **Space** again. Choose Retake if needed. The prompt is the human label; a wrong model prediction does not prevent saving.
 5. Collect three images in each hand/angle group (12 per prompt). The collector then advances to the next unfinished prompt. You can skip or jump to any prompt. Counts survive server restarts.
 6. Saved images for the current prompt appear as thumbnails. Select one or more and use **Delete selected**, or use **Delete last image** in Recent saves. Both ask for confirmation and remove the matching JPEG and JSON label together.
@@ -15,30 +15,32 @@ review and confirm its label exactly as for a captured image. Imported images
 are converted to a JPEG without overlays before analysis; the saved JPEG and
 diagnostics describe that same frame.
 
-There are 135 prompts: 72 commands and 63 `no_gesture` cases. A complete optional pass is 1,620 photos. Skip sections you cannot complete now and revisit them later. Vary people, both hands, sessions, backgrounds and conditions. Move naturally between photos; near-identical frames do not replace genuine variation. Straight touching index/middle fingers can be Peace and are retained as context review, excluded from negative hand-classifier fitting. Older positive Fist images marked fingers-away are excluded pending orientation review.
+There are 135 prompts: 72 commands and 63 `no_gesture` cases. A complete optional pass is 1,620 photos. Skip sections you cannot complete now and revisit them later. Vary people, both hands, sessions, backgrounds and conditions. Move naturally between photos; near-identical frames do not replace genuine variation. Straight touching index/middle fingers can be Peace and are retained as context review, excluded from negative hand-classifier fitting. Positive Fist images marked fingers-away are excluded pending orientation review.
 
-Collect Fist with both hands and genuine camera/wrist-angle variation while its
-fingers remain presented toward the camera. Screen direction alone does not
-determine Fist eligibility. Positive Open Palm examples should point up, left, right, and at
+Collect Fist with both hands and genuine camera/wrist-angle variation while
+the closed hand stays at or above horizontal. Up-left and up-right are valid;
+left-down, right-down and straight-down fists are `no_gesture`, including when
+pitched 30 degrees toward the camera. Horizontal left/right are valid boundaries.
+Review older downward-positive Fist captures before including them in training. Positive Open Palm examples should point up, left, right, and at
 oblique side angles, with the palm surface visible. Downward and diagonal-down
 palms belong in reviewed `no_gesture` hard-negative coverage so they cannot
 enable object tracking. Collect upright and rotated Fists with both hands.
-Capture reverse-facing fists, partly bent open hands, and the retired
-thumb-and-little sign as `no_gesture` negatives. Orientation/context cases stay
-outside the 2-D hand classifier when the visible projection is ambiguous.
+Capture opposite-facing closed fists, partly bent open hands, and the retired
+thumb-and-little sign as `no_gesture` negatives. Opposite-facing fist examples
+remain context-only because static 2-D landmarks can be ambiguous.
 
 ## Video Lab
 
 Open **06 Video Lab** to record with the selected webcam/NCM camera or upload an
 MP4, WebM, MOV, or AVI. Uploads are limited to **five minutes and 256 MB**. Use the
-actual deployment camera and retain the full frame so shoulder, elbow, wrist,
-and hip are visible for Dorsal. Give the same person the same anonymous ID
+actual deployment camera and retain the full frame with the whole hand visible.
+The arm and body may be cropped for every active command. Dorsal is collected only as `no_gesture`. Give the same person the same anonymous ID
 across recordings and sessions.
 
 - Valid command clips: about 5–10 seconds, including neutral, presentation,
   hold, and release. Record all twelve commands with both hands.
 - Difficult negatives: about 10–20 seconds per scenario, including relaxed
-  standing, hands on thighs/desks, folded arms, reverse-facing fists, partial
+  standing, hands on thighs/desks, folded arms, opposite-facing fists, partial
   shapes, object use, and cropped body landmarks.
 - Everyday activity: about 2–5 minutes of ordinary movement. Include natural
   pauses, reaching, walking/turning, typing, multiple hands, and no hands.
@@ -58,7 +60,7 @@ static fitting. Originals and annotation versions stay under `videos/clips/`.
 When annotations change, old extracted frames whose labels no longer match
 are excluded from fitting; extract the revised spans again.
 
-**Evaluate clip** replays the full detection, geometry, Dorsal body policy,
+**Evaluate clip** replays the full hand detection, geometry,
 temporal hold, cooldown, release, and action pipeline at recorded timestamps.
 It uses an isolated detector and does not send actions to the live dashboard.
 Select production or a completed training candidate. Reports include false
@@ -93,15 +95,11 @@ dependencies come from `requirements-notebook.txt`. An interrupted job is
 reported as failed after restart. The older multi-view script targets a legacy
 taxonomy; use Model Training for the twelve-command workflow.
 
-## Strict Dorsal presentation
+## Hand-only recognition
 
-Dorsal requires a confidently matched shoulder, elbow, wrist, and hip, with a
-usable arm and the wrist/palm presented above the waist with a margin. Relaxed
-hanging/folded arms, low presentations, and missing/uncertain body evidence
-produce `no_gesture`. Body-position restrictions apply only to Dorsal. A brief
-cached resting posture may preserve rejection, but missing current body evidence
-cannot authorize a Dorsal command. Test valid and relaxed recordings together;
-hand-only closeups cannot pass this posture policy.
+Dorsal is a hard negative at every angle, distance, body position and background. Use the Dorsal hard-negative prompts for both hands, including against clothing. No positive Dorsal prompts remain. Reviewed legacy Dorsal images keep their original files and provenance; the dataset reader maps their training labels to `no_gesture`. Model Lab also maps public Dorsal rows to rejection before balancing or evaluation.
+
+A relaxed hand that exactly matches a command may qualify because body posture no longer distinguishes intent. Review such frames carefully; do not train identical single-hand features with contradictory positive/negative labels. The existing context-only collection IDs are retained for older data. Dorsal with the body cropped belongs in the no-gesture Dorsal collection.
 
 The unmirrored board camera retains its calibration: image-right is **Left**, image-left is **Right**, image-up is **Up**. Follow the written instructions; do not reverse labels to match an incorrect prediction.
 
@@ -143,12 +141,12 @@ Candidate training from Model Training writes to `artifacts/model_lab`, never pr
 
 ## Recognition changes
 
-- Face-box filtering rejects small hand candidates over detected faces/ears; this is not face identification. Large hands held in front of faces remain eligible.
+- Live inference runs only hand models. Body position, face overlap and clothing do not veto commands.
 - Directions require the index itself to be extended and prominent, including a model-supported side-view path.
-- Recovered tracks require three consistent observations. Pose rejection no longer resets smoothing every frame. Brief tracking gaps do not immediately re-arm a held command.
+- Recovery uses enhanced full-frame and recent-hand crops, alternating with global search. Fresh observations must pass normal selection and gesture holds; missing landmarks cannot execute actions. Brief tracking gaps do not immediately re-arm a held command.
 - Strong model-agreed index/palm geometry can handle moderate vocabulary uncertainty after a longer hold. Very low vocabulary mass and reviewed-negative vetoes remain rejected.
 - Rejected candidates are not drawn as accepted skeletons; raw diagnostics remain available. Class scores are marked as candidates when no command is accepted.
 
-The added model is Google's MediaPipe BlazeFace short-range detector, checksum-pinned by `scripts/download_face_detector.py`. Setup installs it and the release manifest verifies it.
+The live detector uses MediaPipe Hand Landmarker only. Historical face/body helpers and assets are retained for reference; Pose is no longer a required runtime asset or setup download.
 
 These are runtime improvements, not a retrained model or a promise to recognize every customer pose. Low-resolution/occluded fingers can still be ambiguous. Collect remaining failures and test on unseen participants after retraining.

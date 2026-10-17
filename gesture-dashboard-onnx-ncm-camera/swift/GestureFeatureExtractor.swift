@@ -25,7 +25,6 @@ public struct GestureFeatureExtractor {
         "down": "Move Down",
         "open_palm": "Enable / Disable Object Tracking",
         "like": "Play / Pause",
-        "dorsal": "Return to Default Position",
         "ok": "Start / Stop Recording",
         "fist": "Mute",
         "thumb_down": "Volume Down",

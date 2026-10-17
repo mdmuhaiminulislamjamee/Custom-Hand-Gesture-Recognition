@@ -24,7 +24,7 @@ def shipped_manager():
 @pytest.mark.parametrize("label,index,side", [
     ("left", 0, "Right"), ("right", 1, "Right"), ("up", 2, "Right"),
     ("down", 3, "Right"), ("open_palm", 1600, "Right"), ("like", 2000, "Right"),
-    ("dorsal", 4000, "Left"), ("ok", 2400, "Right"), ("fist", 2900, "Right"),
+    ("ok", 2400, "Right"), ("fist", 2900, "Right"),
     ("thumb_down", 3600, "Right"), ("peace", 24000, "Right"), ("rock", 20000, "Right"),
 ])
 def test_shipped_classifier_commands_survive_live_selection_and_reacquisition(
@@ -88,7 +88,7 @@ def test_shipped_classifier_commands_survive_live_selection_and_reacquisition(
     assert output["stable_frames"] >= 3
 
 
-@pytest.mark.parametrize("label", RuntimeConfig().class_names)
+@pytest.mark.parametrize("label", [label for label in RuntimeConfig().class_names if label != "dorsal"])
 def test_all_commands_reacquire_same_hand_after_fast_screen_movement(label):
     selector = AutomaticHandSelector(RuntimeConfig())
     owner = feed(selector, [observation(label=label)])[-1][1]["selected_track_id"]
@@ -104,7 +104,7 @@ def test_all_commands_reacquire_same_hand_after_fast_screen_movement(label):
     assert results[-1][2][0]["eligible"]
 
 
-@pytest.mark.parametrize("label", RuntimeConfig().class_names)
+@pytest.mark.parametrize("label", [label for label in RuntimeConfig().class_names if label != "dorsal"])
 def test_paused_owner_keeps_moving_and_resumes_all_commands(label):
     selector = AutomaticHandSelector(RuntimeConfig())
     owner = feed(selector, [observation(label=label)])[-1][1]["selected_track_id"]
@@ -123,7 +123,7 @@ def test_paused_owner_keeps_moving_and_resumes_all_commands(label):
     assert results[-1][2][0]["eligible"]
 
 
-@pytest.mark.parametrize("label", RuntimeConfig().class_names)
+@pytest.mark.parametrize("label", [label for label in RuntimeConfig().class_names if label != "dorsal"])
 def test_slower_valid_frames_can_qualify_closer_hand(label):
     selector = AutomaticHandSelector(RuntimeConfig())
     near = observation(scale=.6, label=label)

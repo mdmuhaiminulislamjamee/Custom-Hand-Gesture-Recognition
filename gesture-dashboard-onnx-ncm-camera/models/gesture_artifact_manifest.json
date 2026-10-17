@@ -13,8 +13,8 @@
       "sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 8232,
-      "sha256": "ecb9ea9bd3544ab345024a2b37544d3b09f6a79e0e9b0bcc57601bec8a2eadfd"
+      "bytes": 8395,
+      "sha256": "a8741f8a58c1bd903e0da47f67792377a6fc6653232f42d932b34267c796928b"
     },
     "gesture_online_replay_cache.npz": {
       "bytes": 428209,
@@ -31,10 +31,6 @@
     "hand_landmarker.task": {
       "bytes": 7819105,
       "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
-    },
-    "pose_landmarker_lite.task": {
-      "bytes": 5777746,
-      "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
     }
   },
   "class_names": [
@@ -51,8 +47,8 @@
     "peace",
     "rock"
   ],
-  "created_utc": "2026-10-12T08:07:23.038254+00:00",
+  "created_utc": "2026-10-17T07:52:09.768419+00:00",
   "feature_count": 76,
-  "release_fingerprint": "658b7e0c34247c8d8c30597bfc01525873adbf6ab1ae694ace201edbc36476bd",
+  "release_fingerprint": "6db5243fb9f6b17b3923fd859d709559f3eb17c3822cc2841880b26ff57ccd01",
   "schema_version": 1
 }

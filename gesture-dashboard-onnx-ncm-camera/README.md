@@ -4,7 +4,7 @@
 
 **Android NCM app-team handover:** [README and integration instructions](handover_android/v2026.10.08_android_ncm_03/README.md). This supplies native NCM/MediaPipe/ONNX diagnostic sources, model assets and behavior references. The complete Android decision port and physical USB-NCM acceptance are still required. Build a new immutable version with `python scripts/create_android_handover.py --version vYYYY.MM.DD_android_ncm_NN` using an unused version.
 
-This repository is the complete Windows reference implementation for a twelve-command, static hand-gesture system. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
+This repository is the complete Windows reference implementation for an eleven-command, static hand-gesture system with a reserved legacy ONNX output. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
 
 Current runtime model: **TwelveGestureBalancedMLP**. It passed offline
 holdout/ONNX checks, but low-resolution live-camera validation is still pending.
@@ -78,7 +78,7 @@ The start script rebuilds the frontend on every launch, starts both processes in
 
 ## What the system does
 
-The application recognizes twelve approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
+The application recognizes eleven approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
 
 ```text
 Development-board camera
@@ -149,11 +149,15 @@ The supplied reference receiver replies to a heartbeat with packet type `0x03`. 
 
 `backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. Live inference observes up to two hands. If a recently tracked hand is missing from a frame, the bounded recovery pass runs immediately when time permits. `backend/hand_selection.py` compares physical hands before gesture qualification and follows the hand that projects closer to the camera. A consistent scale difference selects the foreground hand after a short hold. Once selected, the same clearly tracked hand remains active when both hands return to similar distance or the comparison fluctuates near the threshold. A one-frame apparent lead by the other hand cannot switch ownership; a sustained lead pauses new actions during confirmation, then switches ownership and clears the previous gesture history. Equal distance alone cannot select a hand when there is no owner, and uncertain identity pauses actions. Idle hands participate in distance comparison, and inactive previews remain `no_gesture`. Distance uses projected image/world landmark scale when coherent and apparent palm segments otherwise; neither measures camera depth. Hand positions continue updating during context rejections. A unique confident returning hand can reacquire its track after large movement, with a fresh gesture hold.
 
-Live detection does not load a face model or block gestures in front of the face. Dorsal requires four straight fingers together, the thumb beside the index, and the back of the hand visible. Pose Lite suppresses Dorsal on a relaxed hanging arm below the waist or a folded resting arm with a dropped hand; other gestures remain eligible. Keep shoulder, elbow and wrist visible for the posture check. See `HAND_DISTANCE.md` for the gesture definition and limitations.
+Live recognition uses hand landmarks only. No body or face model runs, no body skeleton is drawn, and neither clothing nor arm/waist/face position vetoes a gesture. Dorsal is retired: every former Dorsal pose is a hard negative and resolves to `no_gesture`, at every angle, distance and body position. It cannot execute Return to Default Position or be promoted into another command. The usual source-pixel, geometry, confidence and temporal checks apply. Without body context, a resting hand with the same shape as a command can also qualify.
 
-`backend/body_guard.py` uses the bundled Pose Landmarker Lite model to require confident above-waist presentation for Dorsal. It checks shoulder/elbow/wrist landmarks 12/14/16 on the right or 11/13/15 on the left, plus the corresponding hip. Relaxed hanging/folded arms, low presentations, and missing or uncertain body evidence produce `no_gesture`. A brief cached resting posture may preserve rejection, but cannot authorize presentation after current body observations disappear. Other classes have no body-position restriction. This posture rule does not measure desk or clothing contact. See [DATA_COLLECTION.md](DATA_COLLECTION.md) for the Video Lab, twelve-command candidate training, and replay evaluation workflow.
+Cold-start recovery revisits an upright central crop while also searching the sides of the image. Successful crops retain independent VIDEO tracking streams for both hands. When only one hand is found, recovery searches both sides of it with original and enhanced contrast; it does not assume the person is centred. Every frame starts with a full-frame scan, and recovery must find fresh landmarks. Recent coordinates guide searches for up to 650 ms and never count as detections. At most three passes run per frame: recovery starts within 55 ms and an additional peer pass within 85 ms. Two resident crop trackers preserve separate histories. The webcam runner requests 1280 × 720 capture, with driver fallback. These changes improve recovery opportunities; live range still depends on visible finger detail, motion and lighting. See [HAND_DISTANCE.md](HAND_DISTANCE.md) for testing and [DATA_COLLECTION.md](DATA_COLLECTION.md) for reviewed recordings.
 
 Accepted landmarks are checked for clipping, scale, plausibility, and sudden jumps. `RuntimeSession` in `backend/model_runtime.py` keeps a velocity-adaptive EMA per client and reacquires persistent real motion instead of following a single-frame jump.
+
+Two-hand identity follows spatial continuity and a three-observation handedness consensus. A confident per-frame label flip or duplicate left/right labels no longer discards two clearly separated, continuously matched tracks. The confirmed side is used for both candidate qualification and final geometry checks. The selected hand's direction history is not applied to the other hand. A lone opposite hand cannot inherit a missing owner's identity, and uncertain overlap still pauses actions.
+
+Hand switches require agreement between current and filtered palm/projected-world scales throughout the confirmation hold. Both visible hand overlays use track-local smoothing while classification uses the current finger pose. Full misses do not create cached hand observations or execute commands.
 
 ### 3. Exact 76-D feature vector
 
@@ -186,9 +190,12 @@ The graph contract is:
 ### 5. Rejection, stabilization, and actions
 
 `backend/geometry.py::GeometryResolver` rejects incompatible directional,
-Dorsal, Like, OK, Fist, Thumbs Down, and Open Palm shapes. Open Palm is eligible
+Like, OK, Fist, Thumbs Down, and Open Palm shapes. Dorsal is always rejection evidence. Open Palm is eligible
 while its wrist-to-palm axis points up or sideways, including oblique angles,
-but downward poses are rejected. `backend/runtime.py::TemporalGate`
+but downward poses are rejected. Fist accepts the upper arc from horizontal left
+through up to horizontal right for both hands, including a 30-degree pitch
+toward the camera. Any lower tilt returns `no_gesture`.
+`backend/runtime.py::TemporalGate`
 then applies known-mass, confidence, probability-margin, EMA, stable-frame, and
 minimum-hold checks. `RuntimeSession` also handles release frames, action
 latching, and cooldown.
@@ -220,7 +227,7 @@ The class order is fixed and must be identical on Windows, iOS, and any replacem
 | 3 | `down` | Down | Move Down |
 | 4 | `open_palm` | Open Palm | Enable / Disable Object Tracking |
 | 5 | `like` | Like | Play / Pause |
-| 6 | `dorsal` | Dorsal | Return to Default Position |
+| 6 | `dorsal` | Reserved legacy output | Hard negative ? `no_gesture`; no action |
 | 7 | `ok` | OK | Start / Stop Recording |
 | 8 | `fist` | Fist | Mute |
 | 9 | `thumb_down` | Thumbs Down | Volume Down |
@@ -331,7 +338,7 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `backend/hand_selection.py` | Automatic qualification, hand ownership and relative-closeness selection |
 | `backend/face_contact.py` | Legacy offline contact helper; not used for live detection |
 | `backend/face_guard.py` | Face boxes for collection diagnostics and bounded mesh fallback |
-| `backend/body_guard.py` | Dorsal-only exclusion for relaxed hanging or folded resting arms |
+| `backend/body_guard.py` | Historical posture helpers; unused by live recognition |
 | `backend/geometry.py` | Exact 76-D feature construction and gesture pose/direction resolution |
 | `backend/runtime.py` | Hard rate limiter, probability EMA, temporal decision gate |
 | `backend/follow_object.py` | Open-Palm object-tracking demo state machine |

@@ -16,13 +16,13 @@ MATPLOTLIB_CACHE.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MATPLOTLIB_CACHE))
 
 from backend.artifact_integrity import ArtifactRegistry
-from backend.config import CLASS_NAMES, GESTURE_TO_ACTION, MODELS_DIRECTORY, load_runtime_config
+from backend.config import CLASS_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODEL_LABELS, MODELS_DIRECTORY, load_runtime_config
 from backend.model_runtime import InferenceEngine
 
 
 EXPECTED_CLASSES = CLASS_NAMES
 EXPECTED_REJECT_LABEL = "no_gesture"
-EXPECTED_FEEDBACK_LABELS = [*EXPECTED_CLASSES, EXPECTED_REJECT_LABEL]
+EXPECTED_FEEDBACK_LABELS = FEEDBACK_LABELS
 EXPECTED_ACTIONS = GESTURE_TO_ACTION
 EXPECTED_FEATURE_COUNT = 76
 EXPECTED_TARGET_FPS = 10.0
@@ -45,7 +45,7 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
     if EXPECTED_REJECT_LABEL in class_names:
         errors.append("no_gesture must not be an ONNX command output")
     if feedback_labels != EXPECTED_FEEDBACK_LABELS:
-        errors.append("feedback labels must be the twelve commands followed by no_gesture")
+        errors.append("feedback labels must be the active commands followed by no_gesture")
     if getattr(config, "reject_label", None) != EXPECTED_REJECT_LABEL:
         errors.append("runtime reject label is not no_gesture")
     if actions != EXPECTED_ACTIONS:
@@ -91,7 +91,7 @@ def _contract_errors(config: object, metadata: dict[str, object]) -> list[str]:
     metadata_shape = list(metadata_input.get("shape") or [])
     if metadata_input.get("dtype") != "float32" or metadata_shape[-1:] != [76]:
         errors.append("metadata input must be float32 [N, 76]")
-    if metadata.get("internal_class_order") != EXPECTED_FEEDBACK_LABELS:
+    if metadata.get("internal_class_order") != MODEL_LABELS:
         errors.append("metadata must document no_gesture as the internal rejection label")
     quality = dict(metadata.get("quality") or {})
     try:
@@ -132,13 +132,13 @@ def main() -> int:
         return 1
     errors = _contract_errors(config, metadata)
     if errors:
-        print("Twelve-gesture runtime contract: FAIL")
+        print("Gesture runtime contract: FAIL")
         for error in errors:
             print(f"  - {error}")
         return 1
     print(
-        "Twelve-gesture runtime contract: PASS | "
-        "12 command outputs + no_gesture rejection | 10 FPS / 100 ms | "
+        "Gesture runtime contract: PASS | "
+        "11 active commands; Dorsal output reserved for rejection | 10 FPS / 100 ms | "
         "unmirrored with calibrated Left/Right semantics"
     )
 
@@ -184,7 +184,7 @@ def main() -> int:
             "not a live NCM-camera measurement"
         )
         print(
-            "Live Webcam and NCM validation: REQUIRED | test all twelve gestures, "
+            "Live Webcam and NCM validation: REQUIRED | test all eleven active gestures and Dorsal negatives, "
             "both hands, varied angles, low light, empty scenes, landmark jitter, "
             "unmirrored directions, and observed FPS"
         )

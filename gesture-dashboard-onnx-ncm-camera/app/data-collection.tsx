@@ -86,7 +86,7 @@ const preferredCombination = (summary: Summary, step: Step | undefined): { hand:
   }
   return { hand: 'right', orientation: 'toward_camera' };
 };
-const arrows: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', open_palm: '✋', like: '👍', ok: '👌', dorsal: '↩', fist: '✊', thumb_down: '👎', peace: '✌', rock: '🤘', no_gesture: '○' };
+const arrows: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', open_palm: '✋', like: '👍', ok: '👌', fist: '✊', thumb_down: '👎', peace: '✌', rock: '🤘', no_gesture: '○' };
 type GestureGuide = { src?: string; symbol?: string; alt: string };
 const gestureGuides: Record<string, GestureGuide> = {
   left: { src: '/gesture-guides/index-only.png', alt: 'Index finger pointing toward your left' },
@@ -95,7 +95,6 @@ const gestureGuides: Record<string, GestureGuide> = {
   down: { src: '/gesture-guides/index-only.png', alt: 'Index finger pointing downward with all other fingers folded' },
   open_palm: { src: '/gesture-guides/open-palm.png', alt: 'Open palm with all five fingers visible, pointing up, left, or right' },
   like: { src: '/gesture-guides/thumbs-up.png', alt: 'Thumbs-up with the other four fingers folded' },
-  dorsal: { src: '/gesture-guides/dorsal.png', alt: 'Back of the hand with four fingers together and pointing down' },
   ok: { src: '/gesture-guides/ok.png', alt: 'OK sign with thumb and index finger forming a circle' },
   fist: { symbol: '✊', alt: 'Closed fist with all four fingers folded into the palm and presented toward the camera at an allowed angle' },
   peace: { symbol: '✌', alt: 'Index and middle fingers extended as a V in any direction' },
@@ -111,7 +110,7 @@ const negativeGuides: Record<string, GestureGuide> = {
   relaxed_hand: { src: '/gesture-guides/relaxed-hand-negative.png', alt: 'Relaxed loosely curled hand; this is not a command' },
   thumb_little_sign: { symbol: '🤙', alt: 'Thumb and little finger extended; this is not a command' },
   partial_fist: { symbol: '○', alt: 'Four fingers partly raised or bent; this is not a closed fist command' },
-  downward_fist: { symbol: '✊', alt: 'Closed fist with the fingers directed down and away from the camera; this is not a command' },
+  downward_fist: { symbol: '✊', alt: 'Closed fist tilted below horizontal, toward either lower side; this is not a command' },
 };
 const negativeGroupSymbols: Record<string, string> = {
   'No hand': '○', 'Unrelated hand shapes': '✋', 'Near-command shapes': '◇', 'Resting Dorsal': '↘',

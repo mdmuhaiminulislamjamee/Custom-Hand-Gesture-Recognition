@@ -25,7 +25,7 @@ def test_artifact_manifest_and_onnx_metadata_are_current():
     assert metadata["output_class_order"] == CLASS_NAMES
     assert len(CLASS_NAMES) == 12
     assert CLASS_NAMES[-2:] == ["peace", "rock"]
-    assert metadata["internal_class_order"] == FEEDBACK_LABELS
+    assert metadata["internal_class_order"] == [*CLASS_NAMES, "no_gesture"]
     assert metadata["known_mass_output"] == "known_gesture_mass"
 
 

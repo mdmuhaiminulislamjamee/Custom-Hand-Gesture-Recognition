@@ -91,10 +91,9 @@ def test_mediapipe_video_receives_recorded_clock_with_strict_ordering():
     assert timestamps == [1000000, 1000200, 1000201]
 
 
-def test_missing_pose_model_preserves_the_hand_detector_for_other_gestures(tmp_path, monkeypatch):
+def test_initialization_loads_only_hand_models(tmp_path, monkeypatch):
     from types import SimpleNamespace
     import sys
-    import backend.hand_detection as module
     vision = SimpleNamespace(
         RunningMode=SimpleNamespace(VIDEO="video", IMAGE="image"),
         HandLandmarkerOptions=lambda **kwargs: kwargs,
@@ -104,16 +103,14 @@ def test_missing_pose_model_preserves_the_hand_detector_for_other_gestures(tmp_p
     fake_mp = SimpleNamespace(tasks=SimpleNamespace(
         BaseOptions=lambda **kwargs: kwargs, vision=vision))
     monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
-    monkeypatch.setattr(module, "BodyGuard", lambda _: SimpleNamespace(
-        detector=None, error="Missing pose model", close=lambda: None))
     model_path = tmp_path / "hand_landmarker.task"
     model_path.write_bytes(b"hand-model-fixture")
-    detector = HandDetector(model_path, use_body_context=True)
+    detector = HandDetector(model_path)
     try:
         assert detector.ready
         assert detector.error is None
-        assert detector._body_guard.detector is None
-        assert detector._body_guard.error == "Missing pose model"
+        assert not hasattr(detector, "_body_guard")
+        assert detector._face_guard is None
     finally:
         detector.close()
 
@@ -227,3 +224,123 @@ def test_recovery_matching_last_accepted_hand_resumes_without_confirmation_gap(m
 
     assert recovered is not None
     assert detector.diagnostics()['rejection_reason'] is None
+
+
+def test_live_miss_retries_upright_crop_before_rotation(monkeypatch):
+    import backend.hand_detection as module
+    monkeypatch.setattr(module.time, 'perf_counter', lambda: 10.)
+    detector = simulated_detector()
+    calls = []
+    hand = representative_hand()
+
+    def run(rgb, view, *, video):
+        calls.append((view, video))
+        return [(.1, hand, None, None)] if view[5] else []
+
+    monkeypatch.setattr(detector, '_run_candidates', run)
+    rows = detector.detect_candidates(np.full((480, 640, 3), 140, np.uint8),
+                                      state={}, candidate_score=lambda row: 1.)
+    assert calls[:2] == [((0, 0, 640, 480, 0, 0), False),
+                         (detector._startup_recovery_view((480, 640, 3)), False)]
+    assert len(calls) <= 3
+    assert len(rows) == 1
+    np.testing.assert_allclose(rows[0]['points'], hand)
+
+
+
+def test_live_tracking_loss_uses_recent_hand_crop_and_fresh_pixels(monkeypatch):
+    import backend.hand_detection as module
+    monkeypatch.setattr(module.time, 'perf_counter', lambda: 10.)
+    detector = simulated_detector()
+    image = np.full((480, 640, 3), 140, np.uint8)
+    hand = (representative_hand() - .5) * .35 + .5
+    state = {'frame_time': 1.}
+    monkeypatch.setattr(detector, '_run_candidates', lambda *args, **kwargs: [(.1, hand, None, None)])
+    assert len(detector.detect_candidates(image, state=state, candidate_score=lambda row: 1.)) == 1
+    calls = []
+
+    def run(rgb, view, *, video):
+        calls.append(view)
+        return [(.1, hand, None, None)] if view[2] < 640 else []
+
+    monkeypatch.setattr(detector, '_run_candidates', run)
+    state['frame_time'] = 1.1
+    rows = detector.detect_candidates(image, state=state, candidate_score=lambda row: 1.)
+    assert 2 <= len(calls) <= 3 and len(rows) == 1
+    assert calls[0] == (0, 0, 640, 480, 0, 0)
+    assert calls[1][2] < 640 and calls[1][3] < 480 and calls[1][5] == 1
+    x, y, width, height = calls[1][:4]
+    pixels = hand * [640, 480]
+    assert (pixels >= [x, y]).all() and (pixels <= [x + width, y + height]).all()
+    # Recent coordinates are a search hint, never a substitute for detection.
+    monkeypatch.setattr(detector, '_run_candidates', lambda *args, **kwargs: [])
+    state['frame_time'] = 1.2
+    assert detector.detect_candidates(image, state=state, candidate_score=lambda row: 1.) == []
+
+
+def test_local_recovery_expires_and_does_not_cross_sessions():
+    detector = simulated_detector()
+    shape = (480, 640, 3)
+    hand = (representative_hand() - .5) * .35 + .5
+    state = {'frame_time': 1.1, 'recent_hands': [dict(points=hand, seen=1., turns=3)]}
+    assert detector._live_recovery_view(shape, state, [])[2] < 640
+    other = {'frame_time': 1.1, 'ever_qualified': True, 'recovery_attempts': 1}
+    assert detector._live_recovery_view(shape, other, []) == (0, 0, 640, 480, 0, 1)
+    state['frame_time'], state['recovery_attempts'], state['search_index'] = 2., 0, 0
+    assert detector._live_recovery_view(shape, state, []) == detector._startup_recovery_view(shape)
+
+
+def test_local_recovery_leaves_global_search_running():
+    detector = simulated_detector()
+    hand = (representative_hand() - .5) * .35 + .5
+    local = detector._hand_crop(hand, (480, 640, 3))
+    state = {'frame_time': 1.1, 'ever_qualified': True, 'view': local,
+             'recent_hands': [dict(points=hand, seen=1., turns=0)]}
+    views = []
+    for frame in range(64):
+        state['frame_time'] = 1.1 + frame * .1
+        views.append(detector._live_recovery_view((480, 640, 3), state, []))
+    assert local in views
+    assert (0, 0, 640, 480, 0, 1) in views
+    assert (0, 0, 640, 480, 3, 0) in views
+    assert (0, 0, 640, 480, 1, 0) in views
+
+
+
+def test_recovery_targets_missing_peer_before_already_visible_hand():
+    detector = simulated_detector()
+    hand = (representative_hand() - .5) * .3 + [.25, .5]
+    peer = hand + [.5, 0]
+    state = {'frame_time': 1.1, 'ever_qualified': True, 'recent_hands': [dict(points=peer, seen=1., turns=0)]}
+    view = detector._live_recovery_view((480, 640, 3), state,
+                                       [dict(points=hand, view=(0, 0, 640, 480, 0, 0))])
+    assert view == detector._hand_crop(peer, (480, 640, 3))
+
+
+def test_contrast_recovery_enhances_low_contrast_crop_without_mutating_camera_frame():
+    from types import SimpleNamespace
+    detector = simulated_detector()
+    captured = []
+    detector._mp = SimpleNamespace(Image=lambda **kwargs: kwargs,
+                                   ImageFormat=SimpleNamespace(SRGB='RGB'))
+    detector._recovery = SimpleNamespace(detect=lambda image: (
+        captured.append(image['data']) or SimpleNamespace(hand_landmarks=[])))
+    image = np.repeat(np.tile(np.linspace(90, 115, 128, dtype=np.uint8), (128, 1))[:, :, None], 3, axis=2)
+    original = image.copy()
+    detector._run_candidates(image, (16, 16, 96, 96, 0, 1), video=False)
+    assert captured[0].std() > image[16:112, 16:112].std()
+    assert captured[0].flags.c_contiguous
+    np.testing.assert_array_equal(image, original)
+
+
+def test_live_recovery_respects_frame_budget(monkeypatch):
+    import backend.hand_detection as module
+    times = iter([1., 1.056])
+    monkeypatch.setattr(module.time, 'perf_counter', lambda: next(times))
+    detector = simulated_detector()
+    calls = []
+    monkeypatch.setattr(detector, '_run_candidates', lambda *args, **kwargs: calls.append(True) or [])
+    assert detector.detect_candidates(np.full((480, 640, 3), 140, np.uint8),
+                                      state={}, candidate_score=lambda row: 1.) == []
+    assert len(calls) == 1
+    assert not detector.diagnostics()['recovery_attempted']

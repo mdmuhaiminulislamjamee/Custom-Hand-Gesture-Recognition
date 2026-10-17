@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Standalone twelve-command real-time gesture recognition with ONNX
+Standalone eleven-command real-time gesture recognition with ONNX
 Runs directly in an OpenCV window on your PC without starting the web server.
 
 Usage:
@@ -32,7 +32,7 @@ from backend.ncm_camera import NcmCameraClient, NcmCameraConfig
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Live twelve-command ONNX gesture recognition"
+        description="Live eleven-command ONNX gesture recognition"
     )
     parser.add_argument(
         "--source",
@@ -53,11 +53,11 @@ def main() -> None:
     engine = InferenceEngine(config)
     session = RuntimeSession(config)
 
-    print(f"Commands ({len(config.class_names)}):")
-    for gesture in config.class_names:
-        print(f"  {gesture:<12} -> {config.gesture_to_action[gesture]}")
-    print("Dorsal: four straight fingers together, thumb beside index.")
-    print("Dorsal pauses below the waist with a relaxed hanging arm.")
+    print(f"Commands ({len(config.gesture_to_action)}):")
+    for gesture, action in config.gesture_to_action.items():
+        print(f"  {gesture:<12} -> {action}")
+    print("Dorsal is a hard negative: no_gesture, with no action.")
+    print("Hand-only detection: body position and clothing do not block gestures.")
     print("Face filtering removed: gestures can qualify in front of the face.\n")
 
     status = engine.status()
@@ -123,6 +123,13 @@ def main() -> None:
         if not cap.isOpened():
             print(f"Error: Could not open webcam at index {args.webcam_id}.")
             return
+
+        # The default driver mode is often 640x480. Request more source detail
+        # for fingers at 1 m+; unsupported modes fall back through the driver.
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        print(f"Webcam capture: {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))} x "
+              f"{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
 
         window_title = "ONNX Gesture Recognition - PC Webcam (q: exit, r: reset)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
@@ -327,7 +334,9 @@ def _draw_overlay(
     conf = float(result.get("confidence", 0.0))
     mass = float(result.get("known_gesture_mass", 0.0))
     fps = float(result.get("actual_fps", 0.0))
-    landmarks = result.get("landmarks")
+    selected_preview = next((hand for hand in result.get("hands", []) if hand.get("selected")), {})
+    landmarks = (result.get("display_landmarks") or selected_preview.get("display_landmarks")
+                 or result.get("landmarks"))
     world_landmarks = result.get("world_landmarks")
     distance_m = result.get("distance_m")
     plane_angles = result.get("plane_angles")
@@ -377,7 +386,7 @@ def _draw_overlay(
     for hand in hands:
         if hand.get("selected") and landmarks:
             continue
-        points = hand.get("landmarks") or []
+        points = hand.get("display_landmarks") or hand.get("landmarks") or []
         if len(points) != 21:
             continue
         pixels = [(int(point[0] * w), int(point[1] * h)) for point in points]
@@ -387,9 +396,7 @@ def _draw_overlay(
         for point in pixels:
             cv2.circle(frame, point, 2, color, -1, cv2.LINE_AA)
         identifier = f" #{hand['track_id']}" if hand.get("track_id") else ""
-        state_label = ("dorsal below waist / no gesture" if hand.get("reason") == "dorsal_below_waist"
-                       else "resting / no gesture" if hand.get("reason") == "relaxed_hand_near_hip_or_thigh"
-                       else "observed")
+        state_label = (hand.get("reason") or "observed").replace("_", " ")
         label = f"{hand.get('handedness') or 'Hand'}{identifier} | {state_label}"
         x = max(5, min(w - 230, min(point[0] for point in pixels)))
         y = max(100, min(h - 65, min(point[1] for point in pixels) - 8))

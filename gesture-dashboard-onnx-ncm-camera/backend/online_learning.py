@@ -25,7 +25,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
-from .config import CLASS_NAMES
+from .config import CLASS_NAMES, DISABLED_GESTURES
 
 
 FEATURE_COUNT = 76
@@ -468,7 +468,8 @@ class OnlineLearningAdapter:
         )
         similarities[similarities < self.minimum_similarity] = 0.0
         evidence_weights = similarities * state.influences[None, :]
-        positive_mask = state.labels >= 0
+        retired = np.isin(state.labels, [self.class_to_idx[name] for name in DISABLED_GESTURES])
+        positive_mask = (state.labels >= 0) & ~retired
         negative_mask = ~positive_mask
         positive_total = (
             evidence_weights[:, positive_mask].sum(axis=1)
@@ -483,7 +484,7 @@ class OnlineLearningAdapter:
         evidence_total = positive_total + negative_total
         label_evidence = np.zeros((len(features), CLASS_COUNT), dtype=np.float64)
         for class_index in range(CLASS_COUNT):
-            mask = state.labels == class_index
+            mask = (state.labels == class_index) & positive_mask
             if np.any(mask):
                 label_evidence[:, class_index] = evidence_weights[:, mask].sum(axis=1)
         positive_supported = positive_total > 1e-12
@@ -682,6 +683,7 @@ class OnlineLearningAdapter:
 
         features = features[keep]
         labels = labels[keep]
+        labels[np.isin(labels, [self.class_to_idx[name] for name in DISABLED_GESTURES])] = -1
         if not len(features):
             raise ValueError(f"{path.name} has no rows for the configured feedback labels.")
         if (labels < -1).any() or (labels >= CLASS_COUNT).any():
@@ -887,6 +889,8 @@ class OnlineLearningAdapter:
             raise PermissionError("Only validation-gated safe learning is supported.")
         if not reviewed:
             raise ValueError("Online learning accepts only explicitly reviewed feedback.")
+        if actual_label in DISABLED_GESTURES:
+            actual_label = self.reject_label
         if actual_label not in self.class_to_idx and actual_label != self.reject_label:
             raise ValueError(f"Unknown actual label: {actual_label}")
         feature_rows, was_vector = self._coerce_features(feature_vector)
@@ -1117,7 +1121,8 @@ class OnlineLearningAdapter:
                 "adapter_active": bool(len(state.prototypes)),
                 "class_names": list(self.class_names),
                 "reject_label": self.reject_label,
-                "feedback_labels": [*self.class_names, self.reject_label],
+                "feedback_labels": [name for name in (*self.class_names, self.reject_label)
+                                    if name not in DISABLED_GESTURES],
                 "class_count": CLASS_COUNT,
                 "feature_count": FEATURE_COUNT,
                 "direction_semantic_version": self.direction_semantic_version,
@@ -1320,6 +1325,9 @@ class OnlineLearningAdapter:
             raise ValueError("persisted counters cannot be negative")
         if counters[1] + counters[2] > counters[0]:
             raise ValueError("persisted counters are inconsistent")
+        # Old reviewed Dorsal prototypes retain their features/provenance, but
+        # are rejection evidence under the current command policy.
+        labels[np.isin(labels, [self.class_to_idx[name] for name in DISABLED_GESTURES])] = -1
         return _AdapterState(
             feature_center=center,
             feature_scale=scale,

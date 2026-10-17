@@ -13,13 +13,12 @@ from typing import Any
 
 import numpy as np
 
-from .config import MODELS_DIRECTORY, RuntimeConfig
+from .config import DISABLED_GESTURES, DORSAL_REJECTION_REASON, MODELS_DIRECTORY, RuntimeConfig
 from .follow_object import FollowObjectStateMachine
 from .geometry import GeometryResolver, landmarks_to_feature
 from .runtime import TemporalGate
 from .hand_detection import HandDetector, DETECTOR_SETTINGS
-from .body_guard import DORSAL_CONTEXT_VETOES, dorsal_body_rejection
-from .hand_selection import AutomaticHandSelector, gate_arguments
+from .hand_selection import AutomaticHandSelector, DORSAL_HANDS_SIMILAR_REASON, gate_arguments
 
 
 MIN_HAND_AREA_RATIO = 0.0001
@@ -589,6 +588,11 @@ class ModelManager:
                         known_gesture_mass=known_mass,
                     )
                     probabilities = np.asarray(adapted, dtype=np.float64).reshape(-1)
+                    if self.config.class_names[int(base_probabilities.argmax())] in DISABLED_GESTURES:
+                        # Keep Dorsal as rejection evidence rather than letting
+                        # a positive prototype hide the retired model output.
+                        # Negative calibration still attenuates its known mass.
+                        probabilities = base_probabilities.copy()
                     known_mass = float(adapter_quality["known_gesture_mass"])
                     adapter_applied = bool(
                         not np.allclose(probabilities, base_probabilities, atol=1e-12)
@@ -755,7 +759,7 @@ class InferenceEngine:
         self.model_manager = ModelManager(
             config, models_directory, load_models=load_models
         )
-        self.detector = HandDetector(models_directory / "hand_landmarker.task", use_body_context=True)
+        self.detector = HandDetector(models_directory / "hand_landmarker.task")
         self.resolver = GeometryResolver(config)
         self._lock = threading.Lock()
 
@@ -825,8 +829,20 @@ class InferenceEngine:
         landmark_quality: dict[str, Any],
         message: str,
     ) -> dict[str, Any]:
-        session.temporal_gate.reset()
-        session.diagnostic_gates.clear()
+        selection = detector_quality.get("selection") or {}
+        brief_owner_miss = bool(
+            selection.get("reason") == "active_hand_missing"
+            and not selection.get("ownership_reset")
+            and landmark_quality.get("missing_frames") == 1
+            and landmark_quality.get("seconds_since_landmarks") is not None
+            and landmark_quality["seconds_since_landmarks"] < .25)
+        if brief_owner_miss:
+            session.temporal_gate.reject("hand temporarily missing")
+            for gate in session.diagnostic_gates.values():
+                gate.reject("hand temporarily missing")
+        else:
+            session.temporal_gate.reset()
+            session.diagnostic_gates.clear()
         reject_label = getattr(self.config, "reject_label", "no_gesture")
         session.observe_action_release(None, tracking_gap=True)
         follow = session.follow_object.observe(
@@ -965,7 +981,8 @@ class InferenceEngine:
                         probabilities, row["points"], handedness=row["handedness"],
                         handedness_confidence=row["handedness_confidence"],
                         world_landmarks=row["world_landmarks"], require_fist_depth=True,
-                        preferred_direction=preferred_direction)
+                        preferred_direction=(preferred_direction
+                            if row.get("track_id") == session.selected_track_id else None))
                     row["probabilities"] = resolved
                     row["gate_args"] = gate_arguments(details, quality)
                     row["resolved_label"] = self.config.class_names[int(np.argmax(resolved))]
@@ -980,7 +997,8 @@ class InferenceEngine:
                 session.hand_selector.detector_state["frame_time"] = now
                 candidates = self.detector.detect_candidates(
                     rgb, state=session.hand_selector.detector_state, candidate_score=candidate_score)
-                chosen, selection, hands = session.hand_selector.update(candidates, rgb.shape, now)
+                chosen, selection, hands = session.hand_selector.update(
+                    candidates, rgb.shape, now, candidate_score=candidate_score)
                 raw_landmarks = None if chosen is None else chosen["points"]
                 world_landmarks = None if chosen is None else chosen["world_landmarks"]
                 detector_quality = self.detector.diagnostics()
@@ -1001,7 +1019,6 @@ class InferenceEngine:
                     detector_quality.update(
                         selected_handedness=chosen["handedness"],
                         selected_handedness_confidence=chosen["handedness_confidence"],
-                        selected_body_context=chosen.get("body_context"),
                         selected_face_context=chosen.get("face_context"),
                         selected_track_id=track_id, selected_bbox_area=chosen["area"],
                         reacquired=(track_id != session.selected_track_id
@@ -1090,22 +1107,6 @@ class InferenceEngine:
                     preferred_direction=session.last_screen_direction
                     if now - session.last_screen_direction_at <= 1.0 else None,
                 )
-                # Smoothing can change the resolved label after hand selection.
-                # Apply the dorsal information floor to that final label too.
-                if (self.config.class_names[int(np.argmax(resolved_rows[name]))] == "dorsal"
-                        and detector_quality.get("palm_scale_px", float("inf"))
-                        < session.hand_selector.policy.minimum_dorsal_palm_pixels):
-                    resolver_rows[name]["pose_validation"].update(
-                        valid=False, reason="Move closer: dorsal hand has insufficient finger detail")
-                # Final smoothed landmarks can change the label from the one
-                # used to select the hand. Only final Dorsal is subject to the
-                # Dorsal body/presentation requirements.
-                context_reason = dorsal_body_rejection(
-                    detector_quality.get("selected_body_context"),
-                    self.config.class_names[int(np.argmax(resolved_rows[name]))])
-                if context_reason:
-                    resolver_rows[name]["pose_validation"].update(
-                        valid=False, reason=context_reason)
 
         raw_probabilities, classifier_ms, selected_quality = model_rows[selected_name]
         resolved_probabilities = resolved_rows[selected_name]
@@ -1122,7 +1123,7 @@ class InferenceEngine:
             and direction_details.get("model_supported_pose", False)
         )
         if (not pose_validation.get("valid", True)
-                and pose_validation.get("reason") not in DORSAL_CONTEXT_VETOES):
+                and pose_validation.get("reason") not in {DORSAL_HANDS_SIMILAR_REASON, DORSAL_REJECTION_REASON}):
             if isinstance(self.detector, HandDetector):
                 session.hand_selector.detector_state["pose_recovery_requested"] = True
             elif hasattr(self.detector, "request_pose_recovery"):
@@ -1222,7 +1223,9 @@ class InferenceEngine:
         runtime_action = "Wait / No Action"
         action_reason = decision.reason
         if switch_pending:
-            action_reason = "confirming closer hand"
+            action_reason = ("hand distance uncertain"
+                             if (detector_quality.get("selection") or {}).get("reason") == "hand_distance_uncertain"
+                             else "confirming closer hand")
         elif follow.completed:
             runtime_action = "Follow Object"
             action_reason = "Open Palm enabled object tracking"
@@ -1284,7 +1287,7 @@ class InferenceEngine:
             "diagnostics": diagnostic_results,
             "resolvers": resolver_details,
             "landmarks": classification_landmarks.round(6).tolist(),
-            "display_landmarks": (classification_landmarks.round(6).tolist()
+            "display_landmarks": (landmarks.round(6).tolist()
                                   if decision.predicted_gesture != self.config.reject_label else []),
             "world_landmarks": (
                 np.asarray(world_landmarks, dtype=np.float32).round(7).tolist()

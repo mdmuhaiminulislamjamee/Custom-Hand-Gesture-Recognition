@@ -9,7 +9,7 @@ import time
 
 import numpy as np
 
-from .config import RuntimeConfig
+from .config import DISABLED_GESTURES, DORSAL_REJECTION_REASON, RuntimeConfig
 
 
 class InferenceStartLimiter:
@@ -134,11 +134,12 @@ class TemporalGate:
         known_gesture_mass: float = 0.0,
     ) -> TemporalDecision:
         self._rejected_frames += 1
-        # Do not let a stale high-confidence EMA survive an invalid/no-hand pose.
-        self._history.clear()
-        self._label_started_at = None
-        self._last_label = None
-        self._last_update_at = None
+        # Allow a 1-frame grace dropout for a held gesture before discarding historical hold state
+        if self._rejected_frames >= 2 or not self._history:
+            self._history.clear()
+            self._label_started_at = None
+            self._last_label = None
+            self._last_update_at = None
         values = (
             np.asarray(probabilities, dtype=np.float64).reshape(-1)
             if probabilities is not None
@@ -194,10 +195,18 @@ class TemporalGate:
             return self.reject("invalid known-gesture mass")
         row = np.clip(row, 1e-12, None)
         row /= row.sum()
+        if self.config.class_names[int(row.argmax())] in DISABLED_GESTURES:
+            # A hard negative clears the hold immediately, including its grace
+            # frame. It must never become a second-best command after masking.
+            self.reset()
+            return self.reject(DORSAL_REJECTION_REASON, probabilities=row,
+                               known_gesture_mass=known_gesture_mass)
         order = np.sort(row)
         raw_confidence = float(order[-1])
         probability_margin = float(order[-1] - order[-2]) if len(order) > 1 else raw_confidence
         if not pose_valid:
+            if rejection_reason == DORSAL_REJECTION_REASON:
+                self.reset()
             return self.reject(
                 rejection_reason or "pose geometry rejected",
                 probabilities=row,
@@ -217,10 +226,6 @@ class TemporalGate:
         continued_direction_fallback = bool(
             continued_direction_recovery and geometry_supported and directional_recovery
             and geometry_gesture in {"left", "right", "up", "down"}
-        )
-        dorsal_fallback = bool(
-            geometry_supported and geometry_gesture == "dorsal"
-            and (recovery_mass_ok or dorsal_range_recovery)
         )
         directional_fallback = bool(
             directional_recovery and geometry_supported
@@ -248,10 +253,10 @@ class TemporalGate:
             and recovery_mass_ok
         )
         if known_gesture_mass < self.config.known_mass_floor and not (
-            dorsal_fallback or directional_fallback or supported_hand or peace_fallback
+            directional_fallback or supported_hand or peace_fallback
         ):
             return self.reject(
-                "outside the twelve-gesture vocabulary",
+                "outside the active gesture vocabulary",
                 probabilities=row,
                 known_gesture_mass=known_gesture_mass,
             )
@@ -294,8 +299,6 @@ class TemporalGate:
         )
         held_seconds = max(0.0, now - label_started_at)
         required_hold = self.config.minimum_hold_seconds
-        if dorsal_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.45 if dorsal_range_recovery else 0.35)
         if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.50 if expanded_thumb_fallback else 0.40)
         if supported_hand and known_gesture_mass < self.config.known_mass_floor:
@@ -315,9 +318,7 @@ class TemporalGate:
             reason = "gesture hold requirement not reached"
         else:
             reason = (
-                "stable Dorsal geometry"
-                if dorsal_fallback and known_gesture_mass < self.config.known_mass_floor
-                else "stable directional geometry"
+                "stable directional geometry"
                 if directional_fallback and known_gesture_mass < self.config.known_mass_floor
                 else "stable Peace finger geometry"
                 if peace_fallback and known_gesture_mass < self.config.known_mass_floor

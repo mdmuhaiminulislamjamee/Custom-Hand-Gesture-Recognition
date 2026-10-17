@@ -223,7 +223,7 @@ export default function VideoLab({ api, active, ready, connected, cameraSource, 
     if (!clip || !Number.isFinite(draft.start) || !Number.isFinite(draft.end) || draft.start < 0 || draft.end <= draft.start || draft.end > clip.duration_seconds + .01) { setError('Choose an interval inside the video with its end after its start.'); return; }
     const candidate = { ...draft, negative_reason: draft.label === 'no_gesture' ? draft.negative_reason : '', training_use: draft.label === 'no_gesture' ? scenarioLookup.current.get(draft.negative_reason)?.training_use ?? 'context_only' : draft.label === 'uncertain' ? 'context_only' : 'hand_classifier' } as Segment;
     if (segments.some((item, index) => index !== editing && candidate.start < item.end && candidate.end > item.start)) { setError('Labeled intervals cannot overlap. Edit or remove the existing interval first.'); return; }
-    if (candidate.label === 'fist' && candidate.finger_orientation !== 'toward_camera') { setError('A valid Fist must face the camera. Label the reverse-facing example no_gesture.'); return; }
+    if (candidate.label === 'fist' && candidate.finger_orientation === 'away_from_camera') { setError('The opposite-facing fist is no_gesture. Label that view separately.'); return; }
     setSegments(current => [...current.filter((_, index) => index !== editing), candidate].sort((a, b) => a.start - b.start));
     setDirty(true); setReviewed(false); setEditing(null);
   }
@@ -255,7 +255,7 @@ export default function VideoLab({ api, active, ready, connected, cameraSource, 
 
   return <div className="lab-page" hidden={!active}>
     <div className="section-heading"><div><p className="eyebrow">06 · CONTINUOUS DATA AND FALSE ACTION TESTING</p><h2>Video Lab</h2><p className="lab-intro">Record or upload video, review time intervals, and test the complete recognition pipeline.</p></div><button type="button" className="secondary-button" disabled={busy} onClick={() => { void refresh().catch(cause => setError(cause.message)); }}>Refresh clips</button></div>
-    <div className="lab-policy"><strong>Dorsal requires visible arm and torso evidence.</strong><p>Record the shoulder, elbow, wrist, and waist. Relaxed hanging or folded arms belong to context negatives. They are retained for runtime testing and excluded from static hand training. Use Data Collection for individual still frames.</p></div>
+    <div className="lab-policy"><strong>Record complete hands across clothing and lighting conditions.</strong><p>All commands, including Dorsal, use hand landmarks. The arm and body may be cropped. A resting hand that matches a command can still qualify. Keep ambiguous context examples for runtime review and out of static hand training. Use Data Collection for individual still frames.</p></div>
     {error && <div className="lab-error" role="alert">{error}</div>}{notice && <p className="lab-notice" role="status">{notice}</p>}
     <div className="lab-duration-guide"><span><b>5–10 sec</b>Valid command: relax → present → hold → release</span><span><b>10–20 sec</b>Hard negative: rest, grasp, turn, or near-command shape</span><span><b>2–5 min</b>Ordinary activity: measure false actions over time</span></div>
     <div className="lab-grid">

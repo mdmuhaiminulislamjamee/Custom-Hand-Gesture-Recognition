@@ -133,9 +133,11 @@ def test_uncertain_orientation_comparison_cannot_keep_active_gestures_running():
     turned["metrics"]["palm_segments_px"] = [70., 35., 75., 20.]
     unclear_peer["metrics"]["palm_segments_px"] = [35., 35., 35., 35.]
     chosen, selection, previews = selector.update([turned, unclear_peer], SHAPE, 1.)
-    assert chosen is None
+    assert chosen is turned
     assert selection["active_track_id"] == owner
-    assert all(not item["selected"] and not item["eligible"] for item in previews)
+    assert selection["switch_pending"]
+    assert previews[0]["selected"]
+    assert all(not item["eligible"] for item in previews)
     restored = feed(selector, [peer, active], start=11, count=10)
     assert all(chosen is None or chosen is active for chosen, _, _ in restored)
     assert all(selection["active_track_id"] == owner for _, selection, _ in restored)

@@ -2,15 +2,9 @@
 
 The active model is `TwelveGestureBalancedMLP`, a 76-feature MediaPipe hand-landmark classifier for the Windows dashboard and iOS handover. It emits twelve command probabilities and a separate `known_gesture_mass` score. `no_gesture` is a rejection label with no action. The retired thumb-and-little-finger call sign is trained as `no_gesture`.
 
-The Windows runtime now requires confident above-waist arm/body presentation for
-Dorsal. Hanging/folded resting arms, low presentation, and missing/uncertain
-body evidence are rejected. This is a runtime policy change, not new model
-weights; hand-only closeups cannot authorize Dorsal. The new Video Lab evaluates
-that full policy on reviewed clips. Model Training creates isolated twelve-class
-ONNX candidates from eligible reviewed hand features, with validation-only epoch
-selection and explicit frozen-test evaluation. Context negatives remain outside
-the 76-feature classifier. Mobile ports require equivalent posture checks before
-claiming policy parity.
+The Windows runtime uses hand landmarks only for eleven active commands. Dorsal is retired and is always `no_gesture`; its output slot is reserved to preserve the existing ONNX tensor contract. Body/face models and arm/waist presentation requirements are disabled. Full-frame search and bounded local contrast/crop recovery support difficult clothing backgrounds and uneven lighting. Upright acquisition crops are revisited from a cold start; successful crops retain fresh VIDEO tracking while the full frame is scanned each frame. Geometry, source-pixel and temporal gates remain active. A resting hand that exactly matches a command cannot be distinguished by body posture in this policy. This changes runtime behavior, not model weights; clothing-specific live accuracy remains unmeasured.
+
+Video Lab evaluates the current hand-only pipeline on reviewed clips. Model Training creates isolated twelve-class ONNX candidates with validation-only epoch selection and explicit frozen-test evaluation. Context negatives remain outside the 76-feature classifier. Existing immutable mobile handovers describe their packaged version; mobile ports need the current hand-only behavior before claiming parity.
 
 ## Contract
 
@@ -32,13 +26,19 @@ The training and evaluation record is `artifacts/twelve_gesture/evaluation.json`
 
 ONNX argmax alone never fires an action. The runtime checks hand validity, geometry, known mass, confidence, probability margin, temporal stability, hold duration, release frames, and cooldown. Selected scalar gates are known mass `0.70`, confidence `0.70`, margin `0.08`, geometry recovery mass `0.15`, three stable frames, minimum hold `0.18 s`, and action cooldown `0.80 s`.
 
-A Fist requires closed-hand geometry regardless of model confidence. The live desktop resolver also requires the world-landmark wrist-to-knuckle axis to have positive camera-facing depth alignment of at least `0.08`; a reverse-facing or nearly edge-on closed hand resolves to No Gesture. This applies at any XY screen rotation and to either hand. If the live camera supplies no usable world landmarks, Fist also resolves to No Gesture because its facing direction cannot be verified. The compact side-view recovery around XY +8, YZ +68, ZX +72 remains available when the depth alignment and tucked-finger checks pass; a true Thumbs Down keeps its label. Partly bent open hands are negative examples to collect and challenge. Open Palm and Thumbs Down retain their separate shape checks.
+A Fist requires closed-hand geometry regardless of model confidence. Both hands accept the complete upper screen arc: horizontal left, up-left, up, up-right and horizontal right. Any downward tilt below either horizontal boundary, including straight down, resolves to `no_gesture`. World-landmark wrist-to-knuckle depth is required for live Fist recognition. A 30-degree pitch toward the camera is accepted throughout the upper arc, including the floating-point boundary at normalized depth `-0.5`. Deeper forward tilts retain the established confident dorsal-surface recovery; an unverified reverse-facing view remains rejected. Compact, tucked-thumb fists confirmed by closed 3-D finger joints can recover an incorrect classifier label without a special screen-angle cone. Genuine Down and Thumbs Down shapes retain their separate checks. Crossing below horizontal clears a held Fist immediately and returning requires a fresh hold.
 
-The depth check rejects the newly reported XY/YZ/ZX `-80/-150/+164` closed-hand view, along with earlier reverse-depth examples such as `-64/-161/+126` and `-20/-150/+102`, even when the model gives Fist high confidence. A positive-depth view such as `-68/+161/+50` remains eligible if the fingers and thumb are actually tucked. These regressions use reconstructed axes and synthetic hand shapes; the screenshot pixels have not been replayed through MediaPipe.
+Closed-hand regressions compare the reported XY/YZ/ZX views `-86/+177/+51` (Fist), `-83/-148/+170` (No Gesture), and `-75/-146/+159` (dorsal Fist). These regressions use reconstructed axes and synthetic hand shapes; the screenshot pixels have not been replayed through MediaPipe.
 
-The desktop resolver also recovers the reported Peace side views from an incorrect Up prediction when two independently tracked, straight index/middle fingers extend well beyond the ring/little fingertips. This includes nearly touching fingers. World landmarks, when supplied, must corroborate the two-finger geometry. Dorsal uses the displayed signed XY palm-axis range from 0 through 150 degrees clockwise from screen-right; world XY is authoritative when available. The reported `-35` degree view is outside that command range and resolves to No Gesture, including at zero known-gesture mass. Within the range, a verified dorsal surface with four straight, parallel, close fingers can recover even at known mass 0.05, after a 0.45-second hold. Unknown/palmar surfaces do not receive this low-mass exception. Regression fixtures approximate the screenshot skeletons; they are not raw camera landmark captures or screenshot pixel replays. These desktop changes are not included in the immutable iOS handover snapshots.
+The desktop resolver also recovers the reported Peace side views from an incorrect Up prediction when two independently tracked, straight index/middle fingers extend well beyond the ring/little fingertips. This includes nearly touching fingers. World landmarks, when supplied, must corroborate the two-finger geometry. Every former Dorsal pose is a hard negative at every screen angle and known-gesture mass. Neither geometry recovery, body position, foreground clearance nor a long hold can authorize it. Dorsal-shaped hands are rejected before any alternate command can execute. Regression fixtures approximate the screenshot skeletons; they are not raw camera landmark captures or screenshot pixel replays. These desktop changes are not included in the immutable iOS handover snapshots.
 
 The NCM view at XY/YZ/ZX `+25/-75/+151` shows one long screen-right index, three folded fingers, and a thumb arched on the opposite side of the index. The desktop resolver treats this strict silhouette as Left even when ONNX reports approximately `0.01` known-gesture mass; horizontal mirroring maps it to Right. This recovery requires mass at least `0.005` and a 0.50-second stable hold. The regression reconstructs visible landmarks and HUD angles; it is not a replay of the camera image.
+
+The reported close webcam view with an arched thumb and approximately `0.15`
+known mass uses the same held recovery. A shorter projected index requires
+three tightly curled, shorter fingers and a separately visible arched thumb.
+Tests trace the screenshot overlay at multiple image aspect ratios and verify
+that an additional extended finger cannot enter this recovery.
 
 ## Offline measurements
 
@@ -47,3 +47,5 @@ On the participant-disjoint held-out test, the ONNX graph agreed with the source
 ## Acceptance status
 
 Offline qualification and artifact checks have passed. Live low-resolution webcam, USB-NCM, and physical iOS testing remain pending. The two screenshots supplied for the Fist distinction do not provide reusable landmark vectors or a camera test set, so the exact pictured cases require a live or captured-image regression before product sign-off. Measure all twelve classes, both hands, left/right/up Fists, downward and partly open negatives, the retired call sign, low light, varied distance, and false actions per minute. Compile and run the Swift package on a physical iOS device before shipping it.
+
+Current policy does not change the shipped ONNX weights. Collection, reviewed legacy Dorsal ingestion, online feedback and Model Lab training map Dorsal to rejection; a future retrained candidate must be qualified independently. Historical handover archives retain their original versions.

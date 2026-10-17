@@ -146,7 +146,7 @@ def test_open_set_rejection_never_executes():
     decision = gate.update(row, now=1.0, known_gesture_mass=0.1)
     assert decision.execute is False
     assert decision.predicted_gesture == "no_gesture"
-    assert decision.reason == "outside the twelve-gesture vocabulary"
+    assert decision.reason == "outside the active gesture vocabulary"
 
 
 @pytest.mark.parametrize("fps", [5, 8, 10, 15, 20, 30, 60])
@@ -154,7 +154,7 @@ def test_fast_frames_cannot_skip_hold_duration(fps):
     config = RuntimeConfig()
     gate = TemporalGate(config)
     row = np.zeros(len(config.class_names))
-    row[config.class_to_idx["dorsal"]] = 1.0
+    row[config.class_to_idx["like"]] = 1.0
     executed = []
     for frame in range(fps + 1):
         decision = gate.update(row, now=frame / fps)
@@ -164,31 +164,34 @@ def test_fast_frames_cannot_skip_hold_duration(fps):
     assert executed[0] >= gate.config.minimum_hold_seconds
 
 
+
 def test_confident_pose_transition_does_not_execute_stale_action():
     config = RuntimeConfig()
     gate = TemporalGate(config)
     left = np.eye(len(config.class_names))[config.class_to_idx["left"]]
-    dorsal = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
+    like = np.eye(len(config.class_names))[config.class_to_idx["like"]]
     for now in (1.0, 1.1, 1.2):
         decision = gate.update(left, now=now)
     assert decision.execute
-    decision = gate.update(dorsal, now=1.3)
-    assert decision.predicted_gesture == "dorsal"
+    decision = gate.update(like, now=1.3)
+    assert decision.predicted_gesture == "like"
     assert not decision.execute
     assert decision.stable_frames == 1
-    assert not gate.update(dorsal, now=1.4).execute
-    assert gate.update(dorsal, now=1.5).execute
+    assert not gate.update(like, now=1.4).execute
+    assert gate.update(like, now=1.5).execute
+
 
 
 def test_capture_outage_requires_new_confirmation():
     config = RuntimeConfig()
     gate = TemporalGate(config)
-    dorsal = np.eye(len(config.class_names))[config.class_to_idx["dorsal"]]
+    like = np.eye(len(config.class_names))[config.class_to_idx["like"]]
     for now in (1.0, 1.1, 1.2):
-        gate.update(dorsal, now=now)
-    decision = gate.update(dorsal, now=2.0)
+        gate.update(like, now=now)
+    decision = gate.update(like, now=2.0)
     assert not decision.execute
     assert decision.stable_frames == 1
+
 
 
 @pytest.mark.parametrize("gesture", ["open_palm", "like", "fist", "thumb_down"])

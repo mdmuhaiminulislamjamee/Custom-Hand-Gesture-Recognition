@@ -14,7 +14,7 @@ import shutil
 import numpy as np
 
 from backend.artifact_integrity import ArtifactRegistry
-from backend.config import CLASS_NAMES, FEATURE_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION
+from backend.config import CLASS_NAMES, FEATURE_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODEL_LABELS
 from research.v18_20 import predict_onnx
 from scripts.train_twelve_gesture_candidate import prepare
 
@@ -98,7 +98,7 @@ def main() -> None:
     # cache is participant-separated from training and is never used for fitting.
     replay_indices = np.concatenate([
         np.flatnonzero(train["y"] == index)[:128]
-        for index in range(len(FEEDBACK_LABELS))
+        for index in range(len(MODEL_LABELS))
     ])
     _cache(MODELS / "gesture_online_replay_cache.npz", {key: value[replay_indices] for key, value in train.items()})
     _cache(MODELS / "gesture_online_validation_cache.npz", validation)
@@ -137,7 +137,7 @@ def main() -> None:
         "probability_output": "probabilities",
         "known_mass_output": "known_gesture_mass",
         "output_class_order": CLASS_NAMES,
-        "internal_class_order": FEEDBACK_LABELS,
+        "internal_class_order": MODEL_LABELS,
         "feature_names": FEATURE_NAMES,
         "source_class_mapping": {
             "left": "one_right", "right": "one_left", "up": "one",

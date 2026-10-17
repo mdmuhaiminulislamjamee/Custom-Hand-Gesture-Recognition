@@ -4,14 +4,14 @@ cd /d "%~dp0"
 set OPENBLAS_NUM_THREADS=1
 
 echo ========================================================
-echo   Starting 12-Command ONNX Gesture Recognition...
+echo   Starting 11-Command ONNX Gesture Recognition...
 echo   Automatic two-hand selection is enabled.
 echo ========================================================
 echo.
 echo   Hold a clear gesture. If both hands gesture, bring one forward.
 echo   Gray hands are observed; the selected hand is highlighted.
-echo   Dorsal: four straight fingers together, thumb beside index.
-echo   Dorsal pauses below the waist only with a relaxed hanging arm.
+echo   Hand-only detection; body position and clothing are not filters.
+echo   Dorsal is a hard negative: No Gesture, with no action.
 echo   Gestures can qualify in front of the face; no face filter.
 echo.
 echo   [1] Run with PC Webcam (Default)

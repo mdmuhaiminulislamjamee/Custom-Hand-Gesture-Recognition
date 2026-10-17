@@ -76,7 +76,7 @@ def test_one_fingertip_on_face_counts_without_palm_overlap():
     )["near_face"]
 
 
-@pytest.mark.parametrize("gesture", RuntimeConfig().class_names)
+@pytest.mark.parametrize("gesture", [label for label in RuntimeConfig().class_names if label != "dorsal"])
 @pytest.mark.parametrize("blocked", [True, False])
 def test_legacy_face_box_alone_never_blocks_a_gesture(monkeypatch, gesture, blocked):
     import backend.hand_detection as detection_module

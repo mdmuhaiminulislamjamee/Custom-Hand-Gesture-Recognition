@@ -14,7 +14,7 @@ import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './
 const API_URL = process.env.NEXT_PUBLIC_GESTURE_API_URL ?? 'http://127.0.0.1:8200';
 const WS_URL = API_URL.replace(/^http/, 'ws');
 const DEFAULT_CLASSES = [
-  'left', 'right', 'up', 'down', 'open_palm', 'like', 'dorsal', 'ok', 'fist', 'thumb_down', 'peace', 'rock',
+  'left', 'right', 'up', 'down', 'open_palm', 'like', 'ok', 'fist', 'thumb_down', 'peace', 'rock',
 ];
 const DEFAULT_ACTIONS: Record<string, string> = {
   left: 'Move Left',
@@ -23,7 +23,6 @@ const DEFAULT_ACTIONS: Record<string, string> = {
   down: 'Move Down',
   open_palm: 'Enable / Disable Object Tracking · Up, Left, or Right',
   like: 'Play / Pause',
-  dorsal: 'Return to Default Position',
   ok: 'Start / Stop Recording',
   fist: 'Mute',
   thumb_down: 'Volume Down',
@@ -37,7 +36,6 @@ const DEMO_COMMANDS: Record<string, string> = {
   down: 'MOVE_DOWN',
   open_palm: 'TOGGLE_TRACKING',
   like: 'TOGGLE_PLAYBACK',
-  dorsal: 'RETURN_HOME',
   ok: 'TOGGLE_RECORDING',
   fist: 'MUTE_AUDIO',
   thumb_down: 'VOLUME_DOWN',
@@ -199,11 +197,13 @@ type TrackedHand = {
   track_id: number | null;
   selected: boolean;
   landmarks: number[][];
+  display_landmarks?: number[][];
   handedness?: string;
   palm_scale_px: number;
   gesture: string;
   eligible: boolean;
   reason?: string;
+  dorsal_hand_reason?: string | null;
 };
 type Prediction = RangePrediction & {
   hands?: TrackedHand[];
@@ -213,6 +213,9 @@ type Prediction = RangePrediction & {
     candidate_count: number;
     reason: string;
     message: string;
+    dorsal_foreground_clear?: boolean;
+    dorsal_required_palm_ratio?: number;
+    distance_scale_ratio?: number | null;
   };
   status: string;
   message?: string;
@@ -497,10 +500,12 @@ export default function Dashboard() {
     context.rect(left, top, frameWidth, frameHeight);
     context.clip();
     const rows = hands?.length ? hands : (landmarks?.length === 21 ? [{
-      landmarks, selected: true, track_id: null, handedness: undefined, reason: undefined,
+      landmarks, display_landmarks: undefined, selected: true, track_id: null,
+      handedness: undefined, reason: undefined,
     }] : []);
     rows.forEach(hand => {
-      const points = hand.selected && landmarks?.length === 21 ? landmarks : hand.landmarks;
+      const points = hand.selected && landmarks?.length === 21 ? landmarks
+        : hand.display_landmarks?.length === 21 ? hand.display_landmarks : hand.landmarks;
       if (points.length !== 21) return;
       const selected = hand.selected && landmarks?.length === 21;
       const color = selected ? (classified ? '#49d9d1' : '#ffb454') : '#a5adbf';
@@ -520,8 +525,7 @@ export default function Dashboard() {
         context.arc(x, y, Math.max(2, size / 130), 0, Math.PI * 2);
         context.fill();
       });
-      const handState = selected ? 'selected'
-        : hand.reason === 'relaxed_hand_near_hip_or_thigh' ? 'resting / no gesture' : 'observed';
+      const handState = selected ? 'selected' : 'observed';
       const label = `${hand.handedness ?? 'Hand'}${hand.track_id ? ` #${hand.track_id}` : ''} · ${handState}`;
       context.font = `${Math.max(11, size / 34)}px sans-serif`;
       const labelWidth = context.measureText(label).width;
@@ -545,8 +549,12 @@ export default function Dashboard() {
   useEffect(() => {
     // Landmark visibility is diagnostic only.  Gesture actions continue to use
     // the backend's confidence, geometry, stability, hold, and cooldown gates.
-    drawLandmarks(hasRawLandmarks ? prediction.landmarks : undefined, hasClassifiedLandmarks, prediction.hands);
-  }, [prediction.landmarks, prediction.hands, hasRawLandmarks, hasClassifiedLandmarks, activeTab, drawLandmarks]);
+    const selectedPreview = prediction.hands?.find(hand => hand.selected)?.display_landmarks;
+    const display = prediction.display_landmarks?.length === 21 ? prediction.display_landmarks
+      : selectedPreview?.length === 21 ? selectedPreview : prediction.landmarks;
+    drawLandmarks(hasRawLandmarks ? display : undefined, hasClassifiedLandmarks, prediction.hands);
+  }, [prediction.landmarks, prediction.display_landmarks, prediction.hands,
+      hasRawLandmarks, hasClassifiedLandmarks, activeTab, drawLandmarks]);
 
   const captureWebcamFrame = useCallback(async () => {
     const video = webcamVideoRef.current;
@@ -1499,7 +1507,7 @@ export default function Dashboard() {
                   ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
                 <span>{prediction.hand_selection?.message ?? 'Bring either hand forward. Selection follows the hand in front.'}</span>
                 <span>Closeness uses image and hand landmark scale; camera depth is not measured.</span>
-                <span>Matching hand distances pause both gestures. Dorsal pauses only below the waist with a relaxed hanging arm. Raised or deliberately bent arms remain eligible.</span>
+                <span>Keep the whole hand visible, including in front of clothing. Dorsal poses are treated as no gesture.</span>
               </article>
               <article className="result-card accent-mint">
                 <p>RUNTIME PREDICTION</p><strong>{humanize(runtimeGesture)}</strong>

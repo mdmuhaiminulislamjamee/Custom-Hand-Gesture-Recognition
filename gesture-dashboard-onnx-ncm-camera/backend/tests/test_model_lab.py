@@ -12,13 +12,16 @@ from backend.model_lab import ModelLab
 from research.lab_training import LABELS, audit_dataset, check_source_splits, mix_training
 
 
-def test_mixing_preserves_all_twelve_commands_and_rejection_and_caps_capture_reuse():
+def test_mixing_preserves_active_commands_and_turns_dorsal_into_rejection():
     labels = np.repeat(np.arange(13), 6)
     base = {"X": np.tile(np.arange(76, dtype=np.float32), (len(labels), 1)), "y": labels}
     captured = {"X": np.ones((2, 76), dtype=np.float32), "y": np.array([8, 12])}
     training, counts = mix_training(base, captured, per_class=40)
-    assert training["X"].shape == (520, 76)
-    assert np.array_equal(np.bincount(training["y"]), np.repeat(40, 13))
+    assert training["X"].shape == (480, 76)
+    expected = np.repeat(40, 13)
+    expected[CLASS_NAMES.index("dorsal")] = 0
+    assert np.array_equal(np.bincount(training["y"]), expected)
+    assert "dorsal" not in counts
     assert counts["fist"]["captured_rows"] == 4
     assert counts["no_gesture"]["captured_rows"] == 4
     assert counts["peace"]["public_rows"] == 40

@@ -1,4 +1,4 @@
-"""Screen rotation preserves shape; camera-facing depth controls Fist.
+"""Upper screen rotations preserve Fist; lower rotations reject it.
 
 These are synthetic landmark regressions, not pixel replays of the supplied
 camera images. Context (waist, face contact, ownership) is tested separately.
@@ -79,7 +79,7 @@ def test_four_extended_fingers_respect_surface_and_dorsal_direction(angle, mirro
     config, probabilities, details = resolve(points, "like", handedness=handedness)
     pose = details["pose_validation"]
     assert details["hand_shape"]["hand_surface"] == surface
-    if surface == "dorsal" and not details["hand_shape"]["dorsal_allowed_direction"]:
+    if surface == "dorsal":
         assert not pose["valid"]
         decision = TemporalGate(config).update(
             probabilities, now=1., **gate_arguments(details, dict(known_gesture_mass=.20)))
@@ -89,6 +89,7 @@ def test_four_extended_fingers_respect_surface_and_dorsal_direction(angle, mirro
     assert pose["gesture"] == label
     assert config.class_names[int(probabilities.argmax())] == label
     assert_held_geometry_recovers(config, probabilities, details, label)
+
 
 
 def rotated_closed_fist(angle, tilt, axis, mirror):
@@ -120,10 +121,17 @@ def rotated_closed_fist(angle, tilt, axis, mirror):
 
 @pytest.mark.parametrize("angle", SCREEN_ANGLES)
 @pytest.mark.parametrize("mirror", [False, True])
-def test_closed_fist_accepts_every_screen_rotation_with_world_joints(angle, mirror):
+def test_closed_fist_screen_rotation_respects_upper_arc_with_world_joints(angle, mirror):
     points, world = rotated_closed_fist(angle, 0, "x", mirror)
     config, probabilities, details = resolve(points, "fist", world=world)
     pose = details["pose_validation"]
+    palm_axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
+    if palm_axis[1] > 1e-6:
+        assert not pose["valid"]
+        decision = TemporalGate(config).update(probabilities, now=1., **gate_arguments(
+            details, dict(known_gesture_mass=1.)))
+        assert decision.predicted_gesture == "no_gesture"
+        return
     assert pose["valid"] and pose["geometry_supported"]
     assert pose["gesture"] == "fist"
     assert config.class_names[int(probabilities.argmax())] == "fist"
@@ -136,10 +144,11 @@ def test_closed_fist_accepts_every_screen_rotation_with_world_joints(angle, mirr
 def test_closed_fist_depth_rotation_rejects_away_views(tilt, axis, mirror):
     points, world = rotated_closed_fist(0, tilt, axis, mirror)
     config, probabilities, details = resolve(points, "fist", world=world)
-    faces_camera = details["hand_shape"]["fist_depth_alignment"] >= .08
+    faces_camera = details["hand_shape"]["fist_depth_allowed"]
     assert details["pose_validation"]["valid"] is faces_camera
     assert details["pose_validation"]["gesture"] == "fist"
     assert config.class_names[int(probabilities.argmax())] == "fist"
+
 
 
 def test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_thumb_down():
@@ -163,6 +172,11 @@ def test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_th
             probabilities, points, handedness="Right", handedness_confidence=.99,
             world_landmarks=world, require_fist_depth=True,
         )
+        if palm_axis[1] > 1e-6:
+            assert not details["pose_validation"]["valid"]
+            decision = TemporalGate(config).update(resolved, now=1., **gate_arguments(details, quality))
+            assert decision.predicted_gesture == "no_gesture"
+            continue
         assert details["pose_validation"]["valid"]
         assert config.class_names[int(resolved.argmax())] == "fist"
         gate = TemporalGate(config)
@@ -372,12 +386,13 @@ def test_approximate_raised_dorsal_image_keeps_four_downward_fingers(mirror):
     handedness = "Left" if mirror else "Right"
     config, probabilities, details = resolve(points, "dorsal", handedness=handedness)
     assert details["hand_shape"]["hand_surface"] == "dorsal"
-    assert details["pose_validation"]["valid"]
+    assert not details["pose_validation"]["valid"]
     assert config.class_names[int(probabilities.argmax())] == "dorsal"
 
 
+
 @pytest.mark.parametrize("mirror", [False, True])
-def test_shipped_onnx_approximate_raised_dorsal_reaches_a_real_held_command(mirror):
+def test_shipped_onnx_approximate_raised_dorsal_never_executes(mirror):
     from backend.geometry import landmarks_to_feature
     from backend.model_runtime import ModelManager
 
@@ -393,11 +408,11 @@ def test_shipped_onnx_approximate_raised_dorsal_reaches_a_real_held_command(mirr
         probabilities, points, handedness="Left" if mirror else "Right",
         handedness_confidence=.99,
     )
-    assert details["pose_validation"]["valid"]
-    assert details["pose_validation"]["gesture"] == "dorsal"
+    assert not details["pose_validation"]["valid"]
+    assert details["pose_validation"]["gesture"] == "no_gesture"
     gate = TemporalGate(config)
     for index in range(8):
         decision = gate.update(resolved, now=1 + index * .1, **gate_arguments(details, quality))
-    assert decision.execute
-    assert decision.predicted_gesture == "dorsal"
+    assert not decision.execute
+    assert decision.predicted_gesture == "no_gesture"
     assert decision.known_gesture_mass == quality["known_gesture_mass"]
