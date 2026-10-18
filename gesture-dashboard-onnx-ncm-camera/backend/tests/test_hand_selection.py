@@ -75,13 +75,15 @@ def test_projected_world_scale_respects_distance_even_when_raw_palm_order_revers
     assert feed(selector, [far, near])[-1][0] is near
 
 
-def test_same_distance_world_scale_blocks_pose_based_palm_size_difference():
+def test_same_distance_world_scale_uses_unique_gesture_despite_pose_based_palm_size_difference():
     selector = AutomaticHandSelector(RuntimeConfig())
     near, far = turned_foreground("left")
     projected_world(near, 1200.)
     result = feed(selector, [near, far])[-1]
-    assert result[0] is None
-    assert result[1]["reason"] == "hands_same_distance"
+    assert result[0] is near
+    assert result[1]["distance_method"] == "projected world landmarks"
+    assert result[1]["distance_scale_ratio"] == pytest.approx(1.)
+    assert result[2][1]["gesture"] == "no_gesture"
 
 
 def test_incoherent_world_landmarks_fall_back_to_conservative_palm_comparison():
@@ -89,8 +91,9 @@ def test_incoherent_world_landmarks_fall_back_to_conservative_palm_comparison():
     near, far = turned_foreground("left")
     near["world_landmarks"][5] = np.nan
     result = feed(selector, [near, far])[-1]
-    assert result[0] is None
+    assert result[0] is near
     assert result[1]["distance_method"] == "apparent palm size"
+    assert result[1]["gesture_priority"]
 
 
 @pytest.mark.parametrize("label", ["left", "up"])
@@ -142,13 +145,14 @@ def test_two_hands_choose_significantly_larger_palm_only_after_confirmation():
     assert results[-1][1]["selected_track_id"] == 2
 
 
-def test_nearer_idle_hand_prevents_farther_gesture_acquisition():
+def test_nearer_idle_hand_does_not_prevent_farther_valid_gesture_acquisition():
     selector = AutomaticHandSelector(RuntimeConfig())
     idle = observation(x=.75, scale=.6, hand="Left", mass=.01)
     gesture = observation(scale=.35)
     chosen, _, previews = feed(selector, [idle, gesture])[-1]
-    assert chosen is idle
-    assert all(not preview["eligible"] for preview in previews)
+    assert chosen is gesture
+    assert previews[1]["gesture"] == "like" and previews[1]["eligible"]
+    assert previews[0]["gesture"] == "no_gesture" and not previews[0]["eligible"]
 
 
 def test_equal_depth_valid_gestures_remain_ambiguous():

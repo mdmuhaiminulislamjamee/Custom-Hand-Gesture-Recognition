@@ -9,6 +9,7 @@ echo   Automatic two-hand selection is enabled.
 echo ========================================================
 echo.
 echo   Hold a clear gesture. If both hands gesture, bring one forward.
+echo   If one hand has no gesture, the other valid hand is selected automatically.
 echo   Gray hands are observed; the selected hand is highlighted.
 echo   Hand-only detection; body position and clothing are not filters.
 echo   Dorsal is a hard negative: No Gesture, with no action.

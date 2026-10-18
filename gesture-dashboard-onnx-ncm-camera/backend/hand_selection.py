@@ -1,10 +1,10 @@
 """Automatic hand ownership for a single RGB camera, local to each session.
 
 Apparent hand scale is a relative closeness cue, never a metric depth measurement.
-Compare both physical hands before gesture qualification. The foreground hand
-owns recognition after a brief distance hold. When the hands return to the same
-distance, a clearly tracked owner keeps control; a change of foreground hand
-clears the previous gesture history.
+Qualify both hands before distance arbitration. A single valid gesture takes
+precedence over an idle or rejected hand, regardless of apparent distance.
+When both hands have valid gestures, use foreground distance and track ownership.
+Changing hands clears the previous gesture history.
 """
 from __future__ import annotations
 
@@ -91,6 +91,7 @@ class AutomaticHandSelector:
         self.active_id = None
         self._next_id = 1
         self._pending_id = None
+        self._pending_mode = None
         self._pending_since = 0.0
         self._pending_frames = 0
         self._image_shape = None
@@ -100,11 +101,13 @@ class AutomaticHandSelector:
 
     def _clear_pending(self):
         self._pending_id = None
+        self._pending_mode = None
         self._pending_frames = 0
 
-    def _confirm_choice(self, track_id, now):
-        if self._pending_id != track_id:
+    def _confirm_choice(self, track_id, now, *, mode="distance"):
+        if self._pending_id != track_id or self._pending_mode != mode:
             self._pending_id = track_id
+            self._pending_mode = mode
             self._pending_since = now
             self._pending_frames = 0
         self._pending_frames += 1
@@ -321,6 +324,7 @@ class AutomaticHandSelector:
 
         distance_ratio = None
         distance_method = "relative apparent hand scale; not measured depth"
+        gesture_priority = False
         switch_pending = False
         dorsal_foreground_index = None
 
@@ -343,6 +347,7 @@ class AutomaticHandSelector:
                 switch_pending=switch_pending,
                 distance_method=distance_method,
                 distance_scale_ratio=distance_ratio,
+                gesture_priority=gesture_priority,
                 closer_palm_ratio=self.policy.closer_palm_ratio,
                 closer_projected_world_ratio=self.policy.closer_projected_world_ratio,
                 dorsal_foreground_clear=(len(physical) < 2 or
@@ -360,6 +365,12 @@ class AutomaticHandSelector:
         for row in rows:
             row["identity_reacquired"] = False
         keys, ambiguous = self._associate([rows[i] for i in trackable], dimensions, now)
+        separated_hands = False
+        if len(trackable) == 2:
+            first, second = (rows[i] for i in trackable)
+            separation = float(np.linalg.norm((palm_center(first) - palm_center(second)) * dimensions))
+            larger_palm = max(first["metrics"]["palm_scale_px"], second["metrics"]["palm_scale_px"])
+            separated_hands = separation >= self.policy.overlap_palm_ratio * larger_palm
         if len(physical) == 2:
             first, second = (rows[i] for i in physical)
             palm_separation = float(np.linalg.norm(
@@ -447,6 +458,7 @@ class AutomaticHandSelector:
             return result(None, "active_hand_expired",
                           "Previous hand left; hold a clear gesture to select the visible hand.")
         nearer_index = None
+        distance_reason = None
         retained_owner = False
         if len(physical) == 2:
             nearer_index, distance_reason, distance_ratio, distance_method = self._compare_two_hands(
@@ -460,21 +472,6 @@ class AutomaticHandSelector:
                               and self.active_id in current
                               and (distance_reason == "hands_same_distance"
                                    or distance_ratio < closer_ratio))
-            if distance_reason and not retained_owner and not ambiguous:
-                self._clear_pending()
-                for track in self.tracks.values():
-                    track.gate.reset()
-                if self.active_id in current:
-                    # Distance can be uncertain while physical identity and
-                    # current pixels are clear. Keep the owner's fresh overlay
-                    # and label, but pause all actions until comparison recovers.
-                    switch_pending = True
-                    return result(current[self.active_id], distance_reason,
-                                  "Following the selected hand; actions paused while hand distance is uncertain.")
-                return result(None, distance_reason,
-                              "Hands are at similar distance. Bring one hand clearly forward to select it."
-                              if distance_reason == "hands_same_distance" else
-                              "Hand distance is uncertain. Keep both hands visible and bring one clearly forward.")
 
         if rows and not usable:
             self._clear_pending()
@@ -539,9 +536,59 @@ class AutomaticHandSelector:
                     track.gate.reject("hand temporarily missing")
 
         ready = [key for key, decision in decisions.items() if decision.execute]
-        # Distance takes precedence over the previous owner and over gesture
-        # confidence. A nearer hand with an unclear pose may pause its own
-        # command, but must never leave the farther hand in control.
+        if separated_hands:
+            # Evaluate BOTH hands before distance can pause recognition. A
+            # rejected / idle foreground hand cannot block the sole valid pose.
+            # A peer still building its gesture hold counts as a competitor;
+            # confidence or detection order must not choose between two poses.
+            qualified = [key for key, decision in decisions.items()
+                         if decision.predicted_gesture != self.config.reject_label]
+            if len(qualified) == 1 and qualified[0] == self.active_id:
+                gesture_priority = True
+                self._clear_pending()
+                return result(current[self.active_id], "active_hand_locked",
+                              "Following the hand with the only valid gesture.")
+            visible_owner = any(rows[i].get("track_id") == self.active_id for i in trackable)
+            if (len(qualified) == 1
+                    and (self.active_id is None or visible_owner)):
+                gesture_priority = True
+                chosen = qualified[0]
+                if chosen in ready:
+                    confirmed = self._confirm_choice(chosen, now, mode="gesture")
+                else:
+                    self._clear_pending()
+                    confirmed = False
+                if not confirmed:
+                    switch_pending = self.active_id is not None
+                    if self.active_id in current:
+                        return result(current[self.active_id], "confirming_gesture_hand_switch",
+                                      "Selected hand has no valid gesture; confirming the other hand's gesture.")
+                    return result(None, "confirming_hand_choice", "Confirming the gesture hand; keep holding.")
+                if self.active_id is not None:
+                    self._release_ownership()
+                    previews[current[chosen]]["eligible"] = False
+                self.active_id = chosen
+                self._clear_pending()
+                return result(current[chosen], "gesture_hand_selected",
+                              "Following the hand with the only valid gesture.")
+
+        if distance_reason and not retained_owner:
+            self._clear_pending()
+            for track in self.tracks.values():
+                track.gate.reset()
+            if self.active_id in current:
+                # Neither a unique gesture nor a reliable distance comparison
+                # resolved the choice. Keep the overlay and pause actions.
+                switch_pending = True
+                return result(current[self.active_id], distance_reason,
+                              "Following the selected hand; actions paused while hand distance is uncertain.")
+            return result(None, distance_reason,
+                          "Hands are at similar distance. Hold one valid gesture or bring one hand clearly forward."
+                          if distance_reason == "hands_same_distance" else
+                          "Hand distance is uncertain. Hold one valid gesture or bring one hand clearly forward.")
+
+        # With two valid gestures, retain the existing distance and ownership
+        # rules. The same path keeps physical tracking when neither is valid.
         nearer_key = next((key for key, i in current.items() if i == nearer_index), None)
         switch_confirmed = False
         if (nearer_index is not None and not ambiguous and self.active_id is not None

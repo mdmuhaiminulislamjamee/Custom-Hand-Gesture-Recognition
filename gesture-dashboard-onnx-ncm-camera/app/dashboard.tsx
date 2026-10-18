@@ -1505,7 +1505,7 @@ export default function Dashboard() {
                 <p>AUTOMATIC HAND SELECTION</p>
                 <strong>{prediction.hand_selection?.selected_track_id != null
                   ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
-                <span>{prediction.hand_selection?.message ?? 'Bring either hand forward. Selection follows the hand in front.'}</span>
+                <span>{prediction.hand_selection?.message ?? 'Show a valid gesture with either hand. If both hands gesture, bring one forward.'}</span>
                 <span>Closeness uses image and hand landmark scale; camera depth is not measured.</span>
                 <span>Keep the whole hand visible, including in front of clothing. Dorsal poses are treated as no gesture.</span>
               </article>

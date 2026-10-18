@@ -58,6 +58,7 @@ def main() -> None:
         print(f"  {gesture:<12} -> {action}")
     print("Dorsal is a hard negative: no_gesture, with no action.")
     print("Hand-only detection: body position and clothing do not block gestures.")
+    print("A valid gesture takes priority over the other hand's no_gesture, regardless of distance.")
     print("Face filtering removed: gestures can qualify in front of the face.\n")
 
     status = engine.status()

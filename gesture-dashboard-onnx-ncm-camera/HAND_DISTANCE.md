@@ -27,24 +27,34 @@ The dashboard NCM path now analyzes the full image, matching the BAT viewer.
 Previews use a fitted full image and both skeletons follow the same coordinates.
 Recalibrate any saved range calibration that was made with the old central crop.
 
-- Both clearly visible physical hands are compared before gesture qualification,
-  including idle hands and real hands blocked by a context rule. Their gesture
-  labels do not affect the comparison. Face hallucinations and incomplete/tiny
-  clouds do not count as another reliable physical hand.
-- With two hands present, coherent image/world landmarks can identify
+- Every clearly tracked hand receives its own gesture qualification before
+  distance uncertainty can pause selection. Face hallucinations and
+  incomplete/tiny clouds cannot qualify as a gesture.
+- If exactly one hand shows a valid gesture among the **11 active classes**,
+  that hand takes priority over a `no_gesture` / Hand observation, **regardless
+  of apparent distance or palm size**. A selected hand that becomes invalid
+  automatically yields to the other hand's valid gesture after confirmation.
+  This applies to either hand. It also works when palm rotation or bent fingers
+  make the distance comparison uncertain. A valid owner stays selected while
+  the other hand is idle, even if that idle hand appears closer.
+  The normal gesture hold and **3 observations and 0.25 seconds** selection
+  hold still apply. Changing hands clears landmark smoothing and gesture
+  history. Separate hands, reliable track identity, source detail, geometry,
+  confidence and vocabulary checks are still required.
+- When both hands have valid gestures, coherent image/world landmarks can identify
   a hand that projects at least **1.10 times** larger, even when palm rotation
   makes its four image palm segments look similar to the other hand's. This
-  comparison applies to every gesture label and either hand. If coherent world
+  comparison applies to either hand. If coherent world
   landmarks are unavailable, the closer palm must appear at least **1.15 times**
   larger with consistent ratios across four palm segments.
-  Only that nearer hand is passed to gesture recognition; a farther gesture
-  cannot beat a nearer idle or blocked hand. Choice must persist for at least
-  **3 observations and 0.25 seconds**. The gesture has its own hold.
-- Similar projected scales or a small, uncertain difference keep an already
-  selected hand active while its track is clear. Without an existing owner,
-  neither hand is selected until one moves clearly forward. Uncertain track
-  assignment still pauses actions.
-- When the other hand appears clearly in front, the selected hand stays visible
+  Choice must persist for at least **3 observations and 0.25 seconds**. The
+  gesture has its own hold. A peer still confirming a valid gesture counts as
+  a competitor, so detection order cannot choose between two valid poses.
+- If both hands have valid gestures at similar distance, a clear owner stays selected;
+  without an owner, neither hand is selected until one moves clearly forward.
+  Uncertain distance keeps the existing owner or pauses selection under the
+  existing distance rules. Uncertain track assignment still pauses actions.
+- With two valid gestures, when the other hand appears clearly in front, the selected hand stays visible
   while the challenger is checked. New actions pause during this check. The
   challenger takes ownership only after raw and filtered distance evidence agree
   for **3 observations and 0.25 seconds**. Apparent palm and coherent projected
@@ -53,8 +63,8 @@ Recalibrate any saved range calibration that was made with the old central crop.
   agrees. Only the
   selected hand can show a recognized gesture; inactive previews remain
   `no_gesture`.
-- An invalid but physically tracked foreground hand remains selected but does
-  not produce an action. If it disappears for **0.80 seconds**, selection resets
+- If neither hand has a valid gesture, no action is produced. A physical track
+  may stay selected for observation. If it disappears for **0.80 seconds**, selection resets
   even when another hand remains visible. That hand must complete a fresh
   gesture hold before it can act. No output uses stale landmarks, and a
   high-confidence opposite handedness cannot inherit the owner's track.
@@ -68,7 +78,8 @@ Recalibrate any saved range calibration that was made with the old central crop.
   every frame.
 - An intermediate projected scale difference (**1.05–1.10 times**) or a
   similarly small, inconsistent palm-size difference keeps a clearly tracked
-  owner. A larger but inconsistent difference or uncertain track assignment
+  owner when both hands have valid gestures.
+  A larger but inconsistent difference or uncertain track assignment
   pauses actions without transferring ownership. When the owner's current
   landmarks and identity remain clear, it stays visible and selected during
   this pause. Missing or ambiguously overlapping hands do not use that path.
@@ -98,11 +109,12 @@ or wrist angle. It cannot activate a command.
 Suggested live checks, in both the BAT camera and dashboard:
 
 1. Hold each gesture with either hand alone; confirm the selected hand and action.
-2. Move the other hand in front after selection. The old gesture should stop,
-   then the new foreground hand should be selected. A nearer idle hand should
-   prevent a farther gesture from taking control.
-3. Start with both hands at similar apparent sizes, including identical gestures
-   or one idle hand. Expect no gesture from either hand.
+2. Move another valid gesture in front after selection. The old gesture should
+   stop, then the new foreground hand should be selected. Repeat with an idle
+   hand moving forward; the only valid gesture should stay selected.
+3. Start with both hands at similar distance. Show one valid gesture and one idle
+   hand; expect the valid gesture after confirmation. Repeat with the other hand.
+   With valid gestures on both hands and no previous selection, expect no action.
 4. Bring one hand clearly forward and hold. Expect selection after confirmation.
 5. Swap screen positions without overlapping, then overlap/cross the hands. Expect
    stable identities while separated and no action during uncertain overlap.
@@ -112,7 +124,8 @@ Suggested live checks, in both the BAT camera and dashboard:
 7. Hide the selected hand while the peer stays visible. Expect a brief pause,
    then a fresh selection and gesture hold after 0.80 seconds. If the selected
    hand remains physically tracked but its gesture is invalid, expect it to
-   remain selected without an action.
+   yield to a valid gesture on the peer after confirmation, including when the
+   distance comparison is uncertain. If both gestures are invalid, expect no action.
 8. Show all commands in front of plain, dark and patterned clothing, at chest
    and lap level and with the body cropped. Complete valid hands remain eligible.
    Check that low-detail, incomplete and unknown hand shapes remain rejected.

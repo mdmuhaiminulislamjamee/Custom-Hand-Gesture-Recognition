@@ -1225,6 +1225,8 @@ class InferenceEngine:
         if switch_pending:
             action_reason = ("hand distance uncertain"
                              if (detector_quality.get("selection") or {}).get("reason") == "hand_distance_uncertain"
+                             else "confirming gesture hand"
+                             if (detector_quality.get("selection") or {}).get("reason") == "confirming_gesture_hand_switch"
                              else "confirming closer hand")
         elif follow.completed:
             runtime_action = "Follow Object"
