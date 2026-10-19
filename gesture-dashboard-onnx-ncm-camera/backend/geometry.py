@@ -75,6 +75,39 @@ def stop_inverted_geometry(landmarks_xy: np.ndarray, image_shape=None) -> dict:
             "strong_geometry": strong and orientation["allowed_direction"]}
 
 
+def stop_inverted_depth_geometry(world_landmarks: np.ndarray | None) -> dict:
+    """Veto a clear curl without requiring perfect estimated 3-D extension.
+
+    This corroborates a strongly verified image silhouette. MediaPipe world
+    joints are estimates: a short finger/palm ratio or one noisy joint angle
+    does not disprove four long, straight image chains. A genuinely folded
+    chain has both bent joints and substantially shortened end-to-end reach.
+    """
+    if world_landmarks is None:
+        return {"valid": True, "available": False, "reason": None, "curled_fingers": []}
+    world = np.asarray(world_landmarks, dtype=np.float64)
+    if world.shape != (21, 3) or not np.isfinite(world).all():
+        return {"valid": False, "available": True,
+                "reason": "Stop inv: estimated 3D joints are invalid", "curled_fingers": []}
+    mcps = (5, 9, 13, 17)
+    reaches = np.asarray([np.linalg.norm(world[m + 3] - world[m]) for m in mcps])
+    paths = np.asarray([sum(np.linalg.norm(world[j + 1] - world[j])
+                            for j in range(m, m + 3)) for m in mcps])
+    extensions = np.asarray([finger_extension_score(world, m, m + 1, m + 2, m + 3)
+                             for m in mcps])
+    straightness = reaches / np.maximum(paths, 1e-8)
+    curled = (extensions < .35) & (straightness < .65)
+    degenerate = bool(reaches.min() <= 1e-8 or paths.min() <= 1e-8)
+    valid = not degenerate and not bool(curled.any())
+    reason = ("Stop inv: estimated 3D finger chains are incomplete" if degenerate else
+              "Stop inv: estimated 3D joints show a curled finger" if curled.any() else None)
+    return {"valid": valid, "available": True, "reason": reason,
+            "curled_fingers": [name for name, folded in zip(
+                ("index", "middle", "ring", "pinky"), curled) if folded],
+            "minimum_extension": float(extensions.min()),
+            "minimum_straightness": float(straightness.min())}
+
+
 def expanded_thumb_pointing_geometry(points):
     """Strict horizontal index, separate thumb and three deeply curled fingers.
 
@@ -1352,44 +1385,26 @@ class GeometryResolver:
             and float(np.max(model_probabilities if model_probabilities is not None else probabilities))
             >= self.config.confidence_floor
         )
+        stop_depth = stop_inverted_depth_geometry(world_landmarks)
         stop_inverted_geometry_supported = bool(
-            stop_shape["strong_geometry"] and surface["dorsal_visible"]
-        )
-        if stop_inverted_geometry_supported and world_landmarks is not None:
-            # Real depth may disprove an apparently straight projected chain.
-            world = np.asarray(world_landmarks, dtype=np.float64)
-            if world.shape != (21, 3) or not np.isfinite(world).all():
-                stop_inverted_geometry_supported = False
-            else:
-                world_scale = max(float(np.linalg.norm(world[9] - world[0])), 1e-8)
-                world_extensions = [finger_extension_score(world, m, m + 1, m + 2, m + 3)
-                                    for m in (5, 9, 13, 17)]
-                world_reaches = [float(np.linalg.norm(world[m + 3] - world[m])) / world_scale
-                                 for m in (5, 9, 13, 17)]
-                world_straightness = [
-                    float(np.linalg.norm(world[m + 3] - world[m])) / max(sum(
-                        float(np.linalg.norm(world[j + 1] - world[j]))
-                        for j in range(m, m + 3)), 1e-8)
-                    for m in (5, 9, 13, 17)
-                ]
-                # The projected pose has already established four long,
-                # straight fingers. Depth still vetoes a curl, but a stretched
-                # wrist/palm estimate must not make the little finger too short.
-                relative_open_fingers = bool(
-                    min(world_extensions) >= .60 and np.mean(world_extensions) >= .80
-                    and min(world_straightness) >= .90
-                    and min(world_reaches[:3]) >= .60 * max(world_reaches)
-                    and world_reaches[3] >= .45 * max(world_reaches)
-                    and max(world_reaches) > 1e-8
-                )
-                stop_inverted_geometry_supported = bool(
-                    min(world_extensions) >= .60 and np.mean(world_extensions) >= .80
-                    and (min(world_reaches) >= .40 or relative_open_fingers)
-                )
+            stop_shape["strong_geometry"] and surface["dorsal_visible"] and stop_depth["valid"])
         stop_inverted_valid = bool(
             (open_pair_model_support or stop_inverted_geometry_supported) and stop_shape["valid"]
-            and surface["dorsal_visible"]
+            and surface["dorsal_visible"] and stop_depth["valid"]
         )
+        stop_rejection_reason = None
+        if not stop_inverted_valid:
+            if not stop_shape["allowed_direction"]:
+                stop_rejection_reason = OPEN_HAND_LOWER_ARC_REJECTION_REASON
+            elif not stop_shape["extended_fingers"]:
+                stop_rejection_reason = "Stop inv: extend all four fingers"
+            elif not surface["dorsal_visible"]:
+                stop_rejection_reason = ("Stop inv: show the back of the hand" if palm_visible
+                                         else "Stop inv: hand surface is uncertain")
+            elif not stop_depth["valid"]:
+                stop_rejection_reason = stop_depth["reason"]
+            else:
+                stop_rejection_reason = "Stop inv: open-hand shape needs more confidence"
         dorsal_shape = aligned_dorsal
         # Deliberate Dorsal uses a closed thumb beside four straight, together
         # fingers. A loose hand supporting the chin can otherwise have the
@@ -1803,9 +1818,7 @@ class GeometryResolver:
         if valid:
             reason = "pose geometry accepted"
         elif raw == "stop_inverted":
-            reason = (OPEN_HAND_LOWER_ARC_REJECTION_REASON
-                      if not stop_shape["allowed_direction"] else
-                      "stop inverted needs four extended fingers and the back of the hand")
+            reason = stop_rejection_reason
         elif raw == "fist" and require_fist_depth and fist_depth_alignment is None:
             reason = "fist depth landmarks unavailable"
         elif raw == "fist" and not fist_depth_allowed:
@@ -1861,6 +1874,8 @@ class GeometryResolver:
             "stop_inverted_valid": stop_inverted_valid,
             "stop_inverted_geometry_supported": stop_inverted_geometry_supported,
             "stop_inverted_geometry": stop_shape,
+            "stop_inverted_depth_geometry": stop_depth,
+            "stop_inverted_rejection_reason": stop_rejection_reason,
             "dorsal_thumb_index_gap_ratio": dorsal_thumb_gap_ratio,
             "dorsal_geometry_supported": False,
             "peace_geometry_supported": peace_geometry_supported,

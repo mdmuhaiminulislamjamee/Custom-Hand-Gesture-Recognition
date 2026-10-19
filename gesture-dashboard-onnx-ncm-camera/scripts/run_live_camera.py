@@ -332,6 +332,11 @@ def _draw_overlay(
     pred = result.get("runtime_prediction", "no_gesture")
     action = result.get("runtime_action", "Wait / No Action")
     reason = result.get("action_reason", "")
+    stop_details = (result.get("resolvers") or {}).get("hand_shape") or {}
+    if (pred == "no_gesture"
+            and (stop_details.get("stop_inverted_geometry") or {}).get("strong_geometry")
+            and stop_details.get("stop_inverted_rejection_reason")):
+        reason = stop_details["stop_inverted_rejection_reason"]
     conf = float(result.get("confidence", 0.0))
     mass = float(result.get("known_gesture_mass", 0.0))
     fps = float(result.get("actual_fps", 0.0))
