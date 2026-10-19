@@ -13,12 +13,12 @@ from research.lab_training import LABELS, audit_dataset, check_source_splits, mi
 
 
 def test_mixing_preserves_active_commands_and_turns_dorsal_into_rejection():
-    labels = np.repeat(np.arange(13), 6)
+    labels = np.repeat(np.arange(len(LABELS)), 6)
     base = {"X": np.tile(np.arange(76, dtype=np.float32), (len(labels), 1)), "y": labels}
-    captured = {"X": np.ones((2, 76), dtype=np.float32), "y": np.array([8, 12])}
+    captured = {"X": np.ones((2, 76), dtype=np.float32), "y": np.array([8, len(CLASS_NAMES)])}
     training, counts = mix_training(base, captured, per_class=40)
-    assert training["X"].shape == (480, 76)
-    expected = np.repeat(40, 13)
+    assert training["X"].shape == (40 * (len(LABELS) - 1), 76)
+    expected = np.repeat(40, len(LABELS))
     expected[CLASS_NAMES.index("dorsal")] = 0
     assert np.array_equal(np.bincount(training["y"]), expected)
     assert "dorsal" not in counts
@@ -104,15 +104,15 @@ def test_real_audit_worker_persists_report_and_never_changes_production(tmp_path
         lab.close()
 
 
-def test_train_export_and_frozen_test_evaluation_use_twelve_output_contract(tmp_path, monkeypatch):
+def test_train_export_and_frozen_test_evaluation_use_current_output_contract(tmp_path, monkeypatch):
     from research import lab_training
-    from scripts import train_twelve_gesture_candidate as source
+    from scripts import train_stop_inverted as source
     from backend.config import PROJECT_ROOT
     from backend.model_runtime import OnnxClassifier
     from backend.config import RuntimeConfig
 
     rng = np.random.default_rng(123)
-    y = np.repeat(np.arange(13), 5)
+    y = np.repeat(np.arange(len(LABELS)), 5)
     x = rng.normal(size=(len(y), 76)).astype(np.float32)
     base = {"X": x, "y": y}
     captured = {"X": np.concatenate([x, x + .01, x + .02]), "y": np.tile(y, 3),
@@ -120,7 +120,7 @@ def test_train_export_and_frozen_test_evaluation_use_twelve_output_contract(tmp_
     audit = {"can_train": True, "coverage_passed": False}
     monkeypatch.setattr(lab_training, "audit_dataset", lambda _: (captured, audit))
     monkeypatch.setattr(source, "prepare", lambda **_: (
-        base, {"X": x + 10, "y": y}, {"X": x + 20, "y": y}, {}))
+        {"train": base, "val": {"X": x + 10, "y": y}, "test": {"X": x + 20, "y": y}}, {}))
     original_mix = lab_training.mix_training
     monkeypatch.setattr(lab_training, "mix_training", lambda a, b: original_mix(a, b, per_class=12))
     output = tmp_path / "candidate"

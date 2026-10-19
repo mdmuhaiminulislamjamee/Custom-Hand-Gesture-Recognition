@@ -32,7 +32,7 @@ def _environment_integer(name: str, default: int, minimum: int, maximum: int) ->
 
 CLASS_NAMES = [
     "left", "right", "up", "down", "open_palm", "like", "dorsal", "ok",
-    "fist", "thumb_down", "peace", "rock",
+    "fist", "thumb_down", "peace", "rock", "stop_inverted",
 ]
 REJECT_LABEL = "no_gesture"
 MODEL_LABELS = [*CLASS_NAMES, REJECT_LABEL]
@@ -41,6 +41,7 @@ DISABLED_GESTURES = frozenset({"dorsal"})
 ACTIVE_CLASS_NAMES = [name for name in CLASS_NAMES if name not in DISABLED_GESTURES]
 FEEDBACK_LABELS = [*ACTIVE_CLASS_NAMES, REJECT_LABEL]
 DORSAL_REJECTION_REASON = "dorsal is a hard negative"
+OPEN_HAND_LOWER_ARC_REJECTION_REASON = "open hand points below the horizontal"
 
 GESTURE_TO_ACTION = {
     "left": "Move Left",
@@ -54,6 +55,7 @@ GESTURE_TO_ACTION = {
     "thumb_down": "Volume Down",
     "peace": "Turn 90 Degrees",
     "rock": "Backup",
+    "stop_inverted": "Return to main position",
 }
 
 FEATURE_NAMES = (
@@ -244,7 +246,7 @@ def load_runtime_config(models_directory: Path = MODELS_DIRECTORY) -> RuntimeCon
     class_names = list(data.get("class_names") or CLASS_NAMES)
     if class_names != CLASS_NAMES:
         raise ValueError(
-            "Runtime configuration class order does not match the twelve-command "
+            "Runtime configuration class order does not match the current "
             f"taxonomy: {class_names}"
         )
     feature_names = list(data.get("feature_names") or FEATURE_NAMES)
@@ -261,7 +263,7 @@ def load_runtime_config(models_directory: Path = MODELS_DIRECTORY) -> RuntimeCon
     for name in DISABLED_GESTURES:
         gesture_to_action.pop(name, None)
     if gesture_to_action != GESTURE_TO_ACTION:
-        raise ValueError("Gesture actions do not match the twelve-command release contract.")
+        raise ValueError("Gesture actions do not match the current release contract.")
     return RuntimeConfig(
         class_names=class_names,
         gesture_to_action=gesture_to_action,

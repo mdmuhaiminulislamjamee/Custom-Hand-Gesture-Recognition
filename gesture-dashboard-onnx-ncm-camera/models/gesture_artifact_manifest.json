@@ -5,28 +5,28 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 19281,
-      "sha256": "c3baa6def2271dec888d2462b340ae808f33bc0813a8399322877e5ab59501ed"
+      "bytes": 11138,
+      "sha256": "88c469ea0ea9006441b42152fc0a09299cbe72d17aeb3c84b9fef1dfd90cedde"
     },
     "gesture_mlp_production.onnx": {
-      "bytes": 77529,
-      "sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e"
+      "bytes": 77797,
+      "sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 8395,
-      "sha256": "a8741f8a58c1bd903e0da47f67792377a6fc6653232f42d932b34267c796928b"
+      "bytes": 8644,
+      "sha256": "fb211e675bcb69e23e82c2135f7821b3dfba12d8ac6feb0097f4c6bf30b5191c"
     },
     "gesture_online_replay_cache.npz": {
-      "bytes": 428209,
-      "sha256": "8b722c968e86fd814018bc8a631fd5aeccfd4f05b873af8b49f548f5c65c4e6e"
+      "bytes": 870113,
+      "sha256": "5a3ba03dfa65eefbeaa7578bb09f16af454fed21f11e7acbc8ce5e252ee12d5a"
     },
     "gesture_online_untouched_test_cache.npz": {
-      "bytes": 2825777,
-      "sha256": "9ea67f8775bf4fc1f462a1d0ee4eb35821955b72199ed13ac898ae1d25aa972c"
+      "bytes": 3731833,
+      "sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008"
     },
     "gesture_online_validation_cache.npz": {
-      "bytes": 2777486,
-      "sha256": "0cc4e83724e176c5309def9828cb11c8a8eec8a96f986d1679f612739a6cef0d"
+      "bytes": 3700920,
+      "sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648"
     },
     "hand_landmarker.task": {
       "bytes": 7819105,
@@ -45,10 +45,11 @@
     "fist",
     "thumb_down",
     "peace",
-    "rock"
+    "rock",
+    "stop_inverted"
   ],
-  "created_utc": "2026-10-17T07:52:09.768419+00:00",
+  "created_utc": "2026-10-18T09:12:48.767882+00:00",
   "feature_count": 76,
-  "release_fingerprint": "6db5243fb9f6b17b3923fd859d709559f3eb17c3822cc2841880b26ff57ccd01",
+  "release_fingerprint": "2b4bf45032129d29f365221d5e87a1aa2724f642fedf00a3e2d5cb5b56aed1b9",
   "schema_version": 1
 }

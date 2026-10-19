@@ -14,7 +14,7 @@ public struct GestureFeatureExtractor {
     /// sentinel and must never be appended to this array.
     public static let classNames = [
         "left", "right", "up", "down", "open_palm", "like", "dorsal", "ok",
-        "fist", "thumb_down", "peace", "rock",
+        "fist", "thumb_down", "peace", "rock", "stop_inverted",
     ]
     public static let rejectLabel = "no_gesture"
     public static let feedbackLabels = classNames + [rejectLabel]
@@ -30,6 +30,7 @@ public struct GestureFeatureExtractor {
         "thumb_down": "Volume Down",
         "peace": "Turn 90 Degrees",
         "rock": "Backup",
+        "stop_inverted": "Return to main position",
     ]
     /// Positive index dx means left in this NCM-calibrated model.
     public static let directionSemanticSwap = true

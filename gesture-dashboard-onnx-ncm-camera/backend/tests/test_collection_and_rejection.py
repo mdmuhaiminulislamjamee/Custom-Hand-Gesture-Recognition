@@ -86,7 +86,7 @@ def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp
 
 def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_angles():
     plan = collection_plan()
-    assert len(plan) == 135
+    assert len(plan) == 139  # includes four Stop-inverted capture steps
     assert len({step['id'] for step in plan}) == len(plan)
     assert all(step['target'] == 12 for step in plan)
     assert all(step['per_hand_target'] == 6 and step['per_orientation_target'] * len(step['allowed_orientations']) == 6

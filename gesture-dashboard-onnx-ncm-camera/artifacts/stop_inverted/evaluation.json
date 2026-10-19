@@ -1,0 +1,2864 @@
+{
+  "artifact": {
+    "bytes": 77797,
+    "sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8"
+  },
+  "parity": {
+    "label_agreement": 1.0,
+    "max_probability_error": 2.8014183044433594e-06,
+    "max_mass_error": 3.2186508178710938e-06
+  },
+  "audit": {
+    "seed": 18065,
+    "per_class": 4096,
+    "labels": [
+      "left",
+      "right",
+      "up",
+      "down",
+      "open_palm",
+      "like",
+      "dorsal",
+      "ok",
+      "fist",
+      "thumb_down",
+      "peace",
+      "rock",
+      "stop_inverted",
+      "no_gesture"
+    ],
+    "legacy": {
+      "seed": 1302,
+      "per_class": 4096,
+      "labels": [
+        "left",
+        "right",
+        "up",
+        "down",
+        "open_palm",
+        "like",
+        "dorsal",
+        "ok",
+        "fist",
+        "thumb_down",
+        "peace",
+        "rock",
+        "no_gesture"
+      ],
+      "counts": {
+        "train": {
+          "left": 1413,
+          "right": 1413,
+          "up": 1413,
+          "down": 1413,
+          "open_palm": 1379,
+          "like": 1396,
+          "dorsal": 1405,
+          "ok": 1418,
+          "fist": 1406,
+          "thumb_down": 1379,
+          "peace": 1387,
+          "rock": 1387,
+          "no_gesture": 3658
+        },
+        "val": {
+          "left": 710,
+          "right": 710,
+          "up": 710,
+          "down": 710,
+          "open_palm": 675,
+          "like": 698,
+          "dorsal": 263,
+          "ok": 668,
+          "fist": 689,
+          "thumb_down": 701,
+          "peace": 314,
+          "rock": 303,
+          "no_gesture": 783
+        },
+        "test": {
+          "left": 677,
+          "right": 677,
+          "up": 677,
+          "down": 677,
+          "open_palm": 737,
+          "like": 706,
+          "dorsal": 331,
+          "ok": 714,
+          "fist": 705,
+          "thumb_down": 720,
+          "peace": 299,
+          "rock": 310,
+          "no_gesture": 793
+        }
+      },
+      "subjects": {
+        "train": 5931,
+        "val": 1897,
+        "test": 1902
+      },
+      "removed_overlap": {
+        "test": 0,
+        "val": 2,
+        "train": 1
+      },
+      "ambiguous_legacy_negatives_excluded": {
+        "val": 400,
+        "test": 400
+      },
+      "limitations": [
+        "New-command validation/test examples are participant-held-out rows from HaGRID's training partition.",
+        "Legacy evaluation negatives mixed the new valid commands with true negatives without source labels; all were excluded.",
+        "In-plane rotation is synthetic; it cannot prove all camera viewing angles, distances, lighting, or occlusions.",
+        "No new live low-resolution or low-FPS camera capture is available for qualification."
+      ]
+    },
+    "open_hand_rotation": {
+      "xy_minimum": -180.0,
+      "xy_maximum": 0.0,
+      "endpoints_inclusive": true,
+      "maximum_tilt_from_up": 90.0,
+      "classifier_synthetic_guard_band_degrees": 10.0,
+      "normalized_xy_aspect_augmentation": [
+        0.5,
+        2.0
+      ],
+      "runtime_still_rejects_entire_lower_half": true
+    },
+    "legacy_palm_rows_relabelled_for_upper_arc": {
+      "train": 988,
+      "val": 185,
+      "test": 226
+    },
+    "expanded_thumb_direction_training_rows": 8192,
+    "source_stop_counts": {
+      "train": 2084,
+      "val": 1097,
+      "test": 1019
+    },
+    "feedback": {
+      "sha256": "21597997f0c5616fe96fbae0441936ed16cdd4abdd9bde01baf46e228e0be318",
+      "rows": 25,
+      "class_counts": {
+        "left": 0,
+        "right": 0,
+        "up": 0,
+        "down": 0,
+        "open_palm": 0,
+        "like": 0,
+        "dorsal": 0,
+        "ok": 0,
+        "fist": 0,
+        "thumb_down": 0,
+        "peace": 12,
+        "rock": 0,
+        "stop_inverted": 0,
+        "no_gesture": 13
+      },
+      "skipped": [],
+      "evaluation_use": "training only; participant/session metadata is absent"
+    },
+    "ambiguous_legacy_dorsal_excluded": {
+      "train": 0,
+      "val": 0,
+      "test": 0
+    },
+    "cross_split_rows_removed": {
+      "test": 0,
+      "val": 0,
+      "train": 0
+    },
+    "participant_overlap": {
+      "train/val": 0,
+      "train/test": 0,
+      "val/test": 0
+    },
+    "counts": {
+      "train": {
+        "left": 6144,
+        "right": 6144,
+        "up": 6144,
+        "down": 6144,
+        "open_palm": 9180,
+        "like": 8192,
+        "dorsal": 4096,
+        "ok": 4096,
+        "fist": 4096,
+        "thumb_down": 8192,
+        "peace": 5632,
+        "rock": 4096,
+        "stop_inverted": 10273,
+        "no_gesture": 17063
+      },
+      "val": {
+        "left": 710,
+        "right": 710,
+        "up": 710,
+        "down": 710,
+        "open_palm": 860,
+        "like": 698,
+        "dorsal": 263,
+        "ok": 668,
+        "fist": 689,
+        "thumb_down": 701,
+        "peace": 314,
+        "rock": 303,
+        "stop_inverted": 1095,
+        "no_gesture": 600
+      },
+      "test": {
+        "left": 677,
+        "right": 677,
+        "up": 677,
+        "down": 677,
+        "open_palm": 963,
+        "like": 706,
+        "dorsal": 331,
+        "ok": 714,
+        "fist": 705,
+        "thumb_down": 720,
+        "peace": 299,
+        "rock": 310,
+        "stop_inverted": 1018,
+        "no_gesture": 568
+      }
+    },
+    "limitations": [
+      "Stop source includes official val/test and participant-held-out training annotations.",
+      "Finger spread, mirroring, angle and image-aspect coverage are 2-D augmentation, not new camera viewpoints.",
+      "Feedback is training only and cannot independently measure generalization.",
+      "Source Stop-inverted handedness is inferred from the known surface label, not a tested detector.",
+      "Live webcam verification at different distances and lighting is still required."
+    ]
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "validation_raw_macro_f1": 0.9838739608315823
+    },
+    {
+      "epoch": 2,
+      "validation_raw_macro_f1": 0.9852150398985513
+    },
+    {
+      "epoch": 3,
+      "validation_raw_macro_f1": 0.9874364432289326
+    },
+    {
+      "epoch": 4,
+      "validation_raw_macro_f1": 0.9885897910697876
+    },
+    {
+      "epoch": 5,
+      "validation_raw_macro_f1": 0.9885889838482579
+    },
+    {
+      "epoch": 6,
+      "validation_raw_macro_f1": 0.9886909675997229
+    },
+    {
+      "epoch": 7,
+      "validation_raw_macro_f1": 0.9889991022232802
+    },
+    {
+      "epoch": 8,
+      "validation_raw_macro_f1": 0.98865946356219
+    },
+    {
+      "epoch": 9,
+      "validation_raw_macro_f1": 0.9883599196544466
+    },
+    {
+      "epoch": 10,
+      "validation_raw_macro_f1": 0.9885953416055867
+    },
+    {
+      "epoch": 11,
+      "validation_raw_macro_f1": 0.9887083834280201
+    },
+    {
+      "epoch": 12,
+      "validation_raw_macro_f1": 0.9890299677243173
+    },
+    {
+      "epoch": 13,
+      "validation_raw_macro_f1": 0.9892152922321372
+    },
+    {
+      "epoch": 14,
+      "validation_raw_macro_f1": 0.9891303449127707
+    },
+    {
+      "epoch": 15,
+      "validation_raw_macro_f1": 0.9889474525049085
+    },
+    {
+      "epoch": 16,
+      "validation_raw_macro_f1": 0.9887332626487749
+    },
+    {
+      "epoch": 17,
+      "validation_raw_macro_f1": 0.9887277393803926
+    },
+    {
+      "epoch": 18,
+      "validation_raw_macro_f1": 0.9889191064707337
+    },
+    {
+      "epoch": 19,
+      "validation_raw_macro_f1": 0.9888336395985821
+    },
+    {
+      "epoch": 20,
+      "validation_raw_macro_f1": 0.9891058308146751
+    },
+    {
+      "epoch": 21,
+      "validation_raw_macro_f1": 0.9890189690719174
+    },
+    {
+      "epoch": 22,
+      "validation_raw_macro_f1": 0.9892228529853372
+    },
+    {
+      "epoch": 23,
+      "validation_raw_macro_f1": 0.9890703615019628
+    },
+    {
+      "epoch": 24,
+      "validation_raw_macro_f1": 0.9891531827186055
+    },
+    {
+      "epoch": 25,
+      "validation_raw_macro_f1": 0.9898422802451776
+    },
+    {
+      "epoch": 26,
+      "validation_raw_macro_f1": 0.9892608605834557
+    },
+    {
+      "epoch": 27,
+      "validation_raw_macro_f1": 0.9893183263486638
+    },
+    {
+      "epoch": 28,
+      "validation_raw_macro_f1": 0.9901374734738214
+    },
+    {
+      "epoch": 29,
+      "validation_raw_macro_f1": 0.9895224983405352
+    },
+    {
+      "epoch": 30,
+      "validation_raw_macro_f1": 0.9899444612175886
+    },
+    {
+      "epoch": 31,
+      "validation_raw_macro_f1": 0.9896324317606126
+    },
+    {
+      "epoch": 32,
+      "validation_raw_macro_f1": 0.9900575569957742
+    },
+    {
+      "epoch": 33,
+      "validation_raw_macro_f1": 0.9900371601648849
+    },
+    {
+      "epoch": 34,
+      "validation_raw_macro_f1": 0.9900528690508844
+    },
+    {
+      "epoch": 35,
+      "validation_raw_macro_f1": 0.9898474075677864
+    },
+    {
+      "epoch": 36,
+      "validation_raw_macro_f1": 0.9896156337774585
+    },
+    {
+      "epoch": 37,
+      "validation_raw_macro_f1": 0.989420764078577
+    },
+    {
+      "epoch": 38,
+      "validation_raw_macro_f1": 0.9884466492298211
+    },
+    {
+      "epoch": 39,
+      "validation_raw_macro_f1": 0.9910644797565568
+    },
+    {
+      "epoch": 40,
+      "validation_raw_macro_f1": 0.9904182188807306
+    },
+    {
+      "epoch": 41,
+      "validation_raw_macro_f1": 0.9903574345030985
+    },
+    {
+      "epoch": 42,
+      "validation_raw_macro_f1": 0.9911193654339893
+    },
+    {
+      "epoch": 43,
+      "validation_raw_macro_f1": 0.9909342737222356
+    },
+    {
+      "epoch": 44,
+      "validation_raw_macro_f1": 0.9908396295686426
+    },
+    {
+      "epoch": 45,
+      "validation_raw_macro_f1": 0.9913472333506955
+    },
+    {
+      "epoch": 46,
+      "validation_raw_macro_f1": 0.9913234257194817
+    },
+    {
+      "epoch": 47,
+      "validation_raw_macro_f1": 0.9915437257543863
+    },
+    {
+      "epoch": 48,
+      "validation_raw_macro_f1": 0.990169756983854
+    },
+    {
+      "epoch": 49,
+      "validation_raw_macro_f1": 0.991110536304288
+    },
+    {
+      "epoch": 50,
+      "validation_raw_macro_f1": 0.9906459758171167
+    },
+    {
+      "epoch": 51,
+      "validation_raw_macro_f1": 0.9900448675911045
+    },
+    {
+      "epoch": 52,
+      "validation_raw_macro_f1": 0.9916628499195987
+    },
+    {
+      "epoch": 53,
+      "validation_raw_macro_f1": 0.9915122790085199
+    },
+    {
+      "epoch": 54,
+      "validation_raw_macro_f1": 0.9910247932598961
+    },
+    {
+      "epoch": 55,
+      "validation_raw_macro_f1": 0.9911915823041102
+    },
+    {
+      "epoch": 56,
+      "validation_raw_macro_f1": 0.9912860588647648
+    },
+    {
+      "epoch": 57,
+      "validation_raw_macro_f1": 0.9913162557372014
+    },
+    {
+      "epoch": 58,
+      "validation_raw_macro_f1": 0.9900315594595739
+    },
+    {
+      "epoch": 59,
+      "validation_raw_macro_f1": 0.9901927842279568
+    },
+    {
+      "epoch": 60,
+      "validation_raw_macro_f1": 0.991256034021193
+    },
+    {
+      "epoch": 61,
+      "validation_raw_macro_f1": 0.9909543121930214
+    },
+    {
+      "epoch": 62,
+      "validation_raw_macro_f1": 0.9911109815987011
+    },
+    {
+      "epoch": 63,
+      "validation_raw_macro_f1": 0.9911410416952174
+    },
+    {
+      "epoch": 64,
+      "validation_raw_macro_f1": 0.9913586140063956
+    },
+    {
+      "epoch": 65,
+      "validation_raw_macro_f1": 0.9915968705919342
+    },
+    {
+      "epoch": 66,
+      "validation_raw_macro_f1": 0.9905677754332486
+    },
+    {
+      "epoch": 67,
+      "validation_raw_macro_f1": 0.9911273334320404
+    },
+    {
+      "epoch": 68,
+      "validation_raw_macro_f1": 0.990673385698989
+    },
+    {
+      "epoch": 69,
+      "validation_raw_macro_f1": 0.9907293016142553
+    },
+    {
+      "epoch": 70,
+      "validation_raw_macro_f1": 0.9909237675152494
+    }
+  ],
+  "deployed": true,
+  "val": {
+    "macro_f1": 0.9917412451374535,
+    "accepted_precision": 0.9935104689604506,
+    "old_command_correct_accept_rate": 0.993072246571469,
+    "unknown_false_accept_rate": 0.026651216685979143,
+    "stop_recall": 0.9954337899543378,
+    "stop_precision": 0.9927140255009107,
+    "per_class": {
+      "left": {
+        "precision": 0.9971830985915493,
+        "recall": 0.9971830985915493,
+        "f1-score": 0.9971830985915493,
+        "support": 710.0
+      },
+      "right": {
+        "precision": 0.998589562764457,
+        "recall": 0.9971830985915493,
+        "f1-score": 0.9978858350951374,
+        "support": 710.0
+      },
+      "up": {
+        "precision": 0.9902234636871509,
+        "recall": 0.9985915492957746,
+        "f1-score": 0.9943899018232819,
+        "support": 710.0
+      },
+      "down": {
+        "precision": 0.9985915492957746,
+        "recall": 0.9985915492957746,
+        "f1-score": 0.9985915492957746,
+        "support": 710.0
+      },
+      "open_palm": {
+        "precision": 0.9930394431554525,
+        "recall": 0.9953488372093023,
+        "f1-score": 0.9941927990708479,
+        "support": 860.0
+      },
+      "like": {
+        "precision": 0.9885386819484241,
+        "recall": 0.9885386819484241,
+        "f1-score": 0.9885386819484241,
+        "support": 698.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 668.0
+      },
+      "fist": {
+        "precision": 0.9897510980966325,
+        "recall": 0.9811320754716981,
+        "f1-score": 0.9854227405247813,
+        "support": 689.0
+      },
+      "thumb_down": {
+        "precision": 0.9843081312410842,
+        "recall": 0.9843081312410842,
+        "f1-score": 0.9843081312410842,
+        "support": 701.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 0.9904458598726115,
+        "f1-score": 0.9952,
+        "support": 314.0
+      },
+      "rock": {
+        "precision": 0.9933554817275747,
+        "recall": 0.9867986798679867,
+        "f1-score": 0.9900662251655629,
+        "support": 303.0
+      },
+      "stop_inverted": {
+        "precision": 0.9927140255009107,
+        "recall": 0.9954337899543378,
+        "f1-score": 0.9940720474236207,
+        "support": 1095.0
+      },
+      "no_gesture": {
+        "precision": 0.9722222222222222,
+        "recall": 0.9733487833140209,
+        "f1-score": 0.9727851766068326,
+        "support": 863.0
+      },
+      "accuracy": 0.9914738124238733,
+      "macro avg": {
+        "precision": 0.9213226255879451,
+        "recall": 0.920493152475294,
+        "f1-score": 0.9209025847704926,
+        "support": 9031.0
+      },
+      "weighted avg": {
+        "precision": 0.9914789085536088,
+        "recall": 0.9914738124238733,
+        "f1-score": 0.9914719537371619,
+        "support": 9031.0
+      }
+    },
+    "confusion": [
+      [
+        708,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        708,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      [
+        0,
+        0,
+        709,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        709,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        856,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        690,
+        0,
+        0,
+        0,
+        5,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        668,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        676,
+        2,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        1,
+        1,
+        0,
+        0,
+        4,
+        0,
+        0,
+        2,
+        690,
+        0,
+        0,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        311,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        299,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1090,
+        4
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        5,
+        4,
+        0,
+        0,
+        1,
+        3,
+        0,
+        2,
+        7,
+        840
+      ]
+    ]
+  },
+  "val_runtime": {
+    "macro_f1": 0.9040810580427256,
+    "accepted_precision": 0.9948859709744299,
+    "old_command_correct_accept_rate": 0.8634242895518167,
+    "unknown_false_accept_rate": 0.010428736964078795,
+    "stop_recall": 0.9963470319634703,
+    "stop_precision": 1.0,
+    "per_class": {
+      "left": {
+        "precision": 0.9943422913719944,
+        "recall": 0.9901408450704225,
+        "f1-score": 0.9922371206774877,
+        "support": 710.0
+      },
+      "right": {
+        "precision": 0.9971671388101983,
+        "recall": 0.9915492957746479,
+        "f1-score": 0.9943502824858758,
+        "support": 710.0
+      },
+      "up": {
+        "precision": 0.9943661971830986,
+        "recall": 0.9943661971830986,
+        "f1-score": 0.9943661971830986,
+        "support": 710.0
+      },
+      "down": {
+        "precision": 0.9957507082152974,
+        "recall": 0.9901408450704225,
+        "f1-score": 0.9929378531073446,
+        "support": 710.0
+      },
+      "open_palm": {
+        "precision": 0.9889705882352942,
+        "recall": 0.3127906976744186,
+        "f1-score": 0.4752650176678445,
+        "support": 860.0
+      },
+      "like": {
+        "precision": 0.9824561403508771,
+        "recall": 0.9627507163323782,
+        "f1-score": 0.9725036179450073,
+        "support": 698.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.6212574850299402,
+        "f1-score": 0.7663896583564174,
+        "support": 668.0
+      },
+      "fist": {
+        "precision": 0.9910714285714286,
+        "recall": 0.9666182873730044,
+        "f1-score": 0.9786921381337252,
+        "support": 689.0
+      },
+      "thumb_down": {
+        "precision": 1.0,
+        "recall": 0.9514978601997147,
+        "f1-score": 0.9751461988304093,
+        "support": 701.0
+      },
+      "peace": {
+        "precision": 0.9967105263157895,
+        "recall": 0.964968152866242,
+        "f1-score": 0.9805825242718447,
+        "support": 314.0
+      },
+      "rock": {
+        "precision": 0.9933554817275747,
+        "recall": 0.9867986798679867,
+        "f1-score": 0.9900662251655629,
+        "support": 303.0
+      },
+      "stop_inverted": {
+        "precision": 1.0,
+        "recall": 0.9963470319634703,
+        "f1-score": 0.9981701738334858,
+        "support": 1095.0
+      },
+      "no_gesture": {
+        "precision": 0.4755011135857461,
+        "recall": 0.9895712630359212,
+        "f1-score": 0.6423467468973298,
+        "support": 863.0
+      },
+      "accuracy": 0.8915956151035322,
+      "macro avg": {
+        "precision": 0.8864065438833785,
+        "recall": 0.8370569541029763,
+        "f1-score": 0.8395038396111023,
+        "support": 9031.0
+      },
+      "weighted avg": {
+        "precision": 0.9450097754009865,
+        "recall": 0.8915956151035322,
+        "f1-score": 0.8896110723701796,
+        "support": 9031.0
+      }
+    },
+    "confusion": [
+      [
+        703,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        5
+      ],
+      [
+        0,
+        704,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        0,
+        706,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        703,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        269,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        591
+      ],
+      [
+        1,
+        0,
+        0,
+        1,
+        0,
+        672,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        22
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        415,
+        0,
+        0,
+        0,
+        0,
+        0,
+        253
+      ],
+      [
+        0,
+        0,
+        3,
+        0,
+        0,
+        9,
+        0,
+        0,
+        666,
+        0,
+        0,
+        0,
+        0,
+        11
+      ],
+      [
+        2,
+        2,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        2,
+        667,
+        0,
+        0,
+        0,
+        26
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        303,
+        0,
+        0,
+        10
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        299,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1091,
+        4
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        3,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        854
+      ]
+    ]
+  },
+  "test": {
+    "macro_f1": 0.9904233004494917,
+    "accepted_precision": 0.9944547134935305,
+    "old_command_correct_accept_rate": 0.9898947368421053,
+    "unknown_false_accept_rate": 0.013348164627363738,
+    "stop_recall": 0.9990176817288802,
+    "stop_precision": 0.9941348973607038,
+    "per_class": {
+      "left": {
+        "precision": 0.9970326409495549,
+        "recall": 0.9926144756277696,
+        "f1-score": 0.9948186528497409,
+        "support": 677.0
+      },
+      "right": {
+        "precision": 0.997037037037037,
+        "recall": 0.9940915805022157,
+        "f1-score": 0.9955621301775148,
+        "support": 677.0
+      },
+      "up": {
+        "precision": 0.9970326409495549,
+        "recall": 0.9926144756277696,
+        "f1-score": 0.9948186528497409,
+        "support": 677.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.9911373707533235,
+        "f1-score": 0.9955489614243324,
+        "support": 677.0
+      },
+      "open_palm": {
+        "precision": 0.996875,
+        "recall": 0.9937694704049844,
+        "f1-score": 0.9953198127925117,
+        "support": 963.0
+      },
+      "like": {
+        "precision": 0.9871794871794872,
+        "recall": 0.9815864022662889,
+        "f1-score": 0.984375,
+        "support": 706.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.9985994397759104,
+        "f1-score": 0.9992992291520673,
+        "support": 714.0
+      },
+      "fist": {
+        "precision": 0.9971223021582734,
+        "recall": 0.9829787234042553,
+        "f1-score": 0.99,
+        "support": 705.0
+      },
+      "thumb_down": {
+        "precision": 0.9887798036465638,
+        "recall": 0.9791666666666666,
+        "f1-score": 0.9839497557571528,
+        "support": 720.0
+      },
+      "peace": {
+        "precision": 0.9800664451827242,
+        "recall": 0.9866220735785953,
+        "f1-score": 0.9833333333333333,
+        "support": 299.0
+      },
+      "rock": {
+        "precision": 0.9840764331210191,
+        "recall": 0.9967741935483871,
+        "f1-score": 0.9903846153846154,
+        "support": 310.0
+      },
+      "stop_inverted": {
+        "precision": 0.9941348973607038,
+        "recall": 0.9990176817288802,
+        "f1-score": 0.9965703086722195,
+        "support": 1018.0
+      },
+      "no_gesture": {
+        "precision": 0.9568500539374326,
+        "recall": 0.9866518353726362,
+        "f1-score": 0.9715224534501643,
+        "support": 899.0
+      },
+      "accuracy": 0.9905994249059943,
+      "macro avg": {
+        "precision": 0.9197276243944537,
+        "recall": 0.9196874563755486,
+        "f1-score": 0.9196787789888138,
+        "support": 9042.0
+      },
+      "weighted avg": {
+        "precision": 0.99072654057683,
+        "recall": 0.9905994249059943,
+        "f1-score": 0.9906287354310804,
+        "support": 9042.0
+      }
+    },
+    "confusion": [
+      [
+        672,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        673,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        672,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        671,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        957,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        5
+      ],
+      [
+        0,
+        1,
+        0,
+        0,
+        0,
+        693,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        10
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        713,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        693,
+        3,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        6,
+        0,
+        0,
+        1,
+        705,
+        0,
+        0,
+        0,
+        7
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        295,
+        1,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        309,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1017,
+        1
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        1,
+        3,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        4,
+        887
+      ]
+    ]
+  },
+  "test_runtime": {
+    "macro_f1": 0.9040891009337108,
+    "accepted_precision": 0.9962041332770982,
+    "old_command_correct_accept_rate": 0.8517894736842105,
+    "unknown_false_accept_rate": 0.004449388209121246,
+    "stop_recall": 0.9990176817288802,
+    "stop_precision": 1.0,
+    "per_class": {
+      "left": {
+        "precision": 0.9955357142857143,
+        "recall": 0.9881831610044313,
+        "f1-score": 0.9918458117123795,
+        "support": 677.0
+      },
+      "right": {
+        "precision": 1.0,
+        "recall": 0.9867060561299852,
+        "f1-score": 0.9933085501858736,
+        "support": 677.0
+      },
+      "up": {
+        "precision": 0.9940740740740741,
+        "recall": 0.9911373707533235,
+        "f1-score": 0.992603550295858,
+        "support": 677.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.9778434268833087,
+        "f1-score": 0.9887976101568334,
+        "support": 677.0
+      },
+      "open_palm": {
+        "precision": 0.9939577039274925,
+        "recall": 0.34164070612668745,
+        "f1-score": 0.508500772797527,
+        "support": 963.0
+      },
+      "like": {
+        "precision": 0.9855699855699855,
+        "recall": 0.9674220963172805,
+        "f1-score": 0.9764117226590422,
+        "support": 706.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.592436974789916,
+        "f1-score": 0.7440633245382586,
+        "support": 714.0
+      },
+      "fist": {
+        "precision": 1.0,
+        "recall": 0.9673758865248226,
+        "f1-score": 0.9834174477289113,
+        "support": 705.0
+      },
+      "thumb_down": {
+        "precision": 1.0,
+        "recall": 0.9513888888888888,
+        "f1-score": 0.9750889679715302,
+        "support": 720.0
+      },
+      "peace": {
+        "precision": 0.9896907216494846,
+        "recall": 0.9632107023411371,
+        "f1-score": 0.976271186440678,
+        "support": 299.0
+      },
+      "rock": {
+        "precision": 0.9840764331210191,
+        "recall": 0.9967741935483871,
+        "f1-score": 0.9903846153846154,
+        "support": 310.0
+      },
+      "stop_inverted": {
+        "precision": 1.0,
+        "recall": 0.9990176817288802,
+        "f1-score": 0.9995085995085995,
+        "support": 1018.0
+      },
+      "no_gesture": {
+        "precision": 0.46397096941420424,
+        "recall": 0.9955506117908788,
+        "f1-score": 0.632956152758133,
+        "support": 899.0
+      },
+      "accuracy": 0.8826587038265871,
+      "macro avg": {
+        "precision": 0.8862054001458554,
+        "recall": 0.8370491254877089,
+        "f1-score": 0.8395113080098743,
+        "support": 9042.0
+      },
+      "weighted avg": {
+        "precision": 0.9432703635211505,
+        "recall": 0.8826587038265871,
+        "f1-score": 0.8821585082377684,
+        "support": 9042.0
+      }
+    },
+    "confusion": [
+      [
+        669,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        6
+      ],
+      [
+        0,
+        668,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        9
+      ],
+      [
+        0,
+        0,
+        671,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        662,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        0,
+        12
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        329,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        634
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        683,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        23
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        423,
+        0,
+        0,
+        0,
+        0,
+        0,
+        290
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        8,
+        0,
+        0,
+        682,
+        0,
+        0,
+        0,
+        0,
+        13
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        685,
+        0,
+        0,
+        0,
+        33
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        288,
+        1,
+        0,
+        8
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        309,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1017,
+        1
+      ],
+      [
+        1,
+        0,
+        1,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        895
+      ]
+    ]
+  },
+  "feedback_training_fit": {
+    "macro_f1": 0.15384615384615385,
+    "accepted_precision": 1.0,
+    "old_command_correct_accept_rate": 1.0,
+    "unknown_false_accept_rate": 0.0,
+    "stop_recall": 0.0,
+    "stop_precision": 0.0,
+    "per_class": {
+      "left": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "right": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "up": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "open_palm": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "like": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "fist": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "thumb_down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 12.0
+      },
+      "rock": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "stop_inverted": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "no_gesture": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 13.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 0.14285714285714285,
+        "recall": 0.14285714285714285,
+        "f1-score": 0.14285714285714285,
+        "support": 25.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 25.0
+      }
+    },
+    "confusion": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        12,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        13
+      ]
+    ]
+  },
+  "feedback_training_fit_runtime": {
+    "macro_f1": 0.14765266939179983,
+    "accepted_precision": 1.0,
+    "old_command_correct_accept_rate": 0.9166666666666666,
+    "unknown_false_accept_rate": 0.0,
+    "stop_recall": 0.0,
+    "stop_precision": 0.0,
+    "per_class": {
+      "left": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "right": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "up": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "open_palm": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "like": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "fist": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "thumb_down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 0.9166666666666666,
+        "f1-score": 0.9565217391304348,
+        "support": 12.0
+      },
+      "rock": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "stop_inverted": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "no_gesture": {
+        "precision": 0.9285714285714286,
+        "recall": 1.0,
+        "f1-score": 0.9629629629629629,
+        "support": 13.0
+      },
+      "accuracy": 0.96,
+      "macro avg": {
+        "precision": 0.13775510204081634,
+        "recall": 0.1369047619047619,
+        "f1-score": 0.13710605014952842,
+        "support": 25.0
+      },
+      "weighted avg": {
+        "precision": 0.9628571428571427,
+        "recall": 0.96,
+        "f1-score": 0.9598711755233496,
+        "support": 25.0
+      }
+    },
+    "confusion": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        11,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        13
+      ]
+    ]
+  },
+  "retired_call_test": {
+    "macro_f1": 0.076657824933687,
+    "accepted_precision": 0.0,
+    "old_command_correct_accept_rate": 0.0,
+    "unknown_false_accept_rate": 0.006872852233676976,
+    "stop_recall": 0.0,
+    "stop_precision": 0.0,
+    "per_class": {
+      "left": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "right": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "up": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "open_palm": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "like": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "fist": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "thumb_down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "peace": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "rock": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "stop_inverted": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "no_gesture": {
+        "precision": 1.0,
+        "recall": 0.993127147766323,
+        "f1-score": 0.996551724137931,
+        "support": 291.0
+      },
+      "accuracy": 0.993127147766323,
+      "macro avg": {
+        "precision": 0.07142857142857142,
+        "recall": 0.07093765341188021,
+        "f1-score": 0.07118226600985221,
+        "support": 291.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 0.993127147766323,
+        "f1-score": 0.996551724137931,
+        "support": 291.0
+      }
+    },
+    "confusion": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        289
+      ]
+    ]
+  },
+  "backup": "artifacts\\stop_inverted\\previous_release\\20261018T091247Z",
+  "release_checks": {
+    "onnx_parity": true,
+    "offline_macro_f1_at_least_0_97": true,
+    "offline_accepted_precision_at_least_0_99": true,
+    "offline_unknown_false_accept_at_most_0_02": true,
+    "old_command_correct_accept_at_least_0_98": true,
+    "new_command_recall_at_least_0_97": true,
+    "retired_call_false_accept_at_most_0_02": true,
+    "runtime_peace_recall_at_least_0_95": true,
+    "runtime_rock_recall_at_least_0_97": true,
+    "runtime_unknown_false_accept_at_most_0_02": true,
+    "stop_precision": true,
+    "runtime_stop_precision": true,
+    "runtime_stop_recall": true
+  }
+}

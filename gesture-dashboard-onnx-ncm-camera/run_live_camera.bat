@@ -12,7 +12,7 @@ echo   Hold a clear gesture. If both hands gesture, bring one forward.
 echo   If one hand has no gesture, the other valid hand is selected automatically.
 echo   Gray hands are observed; the selected hand is highlighted.
 echo   Hand-only detection; body position and clothing are not filters.
-echo   Dorsal is a hard negative: No Gesture, with no action.
+echo   Palm and Stop inverted accept XY angles from 0 to -180 degrees, including horizontal.
 echo   Gestures can qualify in front of the face; no face filter.
 echo.
 echo   [1] Run with PC Webcam (Default)

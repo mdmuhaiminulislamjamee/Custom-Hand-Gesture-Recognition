@@ -125,7 +125,7 @@ def score_model(path: Path, data, config=None):
     config = config or RuntimeConfig()
     probabilities, mass = predict_onnx(path, data["X"])
     if probabilities.shape != (len(data["y"]), len(CLASS_NAMES)):
-        raise ValueError("Candidate output does not match the twelve-command contract")
+        raise ValueError("Candidate output does not match the configured class contract")
     ordered = np.sort(probabilities, axis=1)
     accepted = (np.isin(probabilities.argmax(1), ACTIVE_INDICES)
                 & (mass >= config.known_mass_floor)
@@ -154,15 +154,17 @@ def train(root: Path, output: Path, project: Path, epochs=50, log: Callable = pr
     from sklearn.neural_network import MLPClassifier
     from sklearn.preprocessing import StandardScaler
     from threadpoolctl import threadpool_limits
-    from scripts.train_twelve_gesture_candidate import prepare, export_onnx
+    from scripts.train_twelve_gesture_candidate import export_onnx
+    from scripts.train_stop_inverted import prepare
     from research.v18_20 import predict_onnx
 
     captured, audit = audit_dataset(root)
     atomic_json(output / "audit.json", audit)
     if not audit["can_train"]:
         raise ValueError("Training needs reviewed usable frames from independent training and validation participants. Run the dataset audit for details.")
-    log("Preparing participant-isolated public data for eleven active commands and rejection, including retired Dorsal negatives.", flush=True)
-    base, public_val, public_test, base_audit = prepare(per_class=1024)
+    log("Preparing participant-isolated public data for the active commands, Stop inverted, feedback and rejection.", flush=True)
+    public, base_audit = prepare(per_class=1024)
+    base, public_val, public_test = (public[split] for split in ("train", "val", "test"))
     base, public_val, public_test = map(apply_label_policy, (base, public_val, public_test))
     subsets = {split: {"X": captured["X"][captured["split"] == split],
                        "y": captured["y"][captured["split"] == split]}
@@ -195,7 +197,7 @@ def train(root: Path, output: Path, project: Path, epochs=50, log: Callable = pr
                 log("Validation improvement stopped; keeping the best epoch.", flush=True)
                 break
     candidate = output / "candidate.onnx"
-    artifact = export_onnx(best, scaler, candidate)
+    artifact = export_onnx(best, scaler, candidate, commands=CLASS_NAMES)
     expected = best.predict_proba(validation_x)
     actual, mass = predict_onnx(candidate, val["X"])
     expected_mass = expected[:, :len(CLASS_NAMES)].sum(1)

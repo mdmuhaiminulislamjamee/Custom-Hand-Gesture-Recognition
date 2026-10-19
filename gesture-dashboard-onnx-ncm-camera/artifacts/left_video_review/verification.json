@@ -1,0 +1,344 @@
+{
+  "files": 42,
+  "completed": 42,
+  "passed": 3654,
+  "failed_files": 0,
+  "results": [
+    {
+      "file": "test_body_context_policy.py",
+      "exit_code": 0,
+      "passed": 81,
+      "failed": 0,
+      "seconds": 8.41,
+      "log": ".runtime\\left_verified_test_body_context_policy.log"
+    },
+    {
+      "file": "test_camera_stability.py",
+      "exit_code": 0,
+      "passed": 8,
+      "failed": 0,
+      "seconds": 0.59,
+      "log": ".runtime\\left_verified_test_camera_stability.log"
+    },
+    {
+      "file": "test_cold_start_recovery.py",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "seconds": 0.61,
+      "log": ".runtime\\left_verified_test_cold_start_recovery.log"
+    },
+    {
+      "file": "test_collection_and_rejection.py",
+      "exit_code": 0,
+      "passed": 51,
+      "failed": 0,
+      "seconds": 2.73,
+      "log": ".runtime\\left_verified_test_collection_and_rejection.log"
+    },
+    {
+      "file": "test_deliberate_dorsal.py",
+      "exit_code": 0,
+      "passed": 99,
+      "failed": 0,
+      "seconds": 0.78,
+      "log": ".runtime\\left_verified_test_deliberate_dorsal.log"
+    },
+    {
+      "file": "test_dorsal_and_fist_stability.py",
+      "exit_code": 0,
+      "passed": 27,
+      "failed": 0,
+      "seconds": 0.53,
+      "log": ".runtime\\left_verified_test_dorsal_and_fist_stability.log"
+    },
+    {
+      "file": "test_dorsal_hard_negative_policy.py",
+      "exit_code": 0,
+      "passed": 800,
+      "failed": 0,
+      "seconds": 4.72,
+      "log": ".runtime\\left_verified_test_dorsal_hard_negative_policy.log"
+    },
+    {
+      "file": "test_dorsal_posture.py",
+      "exit_code": 0,
+      "passed": 77,
+      "failed": 0,
+      "seconds": 0.59,
+      "log": ".runtime\\left_verified_test_dorsal_posture.log"
+    },
+    {
+      "file": "test_face_body_distinction.py",
+      "exit_code": 0,
+      "passed": 25,
+      "failed": 0,
+      "seconds": 0.52,
+      "log": ".runtime\\left_verified_test_face_body_distinction.log"
+    },
+    {
+      "file": "test_face_contact.py",
+      "exit_code": 0,
+      "passed": 84,
+      "failed": 0,
+      "seconds": 1.33,
+      "log": ".runtime\\left_verified_test_face_contact.log"
+    },
+    {
+      "file": "test_face_context.py",
+      "exit_code": 0,
+      "passed": 52,
+      "failed": 0,
+      "seconds": 0.83,
+      "log": ".runtime\\left_verified_test_face_context.log"
+    },
+    {
+      "file": "test_fist_orientation_policy.py",
+      "exit_code": 0,
+      "passed": 468,
+      "failed": 0,
+      "seconds": 6.62,
+      "log": ".runtime\\left_verified_test_fist_orientation_policy.log"
+    },
+    {
+      "file": "test_follow_object.py",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0,
+      "seconds": 0.3,
+      "log": ".runtime\\left_verified_test_follow_object.log"
+    },
+    {
+      "file": "test_geometry.py",
+      "exit_code": 0,
+      "passed": 197,
+      "failed": 0,
+      "seconds": 1.39,
+      "log": ".runtime\\left_verified_test_geometry.log"
+    },
+    {
+      "file": "test_gesture_orientation.py",
+      "exit_code": 0,
+      "passed": 214,
+      "failed": 0,
+      "seconds": 2.36,
+      "log": ".runtime\\left_verified_test_gesture_orientation.log"
+    },
+    {
+      "file": "test_gesture_resume.py",
+      "exit_code": 0,
+      "passed": 51,
+      "failed": 0,
+      "seconds": 7.19,
+      "log": ".runtime\\left_verified_test_gesture_resume.log"
+    },
+    {
+      "file": "test_hand_detection.py",
+      "exit_code": 0,
+      "passed": 27,
+      "failed": 0,
+      "seconds": 0.64,
+      "log": ".runtime\\left_verified_test_hand_detection.log"
+    },
+    {
+      "file": "test_hand_ownership.py",
+      "exit_code": 0,
+      "passed": 180,
+      "failed": 0,
+      "seconds": 7.52,
+      "log": ".runtime\\left_verified_test_hand_ownership.log"
+    },
+    {
+      "file": "test_hand_selection.py",
+      "exit_code": 0,
+      "passed": 41,
+      "failed": 0,
+      "seconds": 2.19,
+      "log": ".runtime\\left_verified_test_hand_selection.log"
+    },
+    {
+      "file": "test_ios_contract.py",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "seconds": 0.34,
+      "log": ".runtime\\left_verified_test_ios_contract.log"
+    },
+    {
+      "file": "test_live_camera_startup.py",
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0,
+      "seconds": 0.45,
+      "log": ".runtime\\left_verified_test_live_camera_startup.log"
+    },
+    {
+      "file": "test_model_lab.py",
+      "exit_code": 0,
+      "passed": 12,
+      "failed": 0,
+      "seconds": 3.66,
+      "log": ".runtime\\left_verified_test_model_lab.log"
+    },
+    {
+      "file": "test_multiview_training.py",
+      "exit_code": 0,
+      "passed": 10,
+      "failed": 0,
+      "seconds": 0.42,
+      "log": ".runtime\\left_verified_test_multiview_training.log"
+    },
+    {
+      "file": "test_ncm_camera.py",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "seconds": 0.31,
+      "log": ".runtime\\left_verified_test_ncm_camera.log"
+    },
+    {
+      "file": "test_online_integration.py",
+      "exit_code": 0,
+      "passed": 5,
+      "failed": 0,
+      "seconds": 2.14,
+      "log": ".runtime\\left_verified_test_online_integration.log"
+    },
+    {
+      "file": "test_online_learning.py",
+      "exit_code": 0,
+      "passed": 11,
+      "failed": 0,
+      "seconds": 0.52,
+      "log": ".runtime\\left_verified_test_online_learning.log"
+    },
+    {
+      "file": "test_onnx_runtime.py",
+      "exit_code": 0,
+      "passed": 7,
+      "failed": 0,
+      "seconds": 1.72,
+      "log": ".runtime\\left_verified_test_onnx_runtime.log"
+    },
+    {
+      "file": "test_reported_fist_views.py",
+      "exit_code": 0,
+      "passed": 27,
+      "failed": 0,
+      "seconds": 1.28,
+      "log": ".runtime\\left_verified_test_reported_fist_views.log"
+    },
+    {
+      "file": "test_reported_left_side_views.py",
+      "exit_code": 0,
+      "passed": 96,
+      "failed": 0,
+      "seconds": 2.41,
+      "log": ".runtime\\left_verified_test_reported_left_side_views.log"
+    },
+    {
+      "file": "test_reported_left_video.py",
+      "exit_code": 0,
+      "passed": 207,
+      "failed": 0,
+      "seconds": 7.45,
+      "log": ".runtime\\left_verified_test_reported_left_video.log"
+    },
+    {
+      "file": "test_reported_left_view.py",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "seconds": 0.77,
+      "log": ".runtime\\left_verified_test_reported_left_view.log"
+    },
+    {
+      "file": "test_reported_peace_dorsal.py",
+      "exit_code": 0,
+      "passed": 56,
+      "failed": 0,
+      "seconds": 1.05,
+      "log": ".runtime\\left_verified_test_reported_peace_dorsal.log"
+    },
+    {
+      "file": "test_reported_pointing_2.py",
+      "exit_code": 0,
+      "passed": 34,
+      "failed": 0,
+      "seconds": 0.58,
+      "log": ".runtime\\left_verified_test_reported_pointing_2.log"
+    },
+    {
+      "file": "test_reported_stop_inverted_video.py",
+      "exit_code": 0,
+      "passed": 138,
+      "failed": 0,
+      "seconds": 12.0,
+      "log": ".runtime\\left_verified_test_reported_stop_inverted_video.log"
+    },
+    {
+      "file": "test_reported_two_hand_palm.py",
+      "exit_code": 0,
+      "passed": 8,
+      "failed": 0,
+      "seconds": 9.83,
+      "log": ".runtime\\left_verified_test_reported_two_hand_palm.log"
+    },
+    {
+      "file": "test_runtime.py",
+      "exit_code": 0,
+      "passed": 27,
+      "failed": 0,
+      "seconds": 0.52,
+      "log": ".runtime\\left_verified_test_runtime.log"
+    },
+    {
+      "file": "test_stop_inverted.py",
+      "exit_code": 0,
+      "passed": 430,
+      "failed": 0,
+      "seconds": 28.36,
+      "log": ".runtime\\left_verified_test_stop_inverted.log"
+    },
+    {
+      "file": "test_ten_gesture_accuracy.py",
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0,
+      "seconds": 0.55,
+      "log": ".runtime\\left_verified_test_ten_gesture_accuracy.log"
+    },
+    {
+      "file": "test_trouser_context.py",
+      "exit_code": 0,
+      "passed": 17,
+      "failed": 0,
+      "seconds": 0.49,
+      "log": ".runtime\\left_verified_test_trouser_context.log"
+    },
+    {
+      "file": "test_twelve_candidate.py",
+      "exit_code": 0,
+      "passed": 17,
+      "failed": 0,
+      "seconds": 2.44,
+      "log": ".runtime\\left_verified_test_twelve_candidate.log"
+    },
+    {
+      "file": "test_two_hand_stability.py",
+      "exit_code": 0,
+      "passed": 23,
+      "failed": 0,
+      "seconds": 3.67,
+      "log": ".runtime\\left_verified_test_two_hand_stability.log"
+    },
+    {
+      "file": "test_video_lab.py",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "seconds": 1.64,
+      "log": ".runtime\\left_verified_test_video_lab.log"
+    }
+  ]
+}

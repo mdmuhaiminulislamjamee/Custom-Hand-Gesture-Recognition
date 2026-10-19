@@ -118,7 +118,7 @@ def prepare(seed: int = 1302, per_class: int = 4096) -> tuple[dict, dict, dict, 
         seen_features.update(local)
 
     rng = np.random.default_rng(seed)
-    rows, labels, parents = [], [], []
+    rows, labels, parents, people, poses = [], [], [], [], []
     training = groups["train"]
     for label, name in enumerate(LABELS):
         available = np.flatnonzero(training["y"] == label)
@@ -141,11 +141,15 @@ def prepare(seed: int = 1302, per_class: int = 4096) -> tuple[dict, dict, dict, 
             rows.append(landmarks_to_feature(points))
             labels.append(label)
             parents.append(str(training["source_id"][index]))
+            people.append(str(training["group"][index]))
+            poses.append(points)
     order = rng.permutation(len(rows))
     balanced = {
         "X": np.asarray(rows, np.float32)[order],
         "y": np.asarray(labels, np.int64)[order],
         "parent_id": np.asarray(parents)[order],
+        "group": np.asarray(people)[order],
+        "landmarks": np.asarray(poses, np.float32)[order],
     }
     audit = {
         "seed": seed,
@@ -166,10 +170,12 @@ def prepare(seed: int = 1302, per_class: int = 4096) -> tuple[dict, dict, dict, 
     return balanced, groups["val"], groups["test"], audit
 
 
-def export_onnx(model: MLPClassifier, scaler: StandardScaler, destination: Path) -> dict:
+def export_onnx(model: MLPClassifier, scaler: StandardScaler, destination: Path,
+                commands: list[str] | None = None) -> dict:
     import onnx
     from onnx import TensorProto, helper, numpy_helper
 
+    commands = COMMANDS if commands is None else commands
     initializers = []
     nodes = []
 
@@ -195,7 +201,7 @@ def export_onnx(model: MLPClassifier, scaler: StandardScaler, destination: Path)
             nodes.append(helper.make_node("Relu", [current], [f"act{i}"]))
             current = f"act{i}"
     nodes.append(helper.make_node("Softmax", [current], ["all_probabilities"], axis=1))
-    constant("known_indices", np.arange(len(COMMANDS), dtype=np.int64))
+    constant("known_indices", np.arange(len(commands), dtype=np.int64))
     constant("axis", np.asarray([1], dtype=np.int64))
     constant("epsilon", np.asarray([1e-30], dtype=np.float32))
     nodes.extend([
@@ -210,7 +216,7 @@ def export_onnx(model: MLPClassifier, scaler: StandardScaler, destination: Path)
         nodes, "twelve_gesture_candidate",
         [helper.make_tensor_value_info("landmark_features", TensorProto.FLOAT, [None, 76])],
         [helper.make_tensor_value_info("label", TensorProto.INT64, [None]),
-         helper.make_tensor_value_info("probabilities", TensorProto.FLOAT, [None, len(COMMANDS)]),
+         helper.make_tensor_value_info("probabilities", TensorProto.FLOAT, [None, len(commands)]),
          helper.make_tensor_value_info("known_gesture_mass", TensorProto.FLOAT, [None, 1])],
         initializers,
     )

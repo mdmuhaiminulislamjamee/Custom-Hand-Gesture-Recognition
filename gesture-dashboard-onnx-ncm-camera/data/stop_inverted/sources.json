@@ -1,0 +1,25 @@
+{
+  "source": "https://github.com/hukenovs/hagrid",
+  "archive": "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid_v2/annotations_with_landmarks/annotations.zip",
+  "source_class": "stop_inverted",
+  "splits": {
+    "train": {
+      "rows": 3000,
+      "participants": 2228,
+      "member": "annotations/train/stop_inverted.json",
+      "annotation_sha256": "c3477609a0f5b8d27b3c05221e12b478f5aa8c6a8bc056851b776a5c683cd05b"
+    },
+    "val": {
+      "rows": 600,
+      "participants": 445,
+      "member": "annotations/val/stop_inverted.json",
+      "annotation_sha256": "1c4531606a58d798c193636b8b7b81d66f9751683c76f8765eb6c9fa98316c89"
+    },
+    "test": {
+      "rows": 600,
+      "participants": 421,
+      "member": "annotations/test/stop_inverted.json",
+      "annotation_sha256": "0563e13bd3c88017e8652c5f67ca021b8b542445c93e4ab2129221064d8ca723"
+    }
+  }
+}

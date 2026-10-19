@@ -4,12 +4,18 @@
 
 **Android NCM app-team handover:** [README and integration instructions](handover_android/v2026.10.08_android_ncm_03/README.md). This supplies native NCM/MediaPipe/ONNX diagnostic sources, model assets and behavior references. The complete Android decision port and physical USB-NCM acceptance are still required. Build a new immutable version with `python scripts/create_android_handover.py --version vYYYY.MM.DD_android_ncm_NN` using an unused version.
 
-This repository is the complete Windows reference implementation for an eleven-command, static hand-gesture system with a reserved legacy ONNX output. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
+This repository is the Windows reference implementation for twelve active static hand gestures, with a reserved legacy Dorsal output. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
 
-Current runtime model: **TwelveGestureBalancedMLP**. It passed offline
+Current runtime model: **StopInvertedFeedbackMLP**. It passed offline
 holdout/ONNX checks, but low-resolution live-camera validation is still pending.
 The ten-command and `v18_20` materials are historical research evidence, not
-the active classifier. Peace maps to Turn 90 Degrees and Rock to Backup.
+the active classifier. Peace maps to Turn 90 Degrees, Rock to Backup, and
+HaGRID `stop_inverted` to **Return to main position**. Stop inverted requires
+four extended fingers and the back of either hand, with fingers together or
+spread. Palm and Stop inverted share the source-image XY range from 0° at
+screen-right through −90° upward to −180° at screen-left. Both horizontal
+endpoints are included; the lower semicircle is no_gesture. Confidence and temporal holds still apply. The retrain
+includes all 25 saved feedback corrections in training only.
 The browser demo represents Backup
 as a smaller media target; it does not control physical hardware.
 
@@ -78,7 +84,7 @@ The start script rebuilds the frontend on every launch, starts both processes in
 
 ## What the system does
 
-The application recognizes eleven approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
+The application recognizes twelve approved hand gestures and maps them to demo actions. It emits `no_gesture` when the image does not contain a usable known command.
 
 ```text
 Development-board camera
@@ -95,7 +101,7 @@ JLIP stream parser and validated latest-JPEG buffer
 low-light checks -> MediaPipe 21-point hand landmarks -> landmark stabilization
         |
         v
-76-D feature extraction -> twelve-output ONNX MLP + known-gesture-mass score
+76-D feature extraction -> thirteen-output ONNX MLP + known-gesture-mass score
         |
         v
 pose geometry + open-set rejection + probability EMA + hold/release/cooldown
@@ -149,7 +155,7 @@ The supplied reference receiver replies to a heartbeat with packet type `0x03`. 
 
 `backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. Live inference observes up to two hands. If a recently tracked hand is missing from a frame, the bounded recovery pass runs immediately when time permits. `backend/hand_selection.py` qualifies both hands before distance arbitration. If exactly one hand has a valid gesture among the 11 active classes, that hand takes priority over an idle `no_gesture` / Hand observation regardless of apparent distance, palm size, or an uncertain distance comparison. A selected hand that becomes invalid automatically yields to the other hand's valid gesture after the normal gesture and selection holds. A valid owner stays selected when the other hand is idle. If both hands have valid gestures, the existing distance and ownership rules apply: a sustained foreground lead switches ownership after raw and filtered distance evidence agree, a clearly tracked owner stays selected at similar distance, and uncertain comparisons can pause actions. With neither gesture valid, no action is produced. Every change of owner clears landmark smoothing and gesture history, and uncertain track identity still pauses actions. Inactive previews remain `no_gesture`. Distance uses projected image/world landmark scale when coherent and apparent palm segments otherwise; neither measures camera depth. Hand positions continue updating during context rejections. A unique confident returning hand can reacquire its track after large movement, with a fresh gesture hold.
 
-Live recognition uses hand landmarks only. No body or face model runs, no body skeleton is drawn, and neither clothing nor arm/waist/face position vetoes a gesture. Dorsal is retired: every former Dorsal pose is a hard negative and resolves to `no_gesture`, at every angle, distance and body position. It cannot execute Return to Default Position or be promoted into another command. The usual source-pixel, geometry, confidence and temporal checks apply. Without body context, a resting hand with the same shape as a command can also qualify.
+Live recognition uses hand landmarks only. No body or face model runs, no body skeleton is drawn, and neither clothing nor arm/waist/face position vetoes a gesture. The old Dorsal output remains retired. The separately trained Stop inverted command returns to the main position. Both Stop inverted and Palm accept the full upper XY semicircle, 0° through −90° to −180°, including both horizontal endpoints. Lower open-hand poses remain `no_gesture`. The usual source-pixel, geometry, confidence and temporal checks apply. Without body context, a resting hand with the same shape as a command can also qualify.
 
 Cold-start recovery revisits an upright central crop while also searching the sides of the image. Successful crops retain independent VIDEO tracking streams for both hands. When only one hand is found, recovery searches both sides of it with original and enhanced contrast; it does not assume the person is centred. Every frame starts with a full-frame scan, and recovery must find fresh landmarks. Recent coordinates guide searches for up to 650 ms and never count as detections. At most three passes run per frame: recovery starts within 55 ms and an additional peer pass within 85 ms. Two resident crop trackers preserve separate histories. The webcam runner requests 1280 × 720 capture, with driver fallback. These changes improve recovery opportunities; live range still depends on visible finger detail, motion and lighting. See [HAND_DISTANCE.md](HAND_DISTANCE.md) for testing and [DATA_COLLECTION.md](DATA_COLLECTION.md) for reviewed recordings.
 
@@ -184,13 +190,13 @@ The graph contract is:
 |---|---|---|
 | Input `landmark_features` | `float32 [N, 76]` | Exact feature rows |
 | Output `label` | `int64 [N]` | Internal argmax output; the runtime does not depend on it |
-| Output `probabilities` | `float32 [N, 12]` | Canonical command probabilities |
+| Output `probabilities` | `float32 [N, 13]` | Canonical outputs, including reserved Dorsal |
 | Output `known_gesture_mass` | `float32 [N, 1]` | Evidence that the input belongs to the known vocabulary |
 
 ### 5. Rejection, stabilization, and actions
 
 `backend/geometry.py::GeometryResolver` rejects incompatible directional,
-Like, OK, Fist, Thumbs Down, and Open Palm shapes. Dorsal is always rejection evidence. Open Palm is eligible
+Like, OK, Fist, Thumbs Down, Open Palm and Stop inverted shapes. The retired Dorsal output is rejection evidence. Open Palm is eligible
 while its wrist-to-palm axis points up or sideways, including oblique angles,
 but downward poses are rejected. Fist accepts the upper arc from horizontal left
 through up to horizontal right for both hands, including a 30-degree pitch
@@ -233,8 +239,9 @@ The class order is fixed and must be identical on Windows, iOS, and any replacem
 | 9 | `thumb_down` | Thumbs Down | Volume Down |
 | 10 | `peace` | Peace | Turn 90 Degrees |
 | 11 | `rock` | Rock | Backup |
+| 12 | `stop_inverted` | Stop inverted | Return to main position |
 
-`no_gesture` is a rejection/feedback label, not output index 12. It means no hand, an invalid hand, an unknown shape, an incompatible pose, or a candidate that has not passed temporal gates. The retired thumb-and-little-finger call sign belongs here.
+`no_gesture` is a rejection/feedback label, not a command output. It means no hand, an invalid hand, an unknown shape, an incompatible pose, or a candidate that has not passed temporal gates. The retired thumb-and-little-finger call sign belongs here.
 
 ### Direction and mirroring contract
 
@@ -299,7 +306,8 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 | `research/` | Reusable ten-command, historical v18_20, and multiview training/evaluation code |
 | `data/ten_gesture/` | Current source-derived ten-command dataset artifacts and provenance |
 | `artifacts/ten_gesture/` | Historical ten-command candidate, audit, and qualification evidence |
-| `artifacts/twelve_gesture/` | Current model, offline evaluation, and runtime-comparison evidence |
+| `artifacts/stop_inverted/` | Current model, data audit, offline evaluation and previous bundle backups |
+| `artifacts/twelve_gesture/` | Historical base model and evaluation evidence |
 | `data/v18_20/`, `artifacts/v18_20/` | Preserved historical eight-command research material; not production |
 | `artifacts/multiview/` | Generated multiview audit/candidate outputs; not the active production model |
 | `public/gesture-guides/` | Images used by the guided collection UI |
@@ -353,7 +361,7 @@ The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame
 
 | File | Responsibility |
 |---|---|
-| `models/gesture_mlp_production.onnx` | Active twelve-command base classifier plus known-mass output |
+| `models/gesture_mlp_production.onnx` | Active thirteen-output base classifier plus known-mass output |
 | `models/gesture_mlp_onnx_metadata.json` | Exact tensor/class/feature contract, model SHA-256, parity and qualification evidence |
 | `models/gesture_mobile_runtime_config.json` | Live thresholds, 10-FPS target, actions, detector/geometry/temporal settings |
 | `models/gesture_artifact_manifest.json` | Trusted sizes/hashes for the complete runtime artifact set |
@@ -780,14 +788,15 @@ At least seven participants are needed by the current minimum split rules, and d
 
 There is no automatic production-promotion command for the multiview candidate. Copying only `candidate.onnx` will fail the metadata/manifest contract. A maintainer must create a complete versioned release after offline qualification and live NCM acceptance.
 
-### Rebuild and verify the current twelve-command model
+### Rebuild and verify the current model
 
 The current balanced candidate and its participant-disjoint offline evaluation
 are produced by:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.train_twelve_gesture_candidate
-.\.venv\Scripts\python.exe -m scripts.evaluate_twelve_gesture_candidate
+.\.venv\Scripts\python.exe -m scripts.collect_stop_inverted_data
+.\.venv\Scripts\python.exe -m scripts.train_stop_inverted
+.\.venv\Scripts\python.exe -m scripts.train_stop_inverted --evaluate
 ```
 
 Training leaves the active model untouched. Review the data audit, offline
@@ -795,13 +804,36 @@ holdout scores, and physical-camera behavior before promoting a retrained
 candidate with:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.promote_twelve_gesture
+.\.venv\Scripts\python.exe -m scripts.train_stop_inverted --install
 .\.venv\Scripts\python.exe -m scripts.onnx_preflight
 ```
 
 Promotion replaces the model/config/metadata/cache unit and rebuilds the
-manifest. It does not certify live low-resolution webcam performance. The old
-ten-command deploy path is disabled.
+manifest and preserves the previous bundle under `artifacts/stop_inverted/previous_release`.
+The evaluation and data audit are in `artifacts/stop_inverted/`. It does not
+certify live low-resolution webcam performance. The twelve-command training
+script is retained as the historical base-data preparation stage.
+
+The `reverse palm.mp4` camera correction measures Stop-inverted joint angles
+and finger reaches in source-image pixels. A clearly open thumb and four long,
+straight fingers on a confidently identified back of the hand can recover
+`stop_inverted` when the classifier reports another label or low vocabulary
+mass. Low-mass recovery requires a 0.45-second hold; available world landmarks
+must also support extended fingers, and negative feedback disables recovery.
+The inclusive upper XY semicircle remains the allowed rotation range.
+Approximate overlay traces and their replay report are under
+`artifacts/stop_inverted/reverse_palm_review/`. These screen-recording traces
+do not independently verify the camera detector or depth estimates. Restart
+the live-camera process or backend after updating the Python runtime.
+
+The `left.mp4` correction adds horizontal index-pointing recovery with the
+thumb tucked, bent, or extended. It checks folded fingers and two narrow
+edge-on silhouettes in source-image pixels; available world landmarks must
+confirm one extended index. A low vocabulary score requires a 0.50-second
+hold, and reviewed negative feedback disables this recovery. The original
+Left/Right calibration is retained. Screen-overlay traces and replay evidence
+are under `artifacts/left_video_review/`; they do not independently verify
+camera detection or depth.
 
 ### Historical v18_20 model work (do not deploy)
 

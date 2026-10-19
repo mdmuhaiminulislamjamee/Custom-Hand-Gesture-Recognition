@@ -56,7 +56,7 @@ def main() -> None:
     print(f"Commands ({len(config.gesture_to_action)}):")
     for gesture, action in config.gesture_to_action.items():
         print(f"  {gesture:<12} -> {action}")
-    print("Dorsal is a hard negative: no_gesture, with no action.")
+    print("Stop inverted: Return to main position. Palm and Stop inverted accept XY 0 to -180 degrees; the lower half is no_gesture.")
     print("Hand-only detection: body position and clothing do not block gestures.")
     print("A valid gesture takes priority over the other hand's no_gesture, regardless of distance.")
     print("Face filtering removed: gestures can qualify in front of the face.\n")

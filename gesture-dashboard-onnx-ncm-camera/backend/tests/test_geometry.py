@@ -737,8 +737,15 @@ def test_reverse_side_of_open_hand_is_not_accepted_as_open_palm(angle):
     )
     assert surface['surface'] == 'dorsal'
     assert details['hand_shape']['palm_geometry_supported'] is False
-    assert details['pose_validation']['valid'] is False
-    assert details['pose_validation']['gesture'] == 'no_gesture'
+    assert details['pose_validation']['gesture'] != 'open_palm'
+    palm_axis = dorsal_view[[5, 9, 13, 17]].mean(0) - dorsal_view[0]
+    if palm_axis[1] <= 0:
+        # The back of this upper open hand is the new Stop-inverted command.
+        assert details['pose_validation']['valid'] is True
+        assert details['pose_validation']['gesture'] == 'stop_inverted'
+    else:
+        assert details['pose_validation']['valid'] is False
+        assert details['pose_validation']['gesture'] == 'no_gesture'
 
 
 
@@ -774,7 +781,7 @@ def test_open_palm_accepts_upward_sideways_and_reported_oblique_angle():
         assert accepted['pose_validation']['geometry_supported'] is True
 
 
-def test_open_palm_accepts_downward_and_diagonal_down_poses():
+def test_open_palm_rejects_downward_and_diagonal_down_poses():
     config = RuntimeConfig()
     upward = representative_hand()
     probabilities = np.full(len(config.class_names), 0.001)
@@ -797,9 +804,12 @@ def test_open_palm_accepts_downward_and_diagonal_down_poses():
             probabilities, points, handedness=handedness,
             handedness_confidence=.99,
         )
-        assert rejected['hand_shape']['open_palm_allowed_direction'] is True
-        assert rejected['pose_validation']['valid'] is True
-        assert rejected['pose_validation']['gesture'] == 'open_palm'
+        assert rejected['hand_shape']['open_palm_allowed_direction'] is False
+        assert rejected['pose_validation']['valid'] is False
+        gate = TemporalGate(config)
+        decision = gate.update(probabilities, now=1., pose_valid=False,
+                               rejection_reason=rejected['pose_validation']['reason'])
+        assert decision.predicted_gesture == 'no_gesture' and not decision.execute
 
 
 def test_downward_palmar_open_hand_cannot_fall_through_to_dorsal():
@@ -824,8 +834,7 @@ def test_downward_palmar_open_hand_cannot_fall_through_to_dorsal():
 
     assert details['hand_shape']['hand_surface'] == 'palmar'
     assert details['hand_shape']['dorsal_geometry_supported'] is False
-    assert details['pose_validation']['valid'] is True
-    assert details['pose_validation']['gesture'] == 'open_palm'
+    assert details['pose_validation']['valid'] is False
 
 
 @pytest.mark.parametrize('gesture', ['fist', 'thumb_down'])

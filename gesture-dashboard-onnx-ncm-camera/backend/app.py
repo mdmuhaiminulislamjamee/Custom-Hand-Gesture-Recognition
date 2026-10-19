@@ -251,6 +251,7 @@ def _onnx_qualification() -> dict[str, Any]:
         "runtime_peace_recall_at_least_0_95",
         "runtime_rock_recall_at_least_0_97",
         "runtime_unknown_false_accept_at_most_0_02",
+        "stop_precision", "runtime_stop_precision", "runtime_stop_recall",
     }
 
     def threshold_matches(name: str, expected: float) -> bool:
@@ -260,8 +261,8 @@ def _onnx_qualification() -> dict[str, Any]:
             return False
 
     gates = {
-        "schema_version_is_current": metadata.get("schema_version") == 3,
-        "exact_twelve_class_contract": metadata.get("output_class_order") == runtime_config.class_names,
+        "schema_version_is_current": metadata.get("schema_version") == 4,
+        "exact_class_contract": metadata.get("output_class_order") == runtime_config.class_names,
         "onnx_parity": parity.get("passed") is True,
         "offline_qualification_passed": qualification.get("offline_passed") is True,
         "complete_offline_checks": expected_checks <= set(checks),
@@ -298,10 +299,10 @@ def _onnx_qualification() -> dict[str, Any]:
         "prediction_agreement": parity.get("prediction_agreement"),
         "maximum_absolute_probability_error": parity.get("maximum_absolute_probability_error"),
         "message": (
-            "Twelve-command ONNX passed offline checks; live low-resolution camera validation is pending."
+            "Current ONNX passed offline checks; live low-resolution camera validation is pending."
             if offline_passed and live_pending else
-            "Twelve-command ONNX passed qualification." if offline_passed else
-            "One or more twelve-command offline qualification gates failed."
+            "Current ONNX passed qualification." if offline_passed else
+            "One or more offline qualification gates failed."
         ),
     }
 

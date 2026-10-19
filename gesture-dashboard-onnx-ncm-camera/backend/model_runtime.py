@@ -384,7 +384,7 @@ class OnnxClassifier:
         if metadata.get("format") != "ONNX":
             raise ValueError("Classifier metadata does not declare ONNX format.")
         if list(metadata.get("output_class_order", [])) != config.class_names:
-            raise ValueError("ONNX output class order differs from the twelve-command contract.")
+            raise ValueError("ONNX output class order differs from the configured contract.")
         if list(metadata.get("feature_names", [])) != config.feature_names:
             raise ValueError("ONNX feature order differs from the 76-D contract.")
         expected_digest = str(metadata.get("onnx_sha256", "")).lower()
@@ -446,7 +446,7 @@ class OnnxClassifier:
         if len(probability_indexes) != 1:
             shapes = [getattr(value, "shape", None) for value in smoke_outputs]
             raise ValueError(
-                "Could not identify the unique twelve-class ONNX probability output; "
+                "Could not identify the unique configured ONNX probability output; "
                 f"observed shapes: {shapes}."
             )
         self.probability_output_name = output_descriptors[probability_indexes[0]].name
@@ -981,6 +981,7 @@ class InferenceEngine:
                         probabilities, row["points"], handedness=row["handedness"],
                         handedness_confidence=row["handedness_confidence"],
                         world_landmarks=row["world_landmarks"], require_fist_depth=True,
+                        image_shape=image.shape,
                         preferred_direction=(preferred_direction
                             if row.get("track_id") == session.selected_track_id else None))
                     row["probabilities"] = resolved
@@ -1104,6 +1105,7 @@ class InferenceEngine:
                     ),
                     world_landmarks=world_landmarks,
                     require_fist_depth=True,
+                    image_shape=image.shape,
                     preferred_direction=session.last_screen_direction
                     if now - session.last_screen_direction_at <= 1.0 else None,
                 )
@@ -1141,6 +1143,10 @@ class InferenceEngine:
             geometry_supported=geometry_supported,
             directional_recovery=directional_recovery,
             sideways_palm_recovery=bool(pose_validation.get("sideways_palm_recovery", False)),
+            stop_inverted_recovery=bool(
+                geometry_supported and pose_validation.get("stop_inverted_recovery", False)),
+            horizontal_direction_recovery=bool(
+                geometry_supported and pose_validation.get("horizontal_direction_recovery", False)),
             dorsal_range_recovery=bool(pose_validation.get("dorsal_range_recovery", False)),
             expanded_thumb_direction_recovery=bool(
                 geometry_supported and pose_validation.get("expanded_thumb_direction_recovery", False)),
@@ -1175,6 +1181,10 @@ class InferenceEngine:
                         and model_direction.get("model_supported_pose", False)
                     ),
                     sideways_palm_recovery=bool(model_pose.get("sideways_palm_recovery", False)),
+                    stop_inverted_recovery=bool(
+                        model_geometry_supported and model_pose.get("stop_inverted_recovery", False)),
+                    horizontal_direction_recovery=bool(
+                        model_geometry_supported and model_pose.get("horizontal_direction_recovery", False)),
                     dorsal_range_recovery=bool(model_pose.get("dorsal_range_recovery", False)),
                     expanded_thumb_direction_recovery=bool(
                         model_geometry_supported and model_pose.get("expanded_thumb_direction_recovery", False)),
@@ -1206,6 +1216,10 @@ class InferenceEngine:
             session.last_screen_direction = None
 
         switch_pending = bool((detector_quality.get("selection") or {}).get("switch_pending"))
+        if decision.execute and decision.predicted_gesture == "stop_inverted" and not switch_pending:
+            # Returning home also cancels a partially completed tracking setup.
+            session.follow_object.reset()
+            follow_was_active = False
         follow = session.follow_object.observe(
             decision.predicted_gesture,
             stable=bool(

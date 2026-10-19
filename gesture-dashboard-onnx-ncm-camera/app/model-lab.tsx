@@ -73,7 +73,7 @@ export default function ModelLab({ api, active }: { api: string; active: boolean
 
   return <div className="lab-page" hidden={!active}>
     <div className="section-heading"><div><p className="eyebrow">07 · REVIEWED DATA TO CANDIDATE MODEL</p><h2>Model Training</h2><p className="lab-intro">Audit your collection, train a candidate, and inspect held-out results before choosing a release.</p></div><button type="button" className="secondary-button" disabled={busy} onClick={() => { void refresh().catch(cause => setError(cause.message)); }}>Refresh</button></div>
-    <div className="lab-policy"><strong>Train the hand shape. Check posture with the complete system.</strong><p>Context negatives such as a relaxed Dorsal hand are excluded from the static hand classifier. Use Video Lab to check the body guard and false actions during ordinary activity. A candidate download does not replace the active model.</p></div>
+    <div className="lab-policy"><strong>Train reviewed hand shapes and check them in Video Lab.</strong><p>Palm and Stop inverted accept the upper XY semicircle from 0° through −90° to −180°, with either hand and fingers together or spread. Stop inverted returns to the main position. A candidate download does not replace the active model.</p></div>
     {error && <div role="alert" className="lab-error">{error}</div>}
     {status && !status.available && <div className="lab-error" role="status">Training dependencies are unavailable{missingDependencies.length ? `: ${missingDependencies.join(', ')}` : ''}. Install the packages in requirements-notebook.txt in the backend environment, then refresh.</div>}
     {notice && <p role="status" className="lab-notice">{notice}</p>}

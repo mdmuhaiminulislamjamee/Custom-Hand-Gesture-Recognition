@@ -9,7 +9,8 @@ import time
 
 import numpy as np
 
-from .config import DISABLED_GESTURES, DORSAL_REJECTION_REASON, RuntimeConfig
+from .config import (DISABLED_GESTURES, DORSAL_REJECTION_REASON,
+                     OPEN_HAND_LOWER_ARC_REJECTION_REASON, RuntimeConfig)
 
 
 class InferenceStartLimiter:
@@ -177,6 +178,8 @@ class TemporalGate:
         geometry_supported: bool = False,
         directional_recovery: bool = False,
         sideways_palm_recovery: bool = False,
+        stop_inverted_recovery: bool = False,
+        horizontal_direction_recovery: bool = False,
         dorsal_range_recovery: bool = False,
         expanded_thumb_direction_recovery: bool = False,
         continued_direction_recovery: bool = False,
@@ -205,7 +208,7 @@ class TemporalGate:
         raw_confidence = float(order[-1])
         probability_margin = float(order[-1] - order[-2]) if len(order) > 1 else raw_confidence
         if not pose_valid:
-            if rejection_reason == DORSAL_REJECTION_REASON:
+            if rejection_reason in {DORSAL_REJECTION_REASON, OPEN_HAND_LOWER_ARC_REJECTION_REASON}:
                 self.reset()
             return self.reject(
                 rejection_reason or "pose geometry rejected",
@@ -227,6 +230,10 @@ class TemporalGate:
             continued_direction_recovery and geometry_supported and directional_recovery
             and geometry_gesture in {"left", "right", "up", "down"}
         )
+        horizontal_fallback = bool(
+            horizontal_direction_recovery and geometry_supported and directional_recovery
+            and geometry_gesture in {"left", "right"}
+        )
         directional_fallback = bool(
             directional_recovery and geometry_supported
             and geometry_gesture in {"left", "right", "up", "down"}
@@ -235,7 +242,7 @@ class TemporalGate:
             # amount of classifier vocabulary evidence to reject held rock/
             # peace hard negatives that can project like a pointing finger.
             and (geometry_gesture == "down" or recovery_mass_ok
-                 or expanded_thumb_fallback or continued_direction_fallback)
+                 or expanded_thumb_fallback or continued_direction_fallback or horizontal_fallback)
         )
         supported_hand = bool(
             geometry_supported
@@ -252,8 +259,12 @@ class TemporalGate:
             and geometry_gesture == "peace"
             and recovery_mass_ok
         )
+        stop_fallback = bool(
+            stop_inverted_recovery and geometry_supported
+            and geometry_gesture == "stop_inverted"
+        )
         if known_gesture_mass < self.config.known_mass_floor and not (
-            directional_fallback or supported_hand or peace_fallback
+            directional_fallback or supported_hand or peace_fallback or stop_fallback
         ):
             return self.reject(
                 "outside the active gesture vocabulary",
@@ -300,11 +311,13 @@ class TemporalGate:
         held_seconds = max(0.0, now - label_started_at)
         required_hold = self.config.minimum_hold_seconds
         if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.50 if expanded_thumb_fallback else 0.40)
+            required_hold = max(required_hold, 0.50 if expanded_thumb_fallback or horizontal_fallback else 0.40)
         if supported_hand and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.45)
         if peace_fallback and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.50)
+        if stop_fallback and known_gesture_mass < self.config.known_mass_floor:
+            required_hold = max(required_hold, 0.45)
         execute = bool(
             confidence >= self.config.confidence_floor
             and stable_frames >= self.config.stable_frames_required
@@ -322,6 +335,8 @@ class TemporalGate:
                 if directional_fallback and known_gesture_mass < self.config.known_mass_floor
                 else "stable Peace finger geometry"
                 if peace_fallback and known_gesture_mass < self.config.known_mass_floor
+                else "stable Stop inverted hand geometry"
+                if stop_fallback and known_gesture_mass < self.config.known_mass_floor
                 else "stable and confident"
             )
         return TemporalDecision(

@@ -5,7 +5,7 @@ import json
 import numpy as np
 
 from backend.artifact_integrity import ArtifactRegistry
-from backend.config import CLASS_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODELS_DIRECTORY, load_runtime_config
+from backend.config import ACTIVE_CLASS_NAMES, CLASS_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODELS_DIRECTORY, load_runtime_config
 from backend.geometry import GeometryResolver, hand_surface_orientation, landmarks_to_feature
 from backend.model_runtime import ModelManager
 from backend.runtime import TemporalGate
@@ -23,19 +23,20 @@ def test_artifact_manifest_and_onnx_metadata_are_current():
     assert metadata["parity"]["passed"] is True
     assert metadata["parity"]["prediction_agreement"] >= 0.99
     assert metadata["output_class_order"] == CLASS_NAMES
-    assert len(CLASS_NAMES) == 12
-    assert CLASS_NAMES[-2:] == ["peace", "rock"]
+    assert len(CLASS_NAMES) == 13
+    assert CLASS_NAMES[-3:] == ["peace", "rock", "stop_inverted"]
     assert metadata["internal_class_order"] == [*CLASS_NAMES, "no_gesture"]
     assert metadata["known_mass_output"] == "known_gesture_mass"
 
 
-def test_active_runtime_actions_and_safe_learning_caches_cover_all_twelve():
+def test_active_runtime_actions_and_safe_learning_caches_cover_all_commands():
     config = load_runtime_config()
     assert config.class_names == CLASS_NAMES
     assert config.gesture_to_action == GESTURE_TO_ACTION
-    assert {name: config.gesture_to_action[name] for name in CLASS_NAMES[-2:]} == {
+    assert {name: config.gesture_to_action[name] for name in CLASS_NAMES[-3:]} == {
         "peace": "Turn 90 Degrees",
         "rock": "Backup",
+        "stop_inverted": "Return to main position",
     }
     for cache_name in (
         "gesture_online_replay_cache.npz",
@@ -44,10 +45,10 @@ def test_active_runtime_actions_and_safe_learning_caches_cover_all_twelve():
     ):
         with np.load(MODELS_DIRECTORY / cache_name, allow_pickle=False) as archive:
             assert archive["class_names"].tolist() == CLASS_NAMES
-            assert set(archive["y"].tolist()) == set(range(12)) | {-1}
+            assert set(archive["y"].tolist()) == {CLASS_NAMES.index(name) for name in ACTIVE_CLASS_NAMES} | {-1}
 
 
-def test_health_qualification_uses_the_current_twelve_gesture_gate_schema():
+def test_health_qualification_uses_the_current_gesture_gate_schema():
     qualification = _onnx_qualification()
 
     assert qualification["status"] == "provisional", qualification["failing_gates"]
@@ -55,7 +56,7 @@ def test_health_qualification_uses_the_current_twelve_gesture_gate_schema():
     assert qualification["pc_release_ready"] is False
     assert qualification["live_camera_validation_pending"] is True
     assert qualification["failing_gates"] == []
-    assert qualification["gates"]["exact_twelve_class_contract"] is True
+    assert qualification["gates"]["exact_class_contract"] is True
     assert qualification["gates"]["complete_offline_checks"] is True
     assert qualification["gates"]["selected_thresholds_match_runtime"] is True
 

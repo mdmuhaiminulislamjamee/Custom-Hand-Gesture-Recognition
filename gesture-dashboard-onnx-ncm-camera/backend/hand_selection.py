@@ -73,6 +73,8 @@ def gate_arguments(details, quality):
         directional_recovery=bool(supported and direction.get("strong_geometry", False)
                                   and direction.get("model_supported_pose", False)),
         sideways_palm_recovery=bool(pose.get("sideways_palm_recovery", False)),
+        stop_inverted_recovery=bool(supported and pose.get("stop_inverted_recovery", False)),
+        horizontal_direction_recovery=bool(supported and pose.get("horizontal_direction_recovery", False)),
         dorsal_range_recovery=bool(pose.get("dorsal_range_recovery", False)),
         expanded_thumb_direction_recovery=bool(supported and pose.get("expanded_thumb_direction_recovery", False)),
         continued_direction_recovery=bool(supported and direction.get("continued_direction", False)),

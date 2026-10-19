@@ -1,0 +1,105 @@
+{
+  "seed": 181018,
+  "space": "unit-square approximation; original camera dimensions unavailable",
+  "source": "existing training split only; not an accuracy estimate",
+  "classes": {
+    "left": {
+      "sampled": 256,
+      "matched": 223,
+      "folded": 218,
+      "converging": 42,
+      "collapsed": 0
+    },
+    "right": {
+      "sampled": 256,
+      "matched": 222,
+      "folded": 217,
+      "converging": 34,
+      "collapsed": 1
+    },
+    "up": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "down": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "open_palm": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "like": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "dorsal": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "ok": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "fist": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "thumb_down": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "peace": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "rock": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "stop_inverted": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    },
+    "no_gesture": {
+      "sampled": 256,
+      "matched": 0,
+      "folded": 0,
+      "converging": 0,
+      "collapsed": 0
+    }
+  }
+}

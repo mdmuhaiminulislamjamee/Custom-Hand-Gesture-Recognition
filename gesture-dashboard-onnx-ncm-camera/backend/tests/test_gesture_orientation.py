@@ -64,7 +64,7 @@ def assert_held_geometry_recovers(config, probabilities, details, gesture):
 
 @pytest.mark.parametrize("angle", SCREEN_ANGLES)
 @pytest.mark.parametrize("mirror", [False, True])
-@pytest.mark.parametrize("surface,label", [("dorsal", "dorsal"), ("palmar", "open_palm")])
+@pytest.mark.parametrize("surface,label", [("dorsal", "stop_inverted"), ("palmar", "open_palm")])
 def test_four_extended_fingers_respect_surface_and_dorsal_direction(angle, mirror, surface, label):
     hand = four_finger_hand()
     if surface == "dorsal":
@@ -79,7 +79,8 @@ def test_four_extended_fingers_respect_surface_and_dorsal_direction(angle, mirro
     config, probabilities, details = resolve(points, "like", handedness=handedness)
     pose = details["pose_validation"]
     assert details["hand_shape"]["hand_surface"] == surface
-    if surface == "dorsal":
+    palm_axis = points[[5, 9, 13, 17]].mean(0) - points[0]
+    if palm_axis[1] > 1e-6:
         assert not pose["valid"]
         decision = TemporalGate(config).update(
             probabilities, now=1., **gate_arguments(details, dict(known_gesture_mass=.20)))

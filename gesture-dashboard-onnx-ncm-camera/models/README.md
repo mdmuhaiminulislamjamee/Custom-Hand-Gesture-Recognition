@@ -1,17 +1,17 @@
 # Twelve-Gesture Runtime Artifacts
 
-Active offline-qualified model: **TwelveGestureBalancedMLP**. Live webcam/NCM
+Active offline-qualified model: **StopInvertedFeedbackMLP**. Live webcam/NCM
 validation remains pending; the older ten-command evidence below is historical.
 
 This directory is the atomic runtime bundle:
 
-- `gesture_mlp_production.onnx` — 76-feature, twelve-output classifier plus
+- `gesture_mlp_production.onnx` — 76-feature, thirteen-output classifier plus
   `known_gesture_mass`;
 - `gesture_mlp_onnx_metadata.json` — hash, tensor/class contract, data audit,
   qualification, per-class evidence, and independent confirmation evidence;
 - `gesture_mobile_runtime_config.json` — action mapping, pose policy, rejection
   thresholds, 10 FPS controls, and Safe Learn settings;
-- `gesture_online_*_cache.npz` — twelve-command replay/validation/test anchors;
+- `gesture_online_*_cache.npz` — current active-command replay/validation/test anchors;
 - `hand_landmarker.task` and `blaze_face_short_range.tflite` — detector assets;
 - `ten_gesture_*` CSV files — readable release metrics and confusion matrix;
 - `gesture_artifact_manifest.json` — sizes and SHA-256 hashes for every trusted
@@ -20,12 +20,18 @@ This directory is the atomic runtime bundle:
 Canonical probability order:
 
 ```text
-left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down, peace, rock
+left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down, peace, rock, stop_inverted
 ```
 
 `fist` maps to **Mute** and `thumb_down` maps to **Volume Down**.
-`no_gesture` is the internal rejection/feedback label, not a thirteenth output.
+`no_gesture` is the internal rejection/feedback label, not a command output.
 Peace maps to Turn 90 Degrees and Rock to Backup.
+`stop_inverted` maps to **Return to main position**. Both hands accept four
+extended fingers, together or spread. Palm and Stop inverted accept source-image
+XY angles from 0° at screen-right through −90° upward to −180° at screen-left,
+including both horizontal endpoints. The lower semicircle is rejected.
+The reserved Dorsal tensor output remains disabled. This release incorporates
+all 25 reviewed feedback corrections in training; they are excluded from evaluation.
 Open Palm is eligible when the palm axis points up, left, or right, including
 oblique side angles. Downward Open Palm poses are rejected. Fist and Thumbs Down are handedness-neutral. Fist accepts
 horizontal left, up-left, up, up-right and horizontal right, including a
@@ -44,8 +50,9 @@ regressions are not measurements of live camera accuracy.
 ## Historical ten-command qualification summary
 
 The measurements in this section describe the retired ten-command model, not
-the active twelve-command ONNX. Current offline results are in
-`artifacts/twelve_gesture/evaluation.json` and `runtime_comparison.json`.
+the active ONNX. Current offline classifier and runtime results are
+in `artifacts/stop_inverted/evaluation.json`. Previous bundles are preserved
+under `artifacts/stop_inverted/previous_release/`.
 
 Training is balanced at 4,096 rows for each of 11 internal classes (45,056
 rows total). HaGRID participant groups are disjoint across training,

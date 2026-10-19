@@ -1,0 +1,556 @@
+{
+  "source": "left.mp4",
+  "traced_frames": 9,
+  "originally_missed_traced_frames": 8,
+  "replay_cases": 18,
+  "passed_cases": 18,
+  "model_sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8",
+  "limitations": [
+    "Approximate manual traces of the foreground hand's displayed overlay joints, not original detector landmarks or depth. Empty opening/closing frames are not gesture examples.",
+    "Hand side reviewed visually; original detector confidence and world landmarks are unavailable.",
+    "Mirrors are synthetic coverage; original detector handedness confidence and depth are unavailable.",
+    "This checks sampled landmark traces, not every video frame or live-camera performance."
+  ],
+  "results": [
+    {
+      "seconds": 4.66,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "left",
+      "raw_classifier_label": "left",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 0.918837919104041,
+        "index_lead_ratio": 0.8373681297127796,
+        "knuckle_span_ratio": 0.8497359345390667
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.6334419846534729,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 1.0,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 4.66,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "left",
+      "raw_classifier_label": "rock",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 0.9188386442076938,
+        "index_lead_ratio": 0.8373681235088436,
+        "knuckle_span_ratio": 0.849735836530309
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.33515647053718567,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 1.0,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 9.32,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "like",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": false,
+        "converging_fingers": true,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 0.9455208578478111,
+        "index_lead_ratio": 0.3383768097596774,
+        "knuckle_span_ratio": 0.6729293915709532
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.9946004152297974,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.67,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 9.32,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "like",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": false,
+        "converging_fingers": true,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 0.9455205203704109,
+        "index_lead_ratio": 0.33837668898547646,
+        "knuckle_span_ratio": 0.6729291513875033
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.0011744723888114095,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.67,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 13.98,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "rock",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.0791263939151088,
+        "index_lead_ratio": 0.912459719991582,
+        "knuckle_span_ratio": 0.9946366107445791
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.07004009187221527,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.02,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 13.98,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "rock",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.0791263902275066,
+        "index_lead_ratio": 0.9124589732037903,
+        "knuckle_span_ratio": 0.9946362512453109
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.49385297298431396,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.02,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 23.3,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "left",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.152840095388191,
+        "index_lead_ratio": 0.981179273399303,
+        "knuckle_span_ratio": 1.0700802525907798
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.21753771603107452,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.02,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 23.3,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "right",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.1528400473384373,
+        "index_lead_ratio": 0.9811792982534824,
+        "knuckle_span_ratio": 1.0700797738579015
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.7777191400527954,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.02,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 27.96,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "left",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.1520465209168569,
+        "index_lead_ratio": 0.9540255319513584,
+        "knuckle_span_ratio": 0.8083658241786106
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.9997743964195251,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.53,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 27.96,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "right",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.1520474609295601,
+        "index_lead_ratio": 0.9540255078671971,
+        "knuckle_span_ratio": 0.8083661740888101
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.9994733929634094,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.53,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 32.62,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "left",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": true,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.1769135664567192,
+        "index_lead_ratio": 0.9920440729026941,
+        "knuckle_span_ratio": 1.0595056961903462
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.15448631346225739,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.22,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 32.62,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "rock",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": true,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.1769135664567192,
+        "index_lead_ratio": 0.9920440729026941,
+        "knuckle_span_ratio": 1.0595057246018171
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.12115472555160522,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.22,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 37.28,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "rock",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": false,
+        "converging_fingers": false,
+        "collapsed_knuckles": true,
+        "index_reach_ratio": 1.219257577011987,
+        "index_lead_ratio": 0.2557442274731463,
+        "knuckle_span_ratio": 0.13074423240834987
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.9922058582305908,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.01,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 37.28,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "right",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": false,
+        "converging_fingers": false,
+        "collapsed_knuckles": true,
+        "index_reach_ratio": 1.2192581593631984,
+        "index_lead_ratio": 0.2557443496236775,
+        "knuckle_span_ratio": 0.13074384622287408
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.9437850713729858,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.01,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 41.95,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "left",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.503038385760222,
+        "index_lead_ratio": 1.1267655305947595,
+        "knuckle_span_ratio": 1.3994128041093723
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.008341506123542786,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.02,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 41.95,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "right",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.5030388331298095,
+        "index_lead_ratio": 1.126766440074834,
+        "knuckle_span_ratio": 1.3994127675498076
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.00041538162622600794,
+          "reason": "stable directional geometry"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.02,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 46.61,
+      "mirror": false,
+      "expected_gesture": "left",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "left",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.3402911059276736,
+        "index_lead_ratio": 1.0398230866204223,
+        "knuckle_span_ratio": 1.2228961865484613
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.9455610513687134,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "left",
+          "execute": true,
+          "known_gesture_mass": 0.0,
+          "reason": "stable directional geometry"
+        }
+      }
+    },
+    {
+      "seconds": 46.61,
+      "mirror": true,
+      "expected_gesture": "right",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "right",
+      "geometry": {
+        "valid": true,
+        "folded_fingers": true,
+        "converging_fingers": false,
+        "collapsed_knuckles": false,
+        "index_reach_ratio": 1.3402901318240061,
+        "index_lead_ratio": 1.0398222279193774,
+        "knuckle_span_ratio": 1.222895646290899
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.7057117223739624,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "right",
+          "execute": true,
+          "known_gesture_mass": 0.0,
+          "reason": "stable directional geometry"
+        }
+      }
+    }
+  ]
+}

@@ -83,6 +83,13 @@ def test_reported_palm_replaces_rejected_owner_using_shipped_classifier(shipped_
     engine.detector = simulated_detector()
     hands = reported_hands(mirror, scene)
     idle_side, palm_side = ("Left", "Right") if mirror else ("Right", "Left")
+    if scene == 1:
+        # The original upright dorsal hand is now the requested Stop-inverted
+        # command. Point it downward to keep this regression a true invalid
+        # owner -> Palm fallback; the separate Stop tests cover upright hands.
+        idle = hands[idle_side]
+        idle[:, 0] = float(idle[:, 0].min() + idle[:, 0].max()) - idle[:, 0]
+        idle[:, 1] = float(idle[:, 1].min() + idle[:, 1].max()) - idle[:, 1]
     scales = {idle_side: 1344., palm_side: 900.}
     palm_confirmed = False
 

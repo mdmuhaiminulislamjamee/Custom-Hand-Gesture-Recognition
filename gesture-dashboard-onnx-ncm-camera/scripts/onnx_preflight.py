@@ -16,7 +16,7 @@ MATPLOTLIB_CACHE.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MATPLOTLIB_CACHE))
 
 from backend.artifact_integrity import ArtifactRegistry
-from backend.config import CLASS_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODEL_LABELS, MODELS_DIRECTORY, load_runtime_config
+from backend.config import ACTIVE_CLASS_NAMES, CLASS_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODEL_LABELS, MODELS_DIRECTORY, load_runtime_config
 from backend.model_runtime import InferenceEngine
 
 
@@ -138,7 +138,7 @@ def main() -> int:
         return 1
     print(
         "Gesture runtime contract: PASS | "
-        "11 active commands; Dorsal output reserved for rejection | 10 FPS / 100 ms | "
+        f"{len(ACTIVE_CLASS_NAMES)} active commands; Dorsal output reserved for rejection | 10 FPS / 100 ms | "
         "unmirrored with calibrated Left/Right semantics"
     )
 
@@ -165,7 +165,7 @@ def main() -> int:
             return 1
         probability_rows, known_mass = classifier.predict_with_quality(zero_features)
         if probability_rows.shape != (1, len(EXPECTED_CLASSES)):
-            print("ONNX classifier returned an unexpected twelve-probability shape.")
+            print("ONNX classifier returned an unexpected probability shape.")
             return 1
         if known_mass.shape != (1,) or not np.isfinite(known_mass).all():
             print("ONNX classifier returned an invalid known-mass score.")
@@ -174,7 +174,7 @@ def main() -> int:
         print("MediaPipe initialization: PASS")
         print(
             "Classifier smoke test: PASS | "
-            "76 float32 features -> 12 probabilities + known-mass score"
+            f"76 float32 features -> {len(EXPECTED_CLASSES)} probabilities + known-mass score"
         )
         quality = dict(metadata.get("quality") or {})
         print(
@@ -184,7 +184,7 @@ def main() -> int:
             "not a live NCM-camera measurement"
         )
         print(
-            "Live Webcam and NCM validation: REQUIRED | test all eleven active gestures and Dorsal negatives, "
+            "Live Webcam and NCM validation: REQUIRED | test all active gestures, Stop inverted angle boundaries and Dorsal negatives, "
             "both hands, varied angles, low light, empty scenes, landmark jitter, "
             "unmirrored directions, and observed FPS"
         )

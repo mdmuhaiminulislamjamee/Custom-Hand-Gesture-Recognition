@@ -19,7 +19,7 @@ def test_startup_prints_active_commands_without_looking_up_retired_dorsal(monkey
                         lambda config: SimpleNamespace(status=lambda: {"ready": False}))
     run_live_camera.main()
     output = capsys.readouterr().out
-    assert "Commands (11):" in output
-    assert "Dorsal is a hard negative" in output
+    assert "Commands (12):" in output
+    assert "Stop inverted: Return to main position" in output
     assert "dorsal       ->" not in output
     assert "Return to Default Position" not in output

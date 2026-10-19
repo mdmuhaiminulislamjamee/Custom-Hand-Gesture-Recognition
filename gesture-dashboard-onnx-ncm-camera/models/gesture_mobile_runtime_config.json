@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "model_file": "gesture_mlp_production.onnx",
-  "model_format": "ONNX float32, twelve command outputs plus open-set score",
+  "model_format": "ONNX float32, thirteen tensor outputs including retired Dorsal",
   "input_shape": [
     1,
     76
@@ -97,7 +97,8 @@
     "fist",
     "thumb_down",
     "peace",
-    "rock"
+    "rock",
+    "stop_inverted"
   ],
   "reject_label": "no_gesture",
   "feedback_labels": [
@@ -112,6 +113,7 @@
     "thumb_down",
     "peace",
     "rock",
+    "stop_inverted",
     "no_gesture"
   ],
   "gesture_to_action": {
@@ -125,7 +127,8 @@
     "fist": "Mute",
     "thumb_down": "Volume Down",
     "peace": "Turn 90 Degrees",
-    "rock": "Backup"
+    "rock": "Backup",
+    "stop_inverted": "Return to main position"
   },
   "target_fps": 10,
   "frame_interval_ms": 100,
@@ -246,29 +249,6 @@
     "public_test_runtime_macro_f1": 0.9900694692254061
   },
   "analysis_resize_policy": "Preserve native central-ROI detail; only downscale if larger than 960 pixels",
-  "twelve_gesture_release": {
-    "model_sha256": "7434fffefd8d4cd3c6e82d8edacfd7c97b811beddea2bff3d506683f4dc0355e",
-    "source": "artifacts/twelve_gesture/evaluation.json",
-    "offline_checks": {
-      "onnx_parity": true,
-      "offline_macro_f1_at_least_0_97": true,
-      "offline_accepted_precision_at_least_0_99": true,
-      "offline_unknown_false_accept_at_most_0_02": true,
-      "old_command_correct_accept_at_least_0_98": true,
-      "new_command_recall_at_least_0_97": true,
-      "runtime_peace_recall_at_least_0_95": true,
-      "runtime_rock_recall_at_least_0_97": true,
-      "runtime_unknown_false_accept_at_most_0_02": true,
-      "retired_call_false_accept_at_most_0_02": true
-    },
-    "live_camera_validation_pending": true,
-    "limitations": [
-      "New-command validation/test examples are participant-held-out rows from HaGRID's training partition.",
-      "Legacy evaluation negatives mixed the new valid commands with true negatives without source labels; all were excluded.",
-      "In-plane rotation is synthetic; it cannot prove all camera viewing angles, distances, lighting, or occlusions.",
-      "No new live low-resolution or low-FPS camera capture is available for qualification."
-    ]
-  },
   "active_class_names": [
     "left",
     "right",
@@ -284,5 +264,41 @@
   ],
   "disabled_gestures": [
     "dorsal"
-  ]
+  ],
+  "stop_inverted_validation": {
+    "maximum_tilt_from_up_degrees": 90.0,
+    "angle_space": "source image XY pixels",
+    "required_surface": "dorsal",
+    "fingers_together_or_spread": true,
+    "xy_minimum_degrees": -180.0,
+    "xy_maximum_degrees": 0.0,
+    "above_limit": "no_gesture"
+  },
+  "stop_inverted_release": {
+    "model_sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8",
+    "offline_checks": {
+      "onnx_parity": true,
+      "offline_macro_f1_at_least_0_97": true,
+      "offline_accepted_precision_at_least_0_99": true,
+      "offline_unknown_false_accept_at_most_0_02": true,
+      "old_command_correct_accept_at_least_0_98": true,
+      "new_command_recall_at_least_0_97": true,
+      "retired_call_false_accept_at_most_0_02": true,
+      "runtime_peace_recall_at_least_0_95": true,
+      "runtime_rock_recall_at_least_0_97": true,
+      "runtime_unknown_false_accept_at_most_0_02": true,
+      "stop_precision": true,
+      "runtime_stop_precision": true,
+      "runtime_stop_recall": true
+    },
+    "evaluation": "artifacts/stop_inverted/evaluation.json",
+    "live_camera_validation_pending": true
+  },
+  "open_palm_rotation_validation": {
+    "xy_minimum_degrees": -180.0,
+    "xy_maximum_degrees": 0.0,
+    "angle_space": "source image XY pixels",
+    "endpoints_inclusive": true,
+    "lower_half": "no_gesture"
+  }
 }

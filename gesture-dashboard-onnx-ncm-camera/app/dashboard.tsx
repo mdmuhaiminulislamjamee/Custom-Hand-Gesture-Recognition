@@ -14,7 +14,7 @@ import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './
 const API_URL = process.env.NEXT_PUBLIC_GESTURE_API_URL ?? 'http://127.0.0.1:8200';
 const WS_URL = API_URL.replace(/^http/, 'ws');
 const DEFAULT_CLASSES = [
-  'left', 'right', 'up', 'down', 'open_palm', 'like', 'ok', 'fist', 'thumb_down', 'peace', 'rock',
+  'left', 'right', 'up', 'down', 'open_palm', 'like', 'ok', 'fist', 'thumb_down', 'peace', 'rock', 'stop_inverted',
 ];
 const DEFAULT_ACTIONS: Record<string, string> = {
   left: 'Move Left',
@@ -28,6 +28,7 @@ const DEFAULT_ACTIONS: Record<string, string> = {
   thumb_down: 'Volume Down',
   peace: 'Turn 90 Degrees',
   rock: 'Backup',
+  stop_inverted: 'Return to main position',
 };
 const DEMO_COMMANDS: Record<string, string> = {
   left: 'MOVE_LEFT',
@@ -41,6 +42,7 @@ const DEMO_COMMANDS: Record<string, string> = {
   thumb_down: 'VOLUME_DOWN',
   peace: 'TURN_90',
   rock: 'BACKUP',
+  stop_inverted: 'RETURN_HOME',
 };
 const CANONICAL_CLASS_SET = new Set(DEFAULT_CLASSES);
 const HAND_CONNECTIONS = [
@@ -1507,7 +1509,7 @@ export default function Dashboard() {
                   ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
                 <span>{prediction.hand_selection?.message ?? 'Show a valid gesture with either hand. If both hands gesture, bring one forward.'}</span>
                 <span>Closeness uses image and hand landmark scale; camera depth is not measured.</span>
-                <span>Keep the whole hand visible, including in front of clothing. Dorsal poses are treated as no gesture.</span>
+                <span>Keep the whole hand visible. Palm and Stop inverted accept XY angles from 0° to −180°, through up and including both horizontal endpoints. Lower poses are no gesture.</span>
               </article>
               <article className="result-card accent-mint">
                 <p>RUNTIME PREDICTION</p><strong>{humanize(runtimeGesture)}</strong>

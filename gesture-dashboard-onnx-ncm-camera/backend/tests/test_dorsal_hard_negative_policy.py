@@ -11,11 +11,14 @@ from backend.tests.test_gesture_orientation import rotate_screen
 from backend.tests.test_reported_peace_dorsal import reported_dorsal
 
 
-@pytest.mark.parametrize("raw_label", CLASS_NAMES)
+@pytest.mark.parametrize("raw_label", [name for name in CLASS_NAMES if name not in {"stop_inverted", "open_palm"}])
 @pytest.mark.parametrize("angle", range(-180, 180, 30))
 @pytest.mark.parametrize("mirror", [False, True])
 @pytest.mark.parametrize("thumb_offset", [(0, 0), (120, -100), (-120, 100)])
 def test_dorsal_is_negative_for_every_classifier_label_and_wrist_angle(raw_label, angle, mirror, thumb_offset):
+    # The two trained open-hand outputs use surface validation to separate
+    # Palm from Stop inverted in the upper arc. Retired Dorsal and unrelated
+    # classifier outputs must still never recover it.
     config = RuntimeConfig()
     points = reported_dorsal().copy()
     points[4] += thumb_offset

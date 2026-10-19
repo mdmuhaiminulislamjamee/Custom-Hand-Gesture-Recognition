@@ -4,13 +4,13 @@ import json
 
 import numpy as np
 
-from backend.config import MODELS_DIRECTORY, load_runtime_config
+from backend.config import ACTIVE_CLASS_NAMES, MODELS_DIRECTORY, load_runtime_config
 from backend.model_runtime import ModelManager
 
 
-def _macro_f1(truth: np.ndarray, predicted: np.ndarray, class_count: int) -> float:
+def _macro_f1(truth: np.ndarray, predicted: np.ndarray, class_indices) -> float:
     scores = []
-    for class_index in range(class_count):
+    for class_index in class_indices:
         actual = truth == class_index
         guessed = predicted == class_index
         true_positive = int(np.count_nonzero(actual & guessed))
@@ -41,8 +41,12 @@ def test_untouched_cache_qualifies_ten_class_model_and_open_set_gate():
     predicted = probabilities.argmax(axis=1)
 
     accuracy = float(np.mean(predicted[known] == labels[known]))
-    macro_f1 = _macro_f1(labels[known], predicted[known], len(config.class_names))
-    accepted = known_mass >= config.known_mass_floor
+    active_indices = [config.class_to_idx[name] for name in ACTIVE_CLASS_NAMES]
+    macro_f1 = _macro_f1(labels[known], predicted[known], active_indices)
+    ordered = np.sort(probabilities, axis=1)
+    accepted = ((known_mass >= config.known_mass_floor) & np.isin(predicted, active_indices)
+                & (ordered[:, -1] >= config.confidence_floor)
+                & (ordered[:, -1] - ordered[:, -2] >= config.probability_margin_floor))
     runtime_predicted = np.where(accepted, predicted, -1)
     false_acceptance = float(np.mean(accepted[unknown]))
 
@@ -51,7 +55,7 @@ def test_untouched_cache_qualifies_ten_class_model_and_open_set_gate():
     assert float(np.mean(accepted[known])) >= 0.96
     assert false_acceptance <= 0.03
 
-    for gesture in ("down", "dorsal", "fist", "thumb_down"):
+    for gesture in ("down", "fist", "thumb_down", "stop_inverted"):
         index = config.class_to_idx[gesture]
         actual = labels == index
         true_positive = np.count_nonzero(actual & (runtime_predicted == index))

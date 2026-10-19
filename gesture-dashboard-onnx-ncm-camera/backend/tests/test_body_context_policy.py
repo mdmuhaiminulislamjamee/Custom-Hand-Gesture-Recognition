@@ -92,9 +92,14 @@ def test_detector_scores_hand_without_body_veto_below_waist(monkeypatch):
     assert dorsal[0]["rejection_reason"] is None
     assert dorsal[0]["recovery_score"] == 1.
     assert "body_context" not in dorsal[0]
+    dorsal_scores = len(scores)
+    assert dorsal_scores > 0 and set(scores) == {"dorsal"}
     palm = detector.detect_candidates(frame, state=state, candidate_score=candidate("open_palm"))
     assert palm[0]["rejection_reason"] is None
-    assert scores == ["dorsal", "open_palm"]
+    # Peer acquisition can score the same hand in several recovery views.
+    # Every observation must reach the scorer without a posture/body veto.
+    assert len(scores) > dorsal_scores
+    assert set(scores[dorsal_scores:]) == {"open_palm"}
 
 
 @pytest.mark.parametrize("final_label", RuntimeConfig().class_names)

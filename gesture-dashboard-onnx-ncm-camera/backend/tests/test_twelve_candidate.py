@@ -56,7 +56,7 @@ def _close_finger_peace_pose() -> np.ndarray:
 
 def test_requested_candidate_actions_are_mapped():
     contract = json.loads((PROJECT_ROOT / "artifacts/twelve_gesture/candidate_contract.json").read_text())
-    assert contract["class_names"] == COMMANDS
+    assert contract["class_names"] == COMMANDS[:12]  # historical candidate remains immutable
     assert contract["gesture_to_action"]["peace"] == "Turn 90 Degrees"
     assert "source_call" not in contract["class_names"]
     assert contract["gesture_to_action"]["rock"] == "Backup"

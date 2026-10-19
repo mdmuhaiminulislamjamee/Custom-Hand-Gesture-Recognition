@@ -1,0 +1,574 @@
+{
+  "source": "reverse palm.mp4",
+  "traced_frames": 9,
+  "originally_missed_traced_frames": 7,
+  "replay_cases": 18,
+  "passed_cases": 18,
+  "model_sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8",
+  "limitations": [
+    "Approximate manual traces of the displayed 21 overlay joints; not raw detector output or independently recovered depth. Only the foreground raised hand is labelled.",
+    "Physical back-of-right-hand appearance reviewed visually; detector confidence is unavailable in this recording.",
+    "Mirrors are synthetic coverage; original detector handedness confidence and depth are unavailable.",
+    "This checks sampled landmark traces, not every video frame or live-camera performance."
+  ],
+  "results": [
+    {
+      "seconds": 0,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "stop_inverted",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -80.8471085623383,
+        "tilt_from_up_degrees": 9.152891437661706,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.7618949983730611,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9802557229995728,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.99,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 0,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "stop_inverted",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -99.15288584710905,
+        "tilt_from_up_degrees": -9.15288584710904,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.7618951135100506,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9927589297294617,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.99,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 8,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -70.55459930128627,
+        "tilt_from_up_degrees": 19.44540069871372,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.5993554690334315,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.3393392264842987,
+          "reason": "stable Stop inverted hand geometry"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.05,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 8,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -109.4454320116669,
+        "tilt_from_up_degrees": -19.4454320116669,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.5993552126215501,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.10816915333271027,
+          "reason": "stable Stop inverted hand geometry"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.05,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 12,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -44.29844542781895,
+        "tilt_from_up_degrees": 45.70155457218106,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.41782804514878735,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9021442532539368,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.63,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 12,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -135.70157657549484,
+        "tilt_from_up_degrees": -45.701576575494826,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.4178274225233434,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.7575531601905823,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.63,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 16,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -71.8861147657083,
+        "tilt_from_up_degrees": 18.113885234291708,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6530102419731794,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.678870677947998,
+          "reason": "stable Stop inverted hand geometry"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.37,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 16,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -108.11390529189916,
+        "tilt_from_up_degrees": -18.11390529189915,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6530101882974614,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.5175647735595703,
+          "reason": "stable Stop inverted hand geometry"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.37,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 20,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "stop_inverted",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -64.1934927121093,
+        "tilt_from_up_degrees": 25.806507287890707,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6723216355540315,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9134337306022644,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.98,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 20,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "stop_inverted",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -115.8064970194189,
+        "tilt_from_up_degrees": -25.806497019418888,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6723218987515348,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.8169484734535217,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.98,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 32,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -47.761794426593504,
+        "tilt_from_up_degrees": 42.238205573406496,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 0.921109153446785,
+        "minimum_reach": 0.6187739656574591,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9988519549369812,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.41,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 32,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -132.23821897012286,
+        "tilt_from_up_degrees": -42.23821897012285,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 0.9211094055124581,
+        "minimum_reach": 0.6187734499467471,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.998298704624176,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.41,
+          "reason": "stable Stop inverted hand geometry"
+        }
+      }
+    },
+    {
+      "seconds": 36,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "thumb_down",
+      "geometry": {
+        "xy_degrees": -73.99329036345627,
+        "tilt_from_up_degrees": 16.006709636543736,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6169951746148397,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.5984565615653992,
+          "reason": "stable Stop inverted hand geometry"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.98,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 36,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "thumb_down",
+      "geometry": {
+        "xy_degrees": -106.00670963654373,
+        "tilt_from_up_degrees": -16.006709636543736,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6169951093405585,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.5720118880271912,
+          "reason": "stable Stop inverted hand geometry"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.98,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 40,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "stop_inverted",
+      "geometry": {
+        "xy_degrees": -76.54933619913132,
+        "tilt_from_up_degrees": 13.450663800868682,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6992365529778329,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9996010065078735,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 1.0,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 40,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "stop_inverted",
+      "geometry": {
+        "xy_degrees": -103.45066916979886,
+        "tilt_from_up_degrees": -13.450669169798857,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.6992365234307196,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9996566772460938,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 1.0,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 44,
+      "mirror": false,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -39.84338235744879,
+        "tilt_from_up_degrees": 50.15661764255121,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.7183481079909467,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9990530610084534,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 1.0,
+          "reason": "stable and confident"
+        }
+      }
+    },
+    {
+      "seconds": 44,
+      "mirror": true,
+      "expected_gesture": "stop_inverted",
+      "displayed_gesture": "no_gesture",
+      "raw_classifier_label": "open_palm",
+      "geometry": {
+        "xy_degrees": -140.15663566359297,
+        "tilt_from_up_degrees": -50.15663566359298,
+        "allowed_direction": true,
+        "extended_fingers": true,
+        "valid": true,
+        "minimum_extension": 1.0,
+        "minimum_reach": 0.7183475617310084,
+        "strong_geometry": true
+      },
+      "outcomes": {
+        "shipped_onnx": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 0.9987362027168274,
+          "reason": "stable and confident"
+        },
+        "recorded_mass": {
+          "prediction": "stop_inverted",
+          "execute": true,
+          "known_gesture_mass": 1.0,
+          "reason": "stable and confident"
+        }
+      }
+    }
+  ]
+}
