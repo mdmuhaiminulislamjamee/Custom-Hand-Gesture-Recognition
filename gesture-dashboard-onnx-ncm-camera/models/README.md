@@ -1,6 +1,6 @@
 # Twelve-Gesture Runtime Artifacts
 
-Active offline-qualified model: **StopInvertedFeedbackMLP**. Live webcam/NCM
+Active offline-qualified model: **StopInvertedDirectionalFeedbackMLP**. Live webcam/NCM
 validation remains pending; the older ten-command evidence below is historical.
 
 This directory is the atomic runtime bundle:
@@ -31,7 +31,10 @@ extended fingers, together or spread. Palm and Stop inverted accept source-image
 XY angles from 0° at screen-right through −90° upward to −180° at screen-left,
 including both horizontal endpoints. The lower semicircle is rejected.
 The reserved Dorsal tensor output remains disabled. This release incorporates
-all 25 reviewed feedback corrections in training; they are excluded from evaluation.
+all 103 reviewed feedback corrections in training, including 30 Left and 48 Right;
+they are excluded from evaluation. Direction angles use source-image pixels.
+The directional update and checks are recorded in
+`artifacts/directional_feedback_20261027/evaluation.json`.
 Open Palm is eligible when the palm axis points up, left, or right, including
 oblique side angles. Downward Open Palm poses are rejected. Fist and Thumbs Down are handedness-neutral. Fist accepts
 horizontal left, up-left, up, up-right and horizontal right, including a
@@ -51,8 +54,8 @@ regressions are not measurements of live camera accuracy.
 
 The measurements in this section describe the retired ten-command model, not
 the active ONNX. Current offline classifier and runtime results are
-in `artifacts/stop_inverted/evaluation.json`. Previous bundles are preserved
-under `artifacts/stop_inverted/previous_release/`.
+in `artifacts/directional_feedback_20261027/evaluation.json`. Previous bundles are
+preserved under `artifacts/directional_feedback_20261027/previous_release/`.
 
 Training is balanced at 4,096 rows for each of 11 internal classes (45,056
 rows total). HaGRID participant groups are disjoint across training,

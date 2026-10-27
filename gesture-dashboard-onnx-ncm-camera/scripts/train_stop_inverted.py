@@ -49,6 +49,23 @@ def join(parts):
     return {key: np.concatenate([part[key] for part in parts]) for key in parts[0]}
 
 
+def replay_indices(data, per_class=128):
+    """Keep unique reviewed corrections alongside public Safe Learn anchors."""
+    identifiers = data["source_id"].astype(str)
+    feedback_mask = np.char.startswith(identifiers, "feedback:")
+    original_feedback = feedback_mask & np.asarray([name.count(":") == 1 for name in identifiers])
+    selected = []
+    for label in range(len(LABELS)):
+        reviewed = np.flatnonzero((data["y"] == label) & original_feedback)
+        if len(reviewed):
+            _, unique = np.unique(identifiers[reviewed], return_index=True)
+            reviewed = reviewed[np.sort(unique)][:per_class // 2]
+        public = np.flatnonzero((data["y"] == label) & ~feedback_mask)
+        selected.extend(public[:per_class - len(reviewed)])
+        selected.extend(reviewed)
+    return np.asarray(selected, np.int64)
+
+
 def dorsal_side(points):
     # Source label establishes the surface. This is NOT an independent
     # validation of MediaPipe's handedness prediction in a camera capture.
@@ -117,6 +134,52 @@ def vary_pointing_thumb(points, rng):
     for joint, along, away in zip((1, 2, 3, 4), (.22, .50, .80, 1.), (.55, 1., .7, .1)):
         points[joint] = points[0] + scale * (axis * reach * along + normal * arch * away)
     return points
+
+
+def directional_feedback_augmentation(feedback, rng, per_direction=4096):
+    """Preserve reviewed side-view shapes across both horizontal directions.
+
+    Rotate in source-pixel space before normalizing for the destination aspect
+    ratio. Reflection swaps Left/Right; rotation stays within the horizontal
+    command sector. These are 2-D training variants, not additional people or
+    measured depth/lighting conditions.
+    """
+    available = np.flatnonzero(np.isin(feedback["y"], [0, 1]))
+    if not len(available):
+        return None
+    from PIL import Image
+    source_aspects = {}
+    for index in available:
+        feedback_id = str(feedback["source_id"][index]).removeprefix("feedback:")
+        with Image.open(ROOT / "feedback/images" / f"{feedback_id}.jpg") as image:
+            source_aspects[index] = image.width / image.height
+    poses, labels, people, identifiers = [], [], [], []
+    aspects = (1., 4. / 3., 16. / 9., 3. / 4.)
+    for label in (0, 1):
+        chosen = np.resize(rng.permutation(available), per_direction)
+        for number, index in enumerate(chosen):
+            pose = (feedback["landmarks"][index] - feedback["landmarks"][index, 0]) * [source_aspects[index], 1.]
+            mirrored = int(feedback["y"][index]) != label
+            if mirrored:
+                pose[:, 0] *= -1
+            # Mild anisotropy/shear covers detector projection variation while
+            # retaining each complete finger chain and its reviewed shape.
+            affine = np.asarray([[rng.uniform(.85, 1.15), rng.uniform(-.08, .08)],
+                                 [0., rng.uniform(.85, 1.15)]])
+            pose = pose @ affine.T
+            vector = pose[8] - pose[5]
+            tilt = np.deg2rad(rng.uniform(-38., 38.))
+            target = tilt if label == 0 else np.pi - tilt
+            angle = target - np.arctan2(vector[1], vector[0])
+            c, s = np.cos(angle), np.sin(angle)
+            pose = pose @ np.asarray([[c, -s], [s, c]]).T
+            aspect = aspects[number % len(aspects)]
+            pose[:, 0] /= aspect
+            poses.append(pose.astype(np.float32))
+            labels.append(label)
+            people.append(str(feedback["group"][index]))
+            identifiers.append(str(feedback["source_id"][index]) + f":horizontal_variant:{label}:{number}")
+    return make_data(poses, labels, people, identifiers)
 
 
 def load_feedback():
@@ -301,6 +364,9 @@ def prepare(seed=18065, per_class=4096):
             pointing_ids.append(str(source["source_id"][index]) + ":expanded_thumb")
     groups["train"] = join([groups["train"], make_data(
         pointing_poses, pointing_labels, pointing_people, pointing_ids)])
+    directional_variants = directional_feedback_augmentation(feedback, rng, per_class)
+    if directional_variants is not None:
+        groups["train"] = join([groups["train"], directional_variants])
     people = {split: set(map(str, data["group"])) for split, data in groups.items()}
     overlap = {f"{a}/{b}": len(people[a] & people[b])
                for a, b in (("train", "val"), ("train", "test"), ("val", "test"))}
@@ -314,6 +380,11 @@ def prepare(seed=18065, per_class=4096):
                                          runtime_still_rejects_entire_lower_half=True),
                  legacy_palm_rows_relabelled_for_upper_arc=palm_relabels,
                  expanded_thumb_direction_training_rows=len(pointing_poses),
+                 reviewed_horizontal_augmentation=dict(
+                     rows=0 if directional_variants is None else len(directional_variants["y"]),
+                     source_aspect="read from each feedback JPEG", target_aspects=[1., 4. / 3., 16. / 9., 3. / 4.],
+                     maximum_pixel_angle_from_horizontal=38., reflection_swaps_labels=True,
+                     training_only=True),
                  source_stop_counts=source_counts, feedback=feedback_audit,
                  ambiguous_legacy_dorsal_excluded=excluded, cross_split_rows_removed=deduplicated,
                  participant_overlap=overlap,
@@ -357,12 +428,20 @@ def score(path, data, runtime=False):
                 per_class=report, confusion=confusion_matrix(truth, predicted, labels=np.arange(len(LABELS))).tolist())
 
 
-def train(epochs=100, per_class=4096):
+def train(epochs=100, per_class=4096, prepared=False):
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    groups, audit = prepare(per_class=per_class)
-    write_json(OUTPUT / "data_audit.json", audit)
-    for split, data in groups.items():
-        np.savez_compressed(OUTPUT / f"{split}.npz", **data)
+    if prepared:
+        audit = json.loads((OUTPUT / "data_audit.json").read_text(encoding="utf-8"))
+        _, current_feedback = load_feedback()
+        if current_feedback["sha256"] != audit["feedback"]["sha256"]:
+            raise ValueError("Feedback changed since this training dataset was prepared")
+        groups = {split: load_npz(OUTPUT / f"{split}.npz") for split in ("train", "val", "test")}
+    else:
+        groups, audit = prepare(per_class=per_class)
+        write_json(OUTPUT / "data_audit.json", audit)
+        for split, data in groups.items():
+            np.savez_compressed(OUTPUT / f"{split}.npz", **data)
+    shutil.copy2(ROOT / "feedback/misclassification_log.csv", OUTPUT / "feedback_snapshot.csv")
     print("Prepared", {split: len(data["y"]) for split, data in groups.items()}, flush=True)
     scaler = StandardScaler().fit(groups["train"]["X"])
     x = scaler.transform(groups["train"]["X"]).astype(np.float32)
@@ -370,9 +449,15 @@ def train(epochs=100, per_class=4096):
     model = MLPClassifier(hidden_layer_sizes=(128, 64), alpha=.003, batch_size=256,
                           learning_rate_init=.0007, random_state=18065, max_iter=1)
     best, best_f1, stale, history = None, -1., 0, []
+    training_rng = np.random.default_rng(18065)
     with threadpool_limits(limits=1):
         for epoch in range(epochs):
-            model.partial_fit(x, groups["train"]["y"], classes=np.arange(len(LABELS)))
+            # Bound sklearn's label-binarization and activation scratch arrays
+            # instead of allocating them for the complete expanded dataset.
+            order = training_rng.permutation(len(x))
+            for start in range(0, len(order), 8192):
+                indices = order[start:start + 8192]
+                model.partial_fit(x[indices], groups["train"]["y"][indices], classes=np.arange(len(LABELS)))
             metric = float(f1_score(groups["val"]["y"], model.predict(validation),
                                     labels=np.arange(len(LABELS)), average="macro", zero_division=0))
             history.append({"epoch": epoch + 1, "validation_raw_macro_f1": metric})
@@ -461,6 +546,28 @@ def install():
                   stop_precision=test["stop_precision"] >= .97,
                   runtime_stop_precision=evaluation["test_runtime"]["stop_precision"] >= .97,
                   runtime_stop_recall=evaluation["test_runtime"]["stop_recall"] >= .95)
+    if evaluation["audit"].get("reviewed_horizontal_augmentation", {}).get("rows", 0):
+        report = json.loads((OUTPUT / "candidate_feedback.json").read_text(encoding="utf-8"))
+        checks["horizontal_feedback_matches_model"] = report["model_sha256"] == digest
+        checks["horizontal_feedback_matches_dataset"] = report["feedback_sha256"] == evaluation["audit"]["feedback"]["sha256"]
+        for label in ("left", "right"):
+            summary = report["summary"][label]
+            checks[f"reviewed_{label}_classified_and_executed"] = (
+                summary["rows"] > 0 and summary["raw_accepted_correct"] == summary["rows"]
+                and summary["executed_correct"] == summary["rows"])
+            counts = report["stress"]["counts"]
+            checks[f"reviewed_{label}_angle_mirror_aspect_variants"] = (
+                counts[label + "_total"] > 0 and counts[label + "_correct"] == counts[label + "_total"])
+        replay = report["image_replay"]
+        checks["reviewed_directional_jpeg_detection_and_actions"] = (
+            replay["total"] > 0 and replay["correct"] == replay["total"]
+            and replay["correct_action"] == replay["total"])
+        evaluation["directional_feedback_evidence"] = dict(
+            report=(OUTPUT / "candidate_feedback.json").relative_to(ROOT).as_posix(),
+            feedback_sha256=report["feedback_sha256"],
+            reviewed_rows=sum(report["summary"][label]["rows"] for label in ("left", "right")),
+            transformed_rows=sum(report["stress"]["counts"][label + "_total"] for label in ("left", "right")),
+            jpeg_actions=replay["correct_action"], training_evidence_only=True)
     if not all(checks.values()):
         raise ValueError(f"Candidate release checks failed: {checks}")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -485,13 +592,16 @@ def install():
     config["open_palm_rotation_validation"] = dict(xy_minimum_degrees=-180., xy_maximum_degrees=0.,
                                                     angle_space="source image XY pixels", endpoints_inclusive=True,
                                                     lower_half="no_gesture")
+    config.setdefault("directional_resolution", {}).update(
+        angle_space="source image XY pixels when dimensions are available",
+        positive_index_dx_command="left", negative_index_dx_command="right")
     for key in ("twelve_gesture_release", "thirteen_gesture_release"):
         config.pop(key, None)
     config["stop_inverted_release"] = dict(model_sha256=digest, offline_checks=checks,
-                                           evaluation="artifacts/stop_inverted/evaluation.json",
+                                           evaluation=(OUTPUT / "evaluation.json").relative_to(ROOT).as_posix(),
                                            live_camera_validation_pending=True)
     metadata = dict(schema_version=4, created_utc=datetime.now(timezone.utc).isoformat(),
-                    format="ONNX", model_name="StopInvertedFeedbackMLP", onnx_file="gesture_mlp_production.onnx",
+                    format="ONNX", model_name=("StopInvertedDirectionalFeedbackMLP" if "directional_feedback_evidence" in evaluation else "StopInvertedFeedbackMLP"), onnx_file="gesture_mlp_production.onnx",
                     onnx_bytes=source.stat().st_size, onnx_sha256=digest,
                     input=dict(name="landmark_features", dtype="float32", shape=[None, 76]),
                     probability_output="probabilities", known_mass_output="known_gesture_mass",
@@ -514,8 +624,11 @@ def install():
     for split, name in (("train", "replay"), ("val", "validation"), ("test", "untouched_test")):
         data = load_npz(OUTPUT / f"{split}.npz")
         if split == "train":
-            indices = np.concatenate([np.flatnonzero(data["y"] == label)[:128] for label in range(len(LABELS))])
+            indices = replay_indices(data)
             data = subset(data, indices)
+            metadata["reviewed_feedback_replay_counts"] = {
+                name: int(np.sum((data["y"] == label) & np.char.startswith(data["source_id"].astype(str), "feedback:")))
+                for label, name in enumerate(LABELS)}
         data["y"] = np.where((data["y"] == REJECT) | (data["y"] == DORSAL), -1, data["y"])
         np.savez_compressed(models / f"gesture_online_{name}_cache.npz", **data, class_names=np.asarray(CLASS_NAMES))
     shutil.copy2(source, models / "gesture_mlp_production.onnx")
@@ -531,7 +644,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--per-class", type=int, default=4096)
+    parser.add_argument("--output", type=Path, default=OUTPUT, help="Isolated candidate and evaluation directory")
+    parser.add_argument("--prepared", action="store_true", help="Reuse the isolated, feedback-hash-checked prepared splits")
     parser.add_argument("--install", action="store_true", help="Install the already evaluated candidate; do not retrain")
     parser.add_argument("--evaluate", action="store_true", help="Refresh runtime comparisons without retraining")
     args = parser.parse_args()
-    install() if args.install else evaluate_saved_candidate() if args.evaluate else train(args.epochs, args.per_class)
+    OUTPUT = args.output.resolve()
+    install() if args.install else evaluate_saved_candidate() if args.evaluate else train(args.epochs, args.per_class, args.prepared)

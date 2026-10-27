@@ -36,7 +36,7 @@ VIEWS = {
     "roll_right": "Relax the wrist with a small right tilt; keep the intended direction clear.",
     "casual": "Place the hand naturally. Vary its position and distance between photos.",
 }
-LABEL_TITLES = dict(zip(CLASS_NAMES, (
+LABEL_TITLES: dict[str, str] = dict(zip(CLASS_NAMES, (
     "Left", "Right", "Up · index finger", "Down · index finger", "Open palm",
     "Like · thumb up", "Dorsal · fingers down", "OK",
 )))
@@ -144,8 +144,8 @@ def collection_plan():
     for label in ACTIVE_CLASS_NAMES:
         views = list(VIEWS) if label in {*CLASS_NAMES[:4], "peace", "rock"} else ["front", "yaw_left", "yaw_right", "casual"]
         instruction = {
-            "left": "Extend ONLY the index finger toward your left (right side of the unmirrored preview).",
-            "right": "Extend ONLY the index finger toward your right (left side of the unmirrored preview).",
+            "left": "Extend ONLY the index finger toward your left (right side of the unmirrored preview). Use either hand; vary palm, back and edge views, thumb position and a small upward/downward tilt while keeping the index primarily horizontal. Fold the middle, ring and little fingers.",
+            "right": "Extend ONLY the index finger toward your right (left side of the unmirrored preview). Use either hand; vary palm, back and edge views, thumb position and a small upward/downward tilt while keeping the index primarily horizontal. Fold the middle, ring and little fingers.",
             "up": "Point ONLY the index finger upward. Fold the middle, ring, and little fingers.",
             "down": "Point ONLY the index finger downward. Fold the middle, ring, and little fingers.",
             "open_palm": "Show your palm with all five fingers visible. Point up, left, or right; never down. Vary the wrist angle across captures.",
@@ -189,9 +189,14 @@ def identifier(value, description):
 
 def atomic_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    # Include a random component so two store instances cannot overwrite one
+    # another's temporary file before either one replaces the destination.
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    try:
+        temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class CollectionStore:
@@ -271,8 +276,12 @@ class CollectionStore:
 
     def freeze_bytes(self, frame_id, jpeg, result, source="webcam"):
         with self._lock:
+            if source not in {"ncm", "webcam"}:
+                raise ValueError("Unknown collection camera source.")
             try:
                 with Image.open(BytesIO(jpeg)) as image:
+                    if image.format != "JPEG":
+                        raise ValueError("The uploaded webcam frame must be a JPEG image.")
                     image.verify()
             except Exception as error:
                 raise ValueError("The uploaded webcam frame is not a valid image.") from error
@@ -456,9 +465,14 @@ class CollectionStore:
             _, frame_id, jpeg, prediction, source = entry
             if not self._inside("participants", participant_id, "participant.json").is_file():
                 raise ValueError("Create or select a participant first.")
-            with Image.open(BytesIO(jpeg)) as image:
-                width, height = image.size
-                image.verify()
+            try:
+                with Image.open(BytesIO(jpeg)) as image:
+                    if image.format != "JPEG":
+                        raise ValueError("The frozen camera frame is not a JPEG image.")
+                    width, height = image.size
+                    image.verify()
+            except Exception as error:
+                raise ValueError("The frozen camera frame is not a valid JPEG image.") from error
             digest = hashlib.sha256(jpeg).hexdigest()
             sample_id = digest[:24]
             directory = self._inside("participants", participant_id, step["label"], step["view"], session_id)
@@ -481,10 +495,18 @@ class CollectionStore:
                           prediction={k: prediction.get(k) for k in (
                               "raw_prediction", "runtime_prediction", "known_gesture_mass", "action_reason", "quality")})
             # Bytes are the frozen raw camera JPEG, never the browser's display.
-            temporary = image_path.with_suffix(".jpg.tmp")
-            temporary.write_bytes(jpeg)
-            temporary.replace(image_path)
-            atomic_json(metadata_path, record)
+            temporary = image_path.with_name(f".{image_path.name}.{secrets.token_hex(8)}.tmp")
+            try:
+                temporary.write_bytes(jpeg)
+                temporary.replace(image_path)
+                atomic_json(metadata_path, record)
+            except Exception:
+                # A sidecar is required for a sample to be discoverable. Do
+                # not leave an unindexed image behind if writing it fails.
+                image_path.unlink(missing_ok=True)
+                raise
+            finally:
+                temporary.unlink(missing_ok=True)
             self._frames.pop(token, None)
             return dict(status="saved", image_path=str(image_path), sample_id=sample_id,
                         has_features=bool(record["feature_vector"]), summary=self.summary(participant_id))

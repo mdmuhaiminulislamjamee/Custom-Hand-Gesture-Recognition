@@ -908,7 +908,13 @@ class GeometryResolver:
                             "strong_geometry": False,
                             "model_supported_pose": False,
                         }
-        dominance = float(np.max(np.abs(vector)) / norm)
+        # Normalized x and y have different units on a rectangular image.
+        # Use camera pixels for the direction sector, as for the open-hand
+        # angle checks; a 30-degree point must not become Up on a wide frame.
+        screen_vector = vector.astype(np.float64)
+        if image_shape is not None:
+            screen_vector = screen_vector * [image_shape[1], image_shape[0]]
+        dominance = float(np.max(np.abs(screen_vector)) / np.linalg.norm(screen_vector))
         # The world joints retain the index's length when it points partly
         # toward the lens. They establish the pose, while the image projection
         # still determines the command's camera-relative direction.
@@ -921,7 +927,7 @@ class GeometryResolver:
             pose_score >= 0.50
             and float(non_index_extensions.mean()) <= 0.70
         )
-        dx, dy = map(float, vector)
+        dx, dy = map(float, screen_vector)
         gesture = (
             ("down" if dy > 0 else "up")
             if abs(dy) >= abs(dx)
@@ -1152,6 +1158,8 @@ class GeometryResolver:
             "gesture": gesture,
             "pose_score": pose_score,
             "axis_dominance": dominance,
+            "direction_xy_degrees": float(np.degrees(np.arctan2(dy, dx))),
+            "direction_angle_space": "source image pixels" if image_shape is not None else "normalized XY",
             "maximum_non_index_extension": float(non_index_extensions.max()),
             "mean_non_index_extension": float(non_index_extensions.mean()),
             "index_straightness": index_straightness,

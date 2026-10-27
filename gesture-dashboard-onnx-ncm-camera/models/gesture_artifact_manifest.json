@@ -5,20 +5,20 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 11138,
-      "sha256": "88c469ea0ea9006441b42152fc0a09299cbe72d17aeb3c84b9fef1dfd90cedde"
+      "bytes": 12245,
+      "sha256": "37c6422fd626421aabc1539acc4dc30a08ff5ded2744e16022da68cdd9b504e7"
     },
     "gesture_mlp_production.onnx": {
       "bytes": 77797,
-      "sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8"
+      "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 8644,
-      "sha256": "fb211e675bcb69e23e82c2135f7821b3dfba12d8ac6feb0097f4c6bf30b5191c"
+      "bytes": 9215,
+      "sha256": "fdf747a98cb7bfa32cc8d855dcbd0bdf3446e0b25aeac8b03f93469478b1738d"
     },
     "gesture_online_replay_cache.npz": {
-      "bytes": 870113,
-      "sha256": "5a3ba03dfa65eefbeaa7578bb09f16af454fed21f11e7acbc8ce5e252ee12d5a"
+      "bytes": 863867,
+      "sha256": "351a59f4d64e0db69b3575fc21da59a3e68179d6054814c1cd141c0b461b8245"
     },
     "gesture_online_untouched_test_cache.npz": {
       "bytes": 3731833,
@@ -48,8 +48,8 @@
     "rock",
     "stop_inverted"
   ],
-  "created_utc": "2026-10-18T09:12:48.767882+00:00",
+  "created_utc": "2026-10-27T04:16:51.480029+00:00",
   "feature_count": 76,
-  "release_fingerprint": "2b4bf45032129d29f365221d5e87a1aa2724f642fedf00a3e2d5cb5b56aed1b9",
+  "release_fingerprint": "8b3fa56ab16c96699b154ee938aa40c58dacd9a8e1f44de66c0daa2ce6de6b46",
   "schema_version": 1
 }

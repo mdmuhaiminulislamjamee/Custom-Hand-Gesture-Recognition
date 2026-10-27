@@ -66,6 +66,17 @@ next-env.d.ts
 /feedback/*.csv
 /feedback/images/
 
+# Private feedback-derived training rows and local release backups
+/artifacts/directional_feedback_*/train.npz
+/artifacts/directional_feedback_*/val.npz
+/artifacts/directional_feedback_*/test.npz
+/artifacts/directional_feedback_*/feedback_snapshot.csv
+/artifacts/directional_feedback_*/baseline.json
+/artifacts/directional_feedback_*/candidate_feedback.json
+/artifacts/directional_feedback_*/replay_metadata.json
+/artifacts/directional_feedback_*/previous_release/
+/artifacts/directional_feedback_*/backend_verification/*.log
+
 # Include the production ONNX deployment package
 !/models/gesture_mlp_production.onnx
 !/models/gesture_mlp_onnx_metadata.json

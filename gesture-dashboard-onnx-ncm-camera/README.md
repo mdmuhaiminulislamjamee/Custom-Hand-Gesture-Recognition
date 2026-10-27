@@ -6,7 +6,7 @@
 
 This repository is the Windows reference implementation for twelve active static hand gestures, with a reserved legacy Dorsal output. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
 
-Current runtime model: **StopInvertedFeedbackMLP**. It passed offline
+Current runtime model: **StopInvertedDirectionalFeedbackMLP**. It passed offline
 holdout/ONNX checks, but low-resolution live-camera validation is still pending.
 The ten-command and `v18_20` materials are historical research evidence, not
 the active classifier. Peace maps to Turn 90 Degrees, Rock to Backup, and
@@ -15,7 +15,10 @@ four extended fingers and the back of either hand, with fingers together or
 spread. Palm and Stop inverted share the source-image XY range from 0° at
 screen-right through −90° upward to −180° at screen-left. Both horizontal
 endpoints are included; the lower semicircle is no_gesture. Confidence and temporal holds still apply. The retrain
-includes all 25 saved feedback corrections in training only.
+includes all 103 saved feedback corrections in training only, including 30 Left
+and 48 Right examples. Direction angles use source-image pixels so wide camera
+frames preserve the intended Left/Right sector. The directional release record
+is [the October 27 evaluation](artifacts/directional_feedback_20261027/evaluation.json).
 The browser demo represents Backup
 as a smaller media target; it does not control physical hardware.
 

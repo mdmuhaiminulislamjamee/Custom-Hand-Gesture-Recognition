@@ -1,0 +1,2852 @@
+{
+  "artifact": {
+    "bytes": 77797,
+    "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
+  },
+  "parity": {
+    "label_agreement": 1.0,
+    "max_probability_error": 1.5795230865478516e-06,
+    "max_mass_error": 2.7418136596679688e-06
+  },
+  "audit": {
+    "seed": 18065,
+    "per_class": 4096,
+    "labels": [
+      "left",
+      "right",
+      "up",
+      "down",
+      "open_palm",
+      "like",
+      "dorsal",
+      "ok",
+      "fist",
+      "thumb_down",
+      "peace",
+      "rock",
+      "stop_inverted",
+      "no_gesture"
+    ],
+    "legacy": {
+      "seed": 1302,
+      "per_class": 4096,
+      "labels": [
+        "left",
+        "right",
+        "up",
+        "down",
+        "open_palm",
+        "like",
+        "dorsal",
+        "ok",
+        "fist",
+        "thumb_down",
+        "peace",
+        "rock",
+        "no_gesture"
+      ],
+      "counts": {
+        "train": {
+          "left": 1413,
+          "right": 1413,
+          "up": 1413,
+          "down": 1413,
+          "open_palm": 1379,
+          "like": 1396,
+          "dorsal": 1405,
+          "ok": 1418,
+          "fist": 1406,
+          "thumb_down": 1379,
+          "peace": 1387,
+          "rock": 1387,
+          "no_gesture": 3658
+        },
+        "val": {
+          "left": 710,
+          "right": 710,
+          "up": 710,
+          "down": 710,
+          "open_palm": 675,
+          "like": 698,
+          "dorsal": 263,
+          "ok": 668,
+          "fist": 689,
+          "thumb_down": 701,
+          "peace": 314,
+          "rock": 303,
+          "no_gesture": 783
+        },
+        "test": {
+          "left": 677,
+          "right": 677,
+          "up": 677,
+          "down": 677,
+          "open_palm": 737,
+          "like": 706,
+          "dorsal": 331,
+          "ok": 714,
+          "fist": 705,
+          "thumb_down": 720,
+          "peace": 299,
+          "rock": 310,
+          "no_gesture": 793
+        }
+      },
+      "subjects": {
+        "train": 5931,
+        "val": 1897,
+        "test": 1902
+      },
+      "removed_overlap": {
+        "test": 0,
+        "val": 2,
+        "train": 1
+      },
+      "ambiguous_legacy_negatives_excluded": {
+        "val": 400,
+        "test": 400
+      },
+      "limitations": [
+        "New-command validation/test examples are participant-held-out rows from HaGRID's training partition.",
+        "Legacy evaluation negatives mixed the new valid commands with true negatives without source labels; all were excluded.",
+        "In-plane rotation is synthetic; it cannot prove all camera viewing angles, distances, lighting, or occlusions.",
+        "No new live low-resolution or low-FPS camera capture is available for qualification."
+      ]
+    },
+    "open_hand_rotation": {
+      "xy_minimum": -180.0,
+      "xy_maximum": 0.0,
+      "endpoints_inclusive": true,
+      "maximum_tilt_from_up": 90.0,
+      "classifier_synthetic_guard_band_degrees": 10.0,
+      "normalized_xy_aspect_augmentation": [
+        0.5,
+        2.0
+      ],
+      "runtime_still_rejects_entire_lower_half": true
+    },
+    "legacy_palm_rows_relabelled_for_upper_arc": {
+      "train": 988,
+      "val": 185,
+      "test": 226
+    },
+    "expanded_thumb_direction_training_rows": 8192,
+    "reviewed_horizontal_augmentation": {
+      "rows": 8192,
+      "source_aspect": "read from each feedback JPEG",
+      "target_aspects": [
+        1.0,
+        1.3333333333333333,
+        1.7777777777777777,
+        0.75
+      ],
+      "maximum_pixel_angle_from_horizontal": 38.0,
+      "reflection_swaps_labels": true,
+      "training_only": true
+    },
+    "source_stop_counts": {
+      "train": 2084,
+      "val": 1097,
+      "test": 1019
+    },
+    "feedback": {
+      "sha256": "197f49dfb4db1e5f05c4a601e51ad637e63d54d81b4052eb365132a4dd038589",
+      "rows": 103,
+      "class_counts": {
+        "left": 30,
+        "right": 48,
+        "up": 0,
+        "down": 0,
+        "open_palm": 0,
+        "like": 0,
+        "dorsal": 0,
+        "ok": 0,
+        "fist": 0,
+        "thumb_down": 0,
+        "peace": 12,
+        "rock": 0,
+        "stop_inverted": 0,
+        "no_gesture": 13
+      },
+      "skipped": [],
+      "evaluation_use": "training only; participant/session metadata is absent"
+    },
+    "ambiguous_legacy_dorsal_excluded": {
+      "train": 0,
+      "val": 0,
+      "test": 0
+    },
+    "cross_split_rows_removed": {
+      "test": 0,
+      "val": 0,
+      "train": 0
+    },
+    "participant_overlap": {
+      "train/val": 0,
+      "train/test": 0,
+      "val/test": 0
+    },
+    "counts": {
+      "train": {
+        "left": 14080,
+        "right": 16384,
+        "up": 6144,
+        "down": 6144,
+        "open_palm": 9180,
+        "like": 8192,
+        "dorsal": 4096,
+        "ok": 4096,
+        "fist": 4096,
+        "thumb_down": 8192,
+        "peace": 5632,
+        "rock": 4096,
+        "stop_inverted": 10273,
+        "no_gesture": 17063
+      },
+      "val": {
+        "left": 710,
+        "right": 710,
+        "up": 710,
+        "down": 710,
+        "open_palm": 860,
+        "like": 698,
+        "dorsal": 263,
+        "ok": 668,
+        "fist": 689,
+        "thumb_down": 701,
+        "peace": 314,
+        "rock": 303,
+        "stop_inverted": 1095,
+        "no_gesture": 600
+      },
+      "test": {
+        "left": 677,
+        "right": 677,
+        "up": 677,
+        "down": 677,
+        "open_palm": 963,
+        "like": 706,
+        "dorsal": 331,
+        "ok": 714,
+        "fist": 705,
+        "thumb_down": 720,
+        "peace": 299,
+        "rock": 310,
+        "stop_inverted": 1018,
+        "no_gesture": 568
+      }
+    },
+    "limitations": [
+      "Stop source includes official val/test and participant-held-out training annotations.",
+      "Finger spread, mirroring, angle and image-aspect coverage are 2-D augmentation, not new camera viewpoints.",
+      "Feedback is training only and cannot independently measure generalization.",
+      "Source Stop-inverted handedness is inferred from the known surface label, not a tested detector.",
+      "Live webcam verification at different distances and lighting is still required."
+    ]
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "validation_raw_macro_f1": 0.9833254635392523
+    },
+    {
+      "epoch": 2,
+      "validation_raw_macro_f1": 0.986686115804624
+    },
+    {
+      "epoch": 3,
+      "validation_raw_macro_f1": 0.9862083806204076
+    },
+    {
+      "epoch": 4,
+      "validation_raw_macro_f1": 0.985651406421227
+    },
+    {
+      "epoch": 5,
+      "validation_raw_macro_f1": 0.9888429541998739
+    },
+    {
+      "epoch": 6,
+      "validation_raw_macro_f1": 0.9881113651237513
+    },
+    {
+      "epoch": 7,
+      "validation_raw_macro_f1": 0.9873229008094154
+    },
+    {
+      "epoch": 8,
+      "validation_raw_macro_f1": 0.9899701078735184
+    },
+    {
+      "epoch": 9,
+      "validation_raw_macro_f1": 0.9900777821534439
+    },
+    {
+      "epoch": 10,
+      "validation_raw_macro_f1": 0.9889577362637844
+    },
+    {
+      "epoch": 11,
+      "validation_raw_macro_f1": 0.9856485770823233
+    },
+    {
+      "epoch": 12,
+      "validation_raw_macro_f1": 0.9913128707797769
+    },
+    {
+      "epoch": 13,
+      "validation_raw_macro_f1": 0.9874731168650083
+    },
+    {
+      "epoch": 14,
+      "validation_raw_macro_f1": 0.988152953107867
+    },
+    {
+      "epoch": 15,
+      "validation_raw_macro_f1": 0.9884982684841948
+    },
+    {
+      "epoch": 16,
+      "validation_raw_macro_f1": 0.9902460942818863
+    },
+    {
+      "epoch": 17,
+      "validation_raw_macro_f1": 0.9901411258111239
+    },
+    {
+      "epoch": 18,
+      "validation_raw_macro_f1": 0.9897721269916834
+    },
+    {
+      "epoch": 19,
+      "validation_raw_macro_f1": 0.9904910793261211
+    },
+    {
+      "epoch": 20,
+      "validation_raw_macro_f1": 0.9895309191293891
+    },
+    {
+      "epoch": 21,
+      "validation_raw_macro_f1": 0.9918986464760697
+    },
+    {
+      "epoch": 22,
+      "validation_raw_macro_f1": 0.9903668786070149
+    },
+    {
+      "epoch": 23,
+      "validation_raw_macro_f1": 0.9908252355597822
+    },
+    {
+      "epoch": 24,
+      "validation_raw_macro_f1": 0.9894598234683866
+    },
+    {
+      "epoch": 25,
+      "validation_raw_macro_f1": 0.9892038756054023
+    },
+    {
+      "epoch": 26,
+      "validation_raw_macro_f1": 0.9901180756881568
+    },
+    {
+      "epoch": 27,
+      "validation_raw_macro_f1": 0.9911747241772367
+    },
+    {
+      "epoch": 28,
+      "validation_raw_macro_f1": 0.9922811690953062
+    },
+    {
+      "epoch": 29,
+      "validation_raw_macro_f1": 0.9918892500039391
+    },
+    {
+      "epoch": 30,
+      "validation_raw_macro_f1": 0.9904184569435739
+    },
+    {
+      "epoch": 31,
+      "validation_raw_macro_f1": 0.9915616323420116
+    },
+    {
+      "epoch": 32,
+      "validation_raw_macro_f1": 0.9916905450769807
+    },
+    {
+      "epoch": 33,
+      "validation_raw_macro_f1": 0.99051277702623
+    },
+    {
+      "epoch": 34,
+      "validation_raw_macro_f1": 0.9911752078660674
+    },
+    {
+      "epoch": 35,
+      "validation_raw_macro_f1": 0.9921159467461527
+    },
+    {
+      "epoch": 36,
+      "validation_raw_macro_f1": 0.9918123170541916
+    },
+    {
+      "epoch": 37,
+      "validation_raw_macro_f1": 0.9902859941107958
+    },
+    {
+      "epoch": 38,
+      "validation_raw_macro_f1": 0.9916782679233765
+    },
+    {
+      "epoch": 39,
+      "validation_raw_macro_f1": 0.9919870746042184
+    },
+    {
+      "epoch": 40,
+      "validation_raw_macro_f1": 0.99194990749428
+    },
+    {
+      "epoch": 41,
+      "validation_raw_macro_f1": 0.991677739261068
+    },
+    {
+      "epoch": 42,
+      "validation_raw_macro_f1": 0.9933570849900271
+    },
+    {
+      "epoch": 43,
+      "validation_raw_macro_f1": 0.9906112000832945
+    },
+    {
+      "epoch": 44,
+      "validation_raw_macro_f1": 0.9923262620012414
+    },
+    {
+      "epoch": 45,
+      "validation_raw_macro_f1": 0.9909392679855077
+    },
+    {
+      "epoch": 46,
+      "validation_raw_macro_f1": 0.9904929484661719
+    },
+    {
+      "epoch": 47,
+      "validation_raw_macro_f1": 0.9912224149415421
+    },
+    {
+      "epoch": 48,
+      "validation_raw_macro_f1": 0.9912897419979181
+    },
+    {
+      "epoch": 49,
+      "validation_raw_macro_f1": 0.9901618801145672
+    },
+    {
+      "epoch": 50,
+      "validation_raw_macro_f1": 0.9917801642809475
+    },
+    {
+      "epoch": 51,
+      "validation_raw_macro_f1": 0.9922993458031489
+    },
+    {
+      "epoch": 52,
+      "validation_raw_macro_f1": 0.9908416139775678
+    },
+    {
+      "epoch": 53,
+      "validation_raw_macro_f1": 0.9917862345841127
+    },
+    {
+      "epoch": 54,
+      "validation_raw_macro_f1": 0.9920967266121526
+    },
+    {
+      "epoch": 55,
+      "validation_raw_macro_f1": 0.9920688625279198
+    },
+    {
+      "epoch": 56,
+      "validation_raw_macro_f1": 0.9918384116270875
+    },
+    {
+      "epoch": 57,
+      "validation_raw_macro_f1": 0.9906671916933824
+    },
+    {
+      "epoch": 58,
+      "validation_raw_macro_f1": 0.9894644800416694
+    },
+    {
+      "epoch": 59,
+      "validation_raw_macro_f1": 0.9922011240552432
+    },
+    {
+      "epoch": 60,
+      "validation_raw_macro_f1": 0.9920805706554887
+    }
+  ],
+  "deployed": true,
+  "val": {
+    "macro_f1": 0.9932792981273975,
+    "accepted_precision": 0.995829244357213,
+    "old_command_correct_accept_rate": 0.9933550120175314,
+    "unknown_false_accept_rate": 0.012746234067207415,
+    "stop_recall": 0.9972602739726028,
+    "stop_precision": 0.9963503649635036,
+    "per_class": {
+      "left": {
+        "precision": 1.0,
+        "recall": 0.9971830985915493,
+        "f1-score": 0.998589562764457,
+        "support": 710.0
+      },
+      "right": {
+        "precision": 0.9985915492957746,
+        "recall": 0.9985915492957746,
+        "f1-score": 0.9985915492957746,
+        "support": 710.0
+      },
+      "up": {
+        "precision": 0.9943899018232819,
+        "recall": 0.9985915492957746,
+        "f1-score": 0.9964862965565706,
+        "support": 710.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.9971830985915493,
+        "f1-score": 0.998589562764457,
+        "support": 710.0
+      },
+      "open_palm": {
+        "precision": 0.9953488372093023,
+        "recall": 0.9953488372093023,
+        "f1-score": 0.9953488372093023,
+        "support": 860.0
+      },
+      "like": {
+        "precision": 0.9899135446685879,
+        "recall": 0.9842406876790831,
+        "f1-score": 0.9870689655172413,
+        "support": 698.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.9985029940119761,
+        "f1-score": 0.9992509363295881,
+        "support": 668.0
+      },
+      "fist": {
+        "precision": 0.9912917271407837,
+        "recall": 0.9912917271407837,
+        "f1-score": 0.9912917271407837,
+        "support": 689.0
+      },
+      "thumb_down": {
+        "precision": 0.9899569583931134,
+        "recall": 0.9843081312410842,
+        "f1-score": 0.9871244635193133,
+        "support": 701.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 0.9872611464968153,
+        "f1-score": 0.9935897435897436,
+        "support": 314.0
+      },
+      "rock": {
+        "precision": 0.9966666666666667,
+        "recall": 0.9867986798679867,
+        "f1-score": 0.9917081260364843,
+        "support": 303.0
+      },
+      "stop_inverted": {
+        "precision": 0.9963503649635036,
+        "recall": 0.9972602739726028,
+        "f1-score": 0.9968051118210862,
+        "support": 1095.0
+      },
+      "no_gesture": {
+        "precision": 0.9692832764505119,
+        "recall": 0.9872537659327926,
+        "f1-score": 0.9781859931113662,
+        "support": 863.0
+      },
+      "accuracy": 0.9932454877643672,
+      "macro avg": {
+        "precision": 0.9229852019008232,
+        "recall": 0.9217011099519338,
+        "f1-score": 0.9223307768325834,
+        "support": 9031.0
+      },
+      "weighted avg": {
+        "precision": 0.9932921525322339,
+        "recall": 0.9932454877643672,
+        "f1-score": 0.993256706143546,
+        "support": 9031.0
+      }
+    },
+    "confusion": [
+      [
+        708,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        709,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        1,
+        709,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        708,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        856,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        687,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        5
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        667,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        683,
+        1,
+        0,
+        0,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        1,
+        690,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        310,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        299,
+        1,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1092,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        4,
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        2,
+        852
+      ]
+    ]
+  },
+  "val_runtime": {
+    "macro_f1": 0.9043923797349216,
+    "accepted_precision": 0.9954363158622597,
+    "old_command_correct_accept_rate": 0.8632829068287855,
+    "unknown_false_accept_rate": 0.006952491309385863,
+    "stop_recall": 0.9972602739726028,
+    "stop_precision": 1.0,
+    "per_class": {
+      "left": {
+        "precision": 0.9943422913719944,
+        "recall": 0.9901408450704225,
+        "f1-score": 0.9922371206774877,
+        "support": 710.0
+      },
+      "right": {
+        "precision": 0.9971711456859972,
+        "recall": 0.9929577464788732,
+        "f1-score": 0.995059985885674,
+        "support": 710.0
+      },
+      "up": {
+        "precision": 0.9943661971830986,
+        "recall": 0.9943661971830986,
+        "f1-score": 0.9943661971830986,
+        "support": 710.0
+      },
+      "down": {
+        "precision": 0.9971631205673759,
+        "recall": 0.9901408450704225,
+        "f1-score": 0.9936395759717315,
+        "support": 710.0
+      },
+      "open_palm": {
+        "precision": 0.992619926199262,
+        "recall": 0.3127906976744186,
+        "f1-score": 0.47568523430592397,
+        "support": 860.0
+      },
+      "like": {
+        "precision": 0.9838235294117647,
+        "recall": 0.9584527220630372,
+        "f1-score": 0.9709724238026125,
+        "support": 698.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.6197604790419161,
+        "f1-score": 0.7652495378927912,
+        "support": 668.0
+      },
+      "fist": {
+        "precision": 0.9910979228486647,
+        "recall": 0.969521044992743,
+        "f1-score": 0.9801907556859868,
+        "support": 689.0
+      },
+      "thumb_down": {
+        "precision": 1.0,
+        "recall": 0.9514978601997147,
+        "f1-score": 0.9751461988304093,
+        "support": 701.0
+      },
+      "peace": {
+        "precision": 0.9967105263157895,
+        "recall": 0.964968152866242,
+        "f1-score": 0.9805825242718447,
+        "support": 314.0
+      },
+      "rock": {
+        "precision": 0.9966666666666667,
+        "recall": 0.9867986798679867,
+        "f1-score": 0.9917081260364843,
+        "support": 303.0
+      },
+      "stop_inverted": {
+        "precision": 1.0,
+        "recall": 0.9972602739726028,
+        "f1-score": 0.9986282578875172,
+        "support": 1095.0
+      },
+      "no_gesture": {
+        "precision": 0.4761111111111111,
+        "recall": 0.9930475086906141,
+        "f1-score": 0.6436349981224183,
+        "support": 863.0
+      },
+      "accuracy": 0.8919278042298748,
+      "macro avg": {
+        "precision": 0.8871480312401232,
+        "recall": 0.8372645037980065,
+        "f1-score": 0.8397929240395701,
+        "support": 9031.0
+      },
+      "weighted avg": {
+        "precision": 0.9457457401140035,
+        "recall": 0.8919278042298748,
+        "f1-score": 0.8899074438992504,
+        "support": 9031.0
+      }
+    },
+    "confusion": [
+      [
+        703,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        5
+      ],
+      [
+        0,
+        705,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        5
+      ],
+      [
+        0,
+        0,
+        706,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        703,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        269,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        591
+      ],
+      [
+        1,
+        0,
+        0,
+        1,
+        0,
+        669,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        26
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        414,
+        0,
+        0,
+        0,
+        0,
+        0,
+        254
+      ],
+      [
+        0,
+        0,
+        3,
+        0,
+        0,
+        9,
+        0,
+        0,
+        668,
+        0,
+        0,
+        0,
+        0,
+        9
+      ],
+      [
+        2,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        667,
+        0,
+        0,
+        0,
+        27
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        303,
+        0,
+        0,
+        10
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        299,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1092,
+        3
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        857
+      ]
+    ]
+  },
+  "test": {
+    "macro_f1": 0.9908890016597183,
+    "accepted_precision": 0.9949488727362326,
+    "old_command_correct_accept_rate": 0.9907368421052631,
+    "unknown_false_accept_rate": 0.011123470522803115,
+    "stop_recall": 0.9990176817288802,
+    "stop_precision": 0.9980372914622179,
+    "per_class": {
+      "left": {
+        "precision": 0.997037037037037,
+        "recall": 0.9940915805022157,
+        "f1-score": 0.9955621301775148,
+        "support": 677.0
+      },
+      "right": {
+        "precision": 0.9985141158989599,
+        "recall": 0.9926144756277696,
+        "f1-score": 0.9955555555555555,
+        "support": 677.0
+      },
+      "up": {
+        "precision": 0.9970282317979198,
+        "recall": 0.9911373707533235,
+        "f1-score": 0.9940740740740741,
+        "support": 677.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.9940915805022157,
+        "f1-score": 0.997037037037037,
+        "support": 677.0
+      },
+      "open_palm": {
+        "precision": 0.996875,
+        "recall": 0.9937694704049844,
+        "f1-score": 0.9953198127925117,
+        "support": 963.0
+      },
+      "like": {
+        "precision": 0.9885877318116976,
+        "recall": 0.9815864022662889,
+        "f1-score": 0.9850746268656716,
+        "support": 706.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.9971988795518207,
+        "f1-score": 0.9985974754558204,
+        "support": 714.0
+      },
+      "fist": {
+        "precision": 0.9971387696709585,
+        "recall": 0.9886524822695035,
+        "f1-score": 0.9928774928774928,
+        "support": 705.0
+      },
+      "thumb_down": {
+        "precision": 0.9915848527349228,
+        "recall": 0.9819444444444444,
+        "f1-score": 0.9867411025819958,
+        "support": 720.0
+      },
+      "peace": {
+        "precision": 0.9800664451827242,
+        "recall": 0.9866220735785953,
+        "f1-score": 0.9833333333333333,
+        "support": 299.0
+      },
+      "rock": {
+        "precision": 0.9716981132075472,
+        "recall": 0.9967741935483871,
+        "f1-score": 0.9840764331210191,
+        "support": 310.0
+      },
+      "stop_inverted": {
+        "precision": 0.9980372914622179,
+        "recall": 0.9990176817288802,
+        "f1-score": 0.9985272459499264,
+        "support": 1018.0
+      },
+      "no_gesture": {
+        "precision": 0.961081081081081,
+        "recall": 0.9888765294771968,
+        "f1-score": 0.9747807017543859,
+        "support": 899.0
+      },
+      "accuracy": 0.9914841849148418,
+      "macro avg": {
+        "precision": 0.9198320478489332,
+        "recall": 0.9204555117611161,
+        "f1-score": 0.9201112158268813,
+        "support": 9042.0
+      },
+      "weighted avg": {
+        "precision": 0.9916073734257348,
+        "recall": 0.9914841849148418,
+        "f1-score": 0.991513418906369,
+        "support": 9042.0
+      }
+    },
+    "confusion": [
+      [
+        673,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        0,
+        1
+      ],
+      [
+        0,
+        672,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        671,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        0,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        673,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        957,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        1,
+        0,
+        0,
+        0,
+        693,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        10
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        712,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        697,
+        1,
+        0,
+        0,
+        0,
+        7
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        7,
+        0,
+        0,
+        1,
+        707,
+        0,
+        0,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        295,
+        1,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        309,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1017,
+        1
+      ],
+      [
+        2,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        889
+      ]
+    ]
+  },
+  "test_runtime": {
+    "macro_f1": 0.9030421739122312,
+    "accepted_precision": 0.9949445302626035,
+    "old_command_correct_accept_rate": 0.8516491228070175,
+    "unknown_false_accept_rate": 0.0055617352614015575,
+    "stop_recall": 0.9990176817288802,
+    "stop_precision": 1.0,
+    "per_class": {
+      "left": {
+        "precision": 0.9940564635958395,
+        "recall": 0.9881831610044313,
+        "f1-score": 0.9911111111111112,
+        "support": 677.0
+      },
+      "right": {
+        "precision": 1.0,
+        "recall": 0.982274741506647,
+        "f1-score": 0.9910581222056631,
+        "support": 677.0
+      },
+      "up": {
+        "precision": 0.9940564635958395,
+        "recall": 0.9881831610044313,
+        "f1-score": 0.9911111111111112,
+        "support": 677.0
+      },
+      "down": {
+        "precision": 1.0,
+        "recall": 0.9793205317577548,
+        "f1-score": 0.9895522388059701,
+        "support": 677.0
+      },
+      "open_palm": {
+        "precision": 0.9939759036144579,
+        "recall": 0.3426791277258567,
+        "f1-score": 0.5096525096525096,
+        "support": 963.0
+      },
+      "like": {
+        "precision": 0.9869942196531792,
+        "recall": 0.9674220963172805,
+        "f1-score": 0.977110157367668,
+        "support": 706.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 1.0,
+        "recall": 0.592436974789916,
+        "f1-score": 0.7440633245382586,
+        "support": 714.0
+      },
+      "fist": {
+        "precision": 1.0,
+        "recall": 0.9687943262411347,
+        "f1-score": 0.984149855907781,
+        "support": 705.0
+      },
+      "thumb_down": {
+        "precision": 1.0,
+        "recall": 0.9527777777777777,
+        "f1-score": 0.9758179231863442,
+        "support": 720.0
+      },
+      "peace": {
+        "precision": 0.9829351535836177,
+        "recall": 0.9632107023411371,
+        "f1-score": 0.972972972972973,
+        "support": 299.0
+      },
+      "rock": {
+        "precision": 0.9626168224299065,
+        "recall": 0.9967741935483871,
+        "f1-score": 0.9793977812995246,
+        "support": 310.0
+      },
+      "stop_inverted": {
+        "precision": 1.0,
+        "recall": 0.9990176817288802,
+        "f1-score": 0.9995085995085995,
+        "support": 1018.0
+      },
+      "no_gesture": {
+        "precision": 0.4653826132222801,
+        "recall": 0.9944382647385984,
+        "f1-score": 0.6340425531914894,
+        "support": 899.0
+      },
+      "accuracy": 0.8824375138243752,
+      "macro avg": {
+        "precision": 0.8842869742639372,
+        "recall": 0.8368223386058736,
+        "f1-score": 0.838539161489929,
+        "support": 9042.0
+      },
+      "weighted avg": {
+        "precision": 0.9424526610402828,
+        "recall": 0.8824375138243752,
+        "f1-score": 0.8817943822513166,
+        "support": 9042.0
+      }
+    },
+    "confusion": [
+      [
+        669,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        0,
+        5
+      ],
+      [
+        0,
+        665,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        3,
+        0,
+        8
+      ],
+      [
+        0,
+        0,
+        669,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        0,
+        5
+      ],
+      [
+        0,
+        0,
+        0,
+        663,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        3,
+        0,
+        10
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        330,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        633
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        683,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        22
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        423,
+        0,
+        0,
+        0,
+        0,
+        0,
+        290
+      ],
+      [
+        0,
+        0,
+        2,
+        0,
+        0,
+        8,
+        0,
+        0,
+        683,
+        0,
+        0,
+        0,
+        0,
+        12
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        686,
+        0,
+        0,
+        0,
+        32
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        288,
+        1,
+        0,
+        8
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        309,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1017,
+        1
+      ],
+      [
+        2,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        894
+      ]
+    ]
+  },
+  "feedback_training_fit": {
+    "macro_f1": 0.3076923076923077,
+    "accepted_precision": 1.0,
+    "old_command_correct_accept_rate": 1.0,
+    "unknown_false_accept_rate": 0.0,
+    "stop_recall": 0.0,
+    "stop_precision": 0.0,
+    "per_class": {
+      "left": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 30.0
+      },
+      "right": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 48.0
+      },
+      "up": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "open_palm": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "like": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "fist": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "thumb_down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 12.0
+      },
+      "rock": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "stop_inverted": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "no_gesture": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 13.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 0.2857142857142857,
+        "recall": 0.2857142857142857,
+        "f1-score": 0.2857142857142857,
+        "support": 103.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 103.0
+      }
+    },
+    "confusion": [
+      [
+        30,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        48,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        12,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        13
+      ]
+    ]
+  },
+  "feedback_training_fit_runtime": {
+    "macro_f1": 0.30149882323795363,
+    "accepted_precision": 1.0,
+    "old_command_correct_accept_rate": 0.9888888888888889,
+    "unknown_false_accept_rate": 0.0,
+    "stop_recall": 0.0,
+    "stop_precision": 0.0,
+    "per_class": {
+      "left": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 30.0
+      },
+      "right": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 48.0
+      },
+      "up": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "open_palm": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "like": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "fist": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "thumb_down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "peace": {
+        "precision": 1.0,
+        "recall": 0.9166666666666666,
+        "f1-score": 0.9565217391304348,
+        "support": 12.0
+      },
+      "rock": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "stop_inverted": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "no_gesture": {
+        "precision": 0.9285714285714286,
+        "recall": 1.0,
+        "f1-score": 0.9629629629629629,
+        "support": 13.0
+      },
+      "accuracy": 0.9902912621359223,
+      "macro avg": {
+        "precision": 0.2806122448979592,
+        "recall": 0.27976190476190477,
+        "f1-score": 0.2799631930066712,
+        "support": 103.0
+      },
+      "weighted avg": {
+        "precision": 0.9909847434119279,
+        "recall": 0.9902912621359223,
+        "f1-score": 0.9902599940590654,
+        "support": 103.0
+      }
+    },
+    "confusion": [
+      [
+        30,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        48,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        11,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        13
+      ]
+    ]
+  },
+  "retired_call_test": {
+    "macro_f1": 0.076657824933687,
+    "accepted_precision": 0.0,
+    "old_command_correct_accept_rate": 0.0,
+    "unknown_false_accept_rate": 0.006872852233676976,
+    "stop_recall": 0.0,
+    "stop_precision": 0.0,
+    "per_class": {
+      "left": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "right": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "up": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "open_palm": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "like": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "dorsal": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "ok": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "fist": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "thumb_down": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "peace": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "rock": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "stop_inverted": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "no_gesture": {
+        "precision": 1.0,
+        "recall": 0.993127147766323,
+        "f1-score": 0.996551724137931,
+        "support": 291.0
+      },
+      "accuracy": 0.993127147766323,
+      "macro avg": {
+        "precision": 0.07142857142857142,
+        "recall": 0.07093765341188021,
+        "f1-score": 0.07118226600985221,
+        "support": 291.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 0.993127147766323,
+        "f1-score": 0.996551724137931,
+        "support": 291.0
+      }
+    },
+    "confusion": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        289
+      ]
+    ]
+  },
+  "directional_feedback_evidence": {
+    "report": "artifacts/directional_feedback_20261027/candidate_feedback.json",
+    "feedback_sha256": "197f49dfb4db1e5f05c4a601e51ad637e63d54d81b4052eb365132a4dd038589",
+    "reviewed_rows": 78,
+    "transformed_rows": 3120,
+    "jpeg_actions": 78,
+    "training_evidence_only": true
+  },
+  "backup": "artifacts\\directional_feedback_20261027\\previous_release\\20261027T041650Z",
+  "release_checks": {
+    "onnx_parity": true,
+    "offline_macro_f1_at_least_0_97": true,
+    "offline_accepted_precision_at_least_0_99": true,
+    "offline_unknown_false_accept_at_most_0_02": true,
+    "old_command_correct_accept_at_least_0_98": true,
+    "new_command_recall_at_least_0_97": true,
+    "retired_call_false_accept_at_most_0_02": true,
+    "runtime_peace_recall_at_least_0_95": true,
+    "runtime_rock_recall_at_least_0_97": true,
+    "runtime_unknown_false_accept_at_most_0_02": true,
+    "stop_precision": true,
+    "runtime_stop_precision": true,
+    "runtime_stop_recall": true,
+    "horizontal_feedback_matches_model": true,
+    "horizontal_feedback_matches_dataset": true,
+    "reviewed_left_classified_and_executed": true,
+    "reviewed_left_angle_mirror_aspect_variants": true,
+    "reviewed_right_classified_and_executed": true,
+    "reviewed_right_angle_mirror_aspect_variants": true,
+    "reviewed_directional_jpeg_detection_and_actions": true
+  }
+}

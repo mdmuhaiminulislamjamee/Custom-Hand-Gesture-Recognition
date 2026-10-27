@@ -1,11 +1,11 @@
 {
   "schema_version": 4,
-  "created_utc": "2026-10-18T09:12:47.497599+00:00",
+  "created_utc": "2026-10-27T04:16:50.193943+00:00",
   "format": "ONNX",
-  "model_name": "StopInvertedFeedbackMLP",
+  "model_name": "StopInvertedDirectionalFeedbackMLP",
   "onnx_file": "gesture_mlp_production.onnx",
   "onnx_bytes": 77797,
-  "onnx_sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8",
+  "onnx_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
   "input": {
     "name": "landmark_features",
     "dtype": "float32",
@@ -149,14 +149,14 @@
   "parity": {
     "passed": true,
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 2.8014183044433594e-06,
-    "maximum_absolute_mass_error": 3.2186508178710938e-06
+    "maximum_absolute_probability_error": 1.5795230865478516e-06,
+    "maximum_absolute_mass_error": 2.7418136596679688e-06
   },
   "quality": {
-    "macro_f1": 0.9904233004494917,
-    "accepted_precision": 0.9944547134935305,
-    "unknown_false_acceptance_rate": 0.013348164627363738,
-    "old_command_correct_accept_rate": 0.9898947368421053,
+    "macro_f1": 0.9908890016597183,
+    "accepted_precision": 0.9949488727362326,
+    "unknown_false_acceptance_rate": 0.011123470522803115,
+    "old_command_correct_accept_rate": 0.9907368421052631,
     "new_command_recall": {
       "stop_inverted": 0.9990176817288802
     }
@@ -177,7 +177,14 @@
       "runtime_unknown_false_accept_at_most_0_02": true,
       "stop_precision": true,
       "runtime_stop_precision": true,
-      "runtime_stop_recall": true
+      "runtime_stop_recall": true,
+      "horizontal_feedback_matches_model": true,
+      "horizontal_feedback_matches_dataset": true,
+      "reviewed_left_classified_and_executed": true,
+      "reviewed_left_angle_mirror_aspect_variants": true,
+      "reviewed_right_classified_and_executed": true,
+      "reviewed_right_angle_mirror_aspect_variants": true,
+      "reviewed_directional_jpeg_detection_and_actions": true
     },
     "data_audit": {
       "seed": 18065,
@@ -302,17 +309,30 @@
         "test": 226
       },
       "expanded_thumb_direction_training_rows": 8192,
+      "reviewed_horizontal_augmentation": {
+        "rows": 8192,
+        "source_aspect": "read from each feedback JPEG",
+        "target_aspects": [
+          1.0,
+          1.3333333333333333,
+          1.7777777777777777,
+          0.75
+        ],
+        "maximum_pixel_angle_from_horizontal": 38.0,
+        "reflection_swaps_labels": true,
+        "training_only": true
+      },
       "source_stop_counts": {
         "train": 2084,
         "val": 1097,
         "test": 1019
       },
       "feedback": {
-        "sha256": "21597997f0c5616fe96fbae0441936ed16cdd4abdd9bde01baf46e228e0be318",
-        "rows": 25,
+        "sha256": "197f49dfb4db1e5f05c4a601e51ad637e63d54d81b4052eb365132a4dd038589",
+        "rows": 103,
         "class_counts": {
-          "left": 0,
-          "right": 0,
+          "left": 30,
+          "right": 48,
           "up": 0,
           "down": 0,
           "open_palm": 0,
@@ -346,8 +366,8 @@
       },
       "counts": {
         "train": {
-          "left": 6144,
-          "right": 6144,
+          "left": 14080,
+          "right": 16384,
           "up": 6144,
           "down": 6144,
           "open_palm": 9180,
@@ -403,11 +423,27 @@
       ]
     },
     "selection": {
-      "model_sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8",
+      "model_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
       "known_mass_floor": 0.7,
       "confidence_floor": 0.7,
       "probability_margin_floor": 0.08
     }
   },
-  "runtime_note": "Stop inverted plus feedback training; live camera validation pending."
+  "runtime_note": "Stop inverted plus feedback training; live camera validation pending.",
+  "reviewed_feedback_replay_counts": {
+    "left": 29,
+    "right": 48,
+    "up": 0,
+    "down": 0,
+    "open_palm": 0,
+    "like": 0,
+    "dorsal": 0,
+    "ok": 0,
+    "fist": 0,
+    "thumb_down": 0,
+    "peace": 12,
+    "rock": 0,
+    "stop_inverted": 0,
+    "no_gesture": 13
+  }
 }

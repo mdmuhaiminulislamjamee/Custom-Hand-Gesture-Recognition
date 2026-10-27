@@ -203,7 +203,10 @@
     "minimum_index_lead_ratio": 0.04,
     "hard_geometry_veto": true,
     "horizontal_mirror": false,
-    "horizontal_semantic_swap": true
+    "horizontal_semantic_swap": true,
+    "angle_space": "source image XY pixels when dimensions are available",
+    "positive_index_dx_command": "left",
+    "negative_index_dx_command": "right"
   },
   "palm_surface_validation": {
     "enabled": true,
@@ -275,7 +278,7 @@
     "above_limit": "no_gesture"
   },
   "stop_inverted_release": {
-    "model_sha256": "d9f7a87c26b058f315305668cf8dd5fd5dd64b450229d0775e652965ab9d61a8",
+    "model_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
     "offline_checks": {
       "onnx_parity": true,
       "offline_macro_f1_at_least_0_97": true,
@@ -289,9 +292,16 @@
       "runtime_unknown_false_accept_at_most_0_02": true,
       "stop_precision": true,
       "runtime_stop_precision": true,
-      "runtime_stop_recall": true
+      "runtime_stop_recall": true,
+      "horizontal_feedback_matches_model": true,
+      "horizontal_feedback_matches_dataset": true,
+      "reviewed_left_classified_and_executed": true,
+      "reviewed_left_angle_mirror_aspect_variants": true,
+      "reviewed_right_classified_and_executed": true,
+      "reviewed_right_angle_mirror_aspect_variants": true,
+      "reviewed_directional_jpeg_detection_and_actions": true
     },
-    "evaluation": "artifacts/stop_inverted/evaluation.json",
+    "evaluation": "artifacts/directional_feedback_20261027/evaluation.json",
     "live_camera_validation_pending": true
   },
   "open_palm_rotation_validation": {

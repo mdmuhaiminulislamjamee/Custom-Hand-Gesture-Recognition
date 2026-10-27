@@ -1,0 +1,236 @@
+{
+  "seed": 18065,
+  "per_class": 4096,
+  "labels": [
+    "left",
+    "right",
+    "up",
+    "down",
+    "open_palm",
+    "like",
+    "dorsal",
+    "ok",
+    "fist",
+    "thumb_down",
+    "peace",
+    "rock",
+    "stop_inverted",
+    "no_gesture"
+  ],
+  "legacy": {
+    "seed": 1302,
+    "per_class": 4096,
+    "labels": [
+      "left",
+      "right",
+      "up",
+      "down",
+      "open_palm",
+      "like",
+      "dorsal",
+      "ok",
+      "fist",
+      "thumb_down",
+      "peace",
+      "rock",
+      "no_gesture"
+    ],
+    "counts": {
+      "train": {
+        "left": 1413,
+        "right": 1413,
+        "up": 1413,
+        "down": 1413,
+        "open_palm": 1379,
+        "like": 1396,
+        "dorsal": 1405,
+        "ok": 1418,
+        "fist": 1406,
+        "thumb_down": 1379,
+        "peace": 1387,
+        "rock": 1387,
+        "no_gesture": 3658
+      },
+      "val": {
+        "left": 710,
+        "right": 710,
+        "up": 710,
+        "down": 710,
+        "open_palm": 675,
+        "like": 698,
+        "dorsal": 263,
+        "ok": 668,
+        "fist": 689,
+        "thumb_down": 701,
+        "peace": 314,
+        "rock": 303,
+        "no_gesture": 783
+      },
+      "test": {
+        "left": 677,
+        "right": 677,
+        "up": 677,
+        "down": 677,
+        "open_palm": 737,
+        "like": 706,
+        "dorsal": 331,
+        "ok": 714,
+        "fist": 705,
+        "thumb_down": 720,
+        "peace": 299,
+        "rock": 310,
+        "no_gesture": 793
+      }
+    },
+    "subjects": {
+      "train": 5931,
+      "val": 1897,
+      "test": 1902
+    },
+    "removed_overlap": {
+      "test": 0,
+      "val": 2,
+      "train": 1
+    },
+    "ambiguous_legacy_negatives_excluded": {
+      "val": 400,
+      "test": 400
+    },
+    "limitations": [
+      "New-command validation/test examples are participant-held-out rows from HaGRID's training partition.",
+      "Legacy evaluation negatives mixed the new valid commands with true negatives without source labels; all were excluded.",
+      "In-plane rotation is synthetic; it cannot prove all camera viewing angles, distances, lighting, or occlusions.",
+      "No new live low-resolution or low-FPS camera capture is available for qualification."
+    ]
+  },
+  "open_hand_rotation": {
+    "xy_minimum": -180.0,
+    "xy_maximum": 0.0,
+    "endpoints_inclusive": true,
+    "maximum_tilt_from_up": 90.0,
+    "classifier_synthetic_guard_band_degrees": 10.0,
+    "normalized_xy_aspect_augmentation": [
+      0.5,
+      2.0
+    ],
+    "runtime_still_rejects_entire_lower_half": true
+  },
+  "legacy_palm_rows_relabelled_for_upper_arc": {
+    "train": 988,
+    "val": 185,
+    "test": 226
+  },
+  "expanded_thumb_direction_training_rows": 8192,
+  "reviewed_horizontal_augmentation": {
+    "rows": 8192,
+    "source_aspect": "read from each feedback JPEG",
+    "target_aspects": [
+      1.0,
+      1.3333333333333333,
+      1.7777777777777777,
+      0.75
+    ],
+    "maximum_pixel_angle_from_horizontal": 38.0,
+    "reflection_swaps_labels": true,
+    "training_only": true
+  },
+  "source_stop_counts": {
+    "train": 2084,
+    "val": 1097,
+    "test": 1019
+  },
+  "feedback": {
+    "sha256": "197f49dfb4db1e5f05c4a601e51ad637e63d54d81b4052eb365132a4dd038589",
+    "rows": 103,
+    "class_counts": {
+      "left": 30,
+      "right": 48,
+      "up": 0,
+      "down": 0,
+      "open_palm": 0,
+      "like": 0,
+      "dorsal": 0,
+      "ok": 0,
+      "fist": 0,
+      "thumb_down": 0,
+      "peace": 12,
+      "rock": 0,
+      "stop_inverted": 0,
+      "no_gesture": 13
+    },
+    "skipped": [],
+    "evaluation_use": "training only; participant/session metadata is absent"
+  },
+  "ambiguous_legacy_dorsal_excluded": {
+    "train": 0,
+    "val": 0,
+    "test": 0
+  },
+  "cross_split_rows_removed": {
+    "test": 0,
+    "val": 0,
+    "train": 0
+  },
+  "participant_overlap": {
+    "train/val": 0,
+    "train/test": 0,
+    "val/test": 0
+  },
+  "counts": {
+    "train": {
+      "left": 14080,
+      "right": 16384,
+      "up": 6144,
+      "down": 6144,
+      "open_palm": 9180,
+      "like": 8192,
+      "dorsal": 4096,
+      "ok": 4096,
+      "fist": 4096,
+      "thumb_down": 8192,
+      "peace": 5632,
+      "rock": 4096,
+      "stop_inverted": 10273,
+      "no_gesture": 17063
+    },
+    "val": {
+      "left": 710,
+      "right": 710,
+      "up": 710,
+      "down": 710,
+      "open_palm": 860,
+      "like": 698,
+      "dorsal": 263,
+      "ok": 668,
+      "fist": 689,
+      "thumb_down": 701,
+      "peace": 314,
+      "rock": 303,
+      "stop_inverted": 1095,
+      "no_gesture": 600
+    },
+    "test": {
+      "left": 677,
+      "right": 677,
+      "up": 677,
+      "down": 677,
+      "open_palm": 963,
+      "like": 706,
+      "dorsal": 331,
+      "ok": 714,
+      "fist": 705,
+      "thumb_down": 720,
+      "peace": 299,
+      "rock": 310,
+      "stop_inverted": 1018,
+      "no_gesture": 568
+    }
+  },
+  "limitations": [
+    "Stop source includes official val/test and participant-held-out training annotations.",
+    "Finger spread, mirroring, angle and image-aspect coverage are 2-D augmentation, not new camera viewpoints.",
+    "Feedback is training only and cannot independently measure generalization.",
+    "Source Stop-inverted handedness is inferred from the known surface label, not a tested detector.",
+    "Live webcam verification at different distances and lighting is still required."
+  ]
+}

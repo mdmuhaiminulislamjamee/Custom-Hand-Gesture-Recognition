@@ -1,0 +1,233 @@
+{
+  "files": 45,
+  "completed": 45,
+  "passed": 4032,
+  "failed_files": 0,
+  "results": [
+    {
+      "file": "test_body_context_policy.py",
+      "exit_code": 0,
+      "passed": 81
+    },
+    {
+      "file": "test_camera_stability.py",
+      "exit_code": 0,
+      "passed": 8
+    },
+    {
+      "file": "test_cold_start_recovery.py",
+      "exit_code": 0,
+      "passed": 9
+    },
+    {
+      "file": "test_collection_and_rejection.py",
+      "exit_code": 0,
+      "passed": 51
+    },
+    {
+      "file": "test_deliberate_dorsal.py",
+      "exit_code": 0,
+      "passed": 99
+    },
+    {
+      "file": "test_directional_pixel_angles.py",
+      "exit_code": 0,
+      "passed": 60
+    },
+    {
+      "file": "test_dorsal_and_fist_stability.py",
+      "exit_code": 0,
+      "passed": 27
+    },
+    {
+      "file": "test_dorsal_hard_negative_policy.py",
+      "exit_code": 0,
+      "passed": 800
+    },
+    {
+      "file": "test_dorsal_posture.py",
+      "exit_code": 0,
+      "passed": 77
+    },
+    {
+      "file": "test_face_body_distinction.py",
+      "exit_code": 0,
+      "passed": 25
+    },
+    {
+      "file": "test_face_contact.py",
+      "exit_code": 0,
+      "passed": 84
+    },
+    {
+      "file": "test_face_context.py",
+      "exit_code": 0,
+      "passed": 52
+    },
+    {
+      "file": "test_fist_orientation_policy.py",
+      "exit_code": 0,
+      "passed": 468
+    },
+    {
+      "file": "test_follow_object.py",
+      "exit_code": 0,
+      "passed": 3
+    },
+    {
+      "file": "test_geometry.py",
+      "exit_code": 0,
+      "passed": 197
+    },
+    {
+      "file": "test_gesture_orientation.py",
+      "exit_code": 0,
+      "passed": 214
+    },
+    {
+      "file": "test_gesture_resume.py",
+      "exit_code": 0,
+      "passed": 51
+    },
+    {
+      "file": "test_hand_detection.py",
+      "exit_code": 0,
+      "passed": 27
+    },
+    {
+      "file": "test_hand_ownership.py",
+      "exit_code": 0,
+      "passed": 180
+    },
+    {
+      "file": "test_hand_selection.py",
+      "exit_code": 0,
+      "passed": 41
+    },
+    {
+      "file": "test_ios_contract.py",
+      "exit_code": 0,
+      "passed": 4
+    },
+    {
+      "file": "test_live_camera_startup.py",
+      "exit_code": 0,
+      "passed": 2
+    },
+    {
+      "file": "test_model_lab.py",
+      "exit_code": 0,
+      "passed": 12
+    },
+    {
+      "file": "test_multiview_training.py",
+      "exit_code": 0,
+      "passed": 10
+    },
+    {
+      "file": "test_ncm_camera.py",
+      "exit_code": 0,
+      "passed": 9
+    },
+    {
+      "file": "test_online_integration.py",
+      "exit_code": 0,
+      "passed": 5
+    },
+    {
+      "file": "test_online_learning.py",
+      "exit_code": 0,
+      "passed": 11
+    },
+    {
+      "file": "test_onnx_runtime.py",
+      "exit_code": 0,
+      "passed": 7
+    },
+    {
+      "file": "test_reported_fist_views.py",
+      "exit_code": 0,
+      "passed": 27
+    },
+    {
+      "file": "test_reported_left_side_views.py",
+      "exit_code": 0,
+      "passed": 96
+    },
+    {
+      "file": "test_reported_left_video.py",
+      "exit_code": 0,
+      "passed": 207
+    },
+    {
+      "file": "test_reported_left_view.py",
+      "exit_code": 0,
+      "passed": 9
+    },
+    {
+      "file": "test_reported_peace_dorsal.py",
+      "exit_code": 0,
+      "passed": 56
+    },
+    {
+      "file": "test_reported_pointing_2.py",
+      "exit_code": 0,
+      "passed": 34
+    },
+    {
+      "file": "test_reported_stop_inverted_spread.py",
+      "exit_code": 0,
+      "passed": 142
+    },
+    {
+      "file": "test_reported_stop_inverted_video.py",
+      "exit_code": 0,
+      "passed": 138
+    },
+    {
+      "file": "test_reported_stretched_thumb_and_stop.py",
+      "exit_code": 0,
+      "passed": 176
+    },
+    {
+      "file": "test_reported_two_hand_palm.py",
+      "exit_code": 0,
+      "passed": 8
+    },
+    {
+      "file": "test_runtime.py",
+      "exit_code": 0,
+      "passed": 27
+    },
+    {
+      "file": "test_stop_inverted.py",
+      "exit_code": 0,
+      "passed": 430
+    },
+    {
+      "file": "test_ten_gesture_accuracy.py",
+      "exit_code": 0,
+      "passed": 2
+    },
+    {
+      "file": "test_trouser_context.py",
+      "exit_code": 0,
+      "passed": 17
+    },
+    {
+      "file": "test_twelve_candidate.py",
+      "exit_code": 0,
+      "passed": 17
+    },
+    {
+      "file": "test_two_hand_stability.py",
+      "exit_code": 0,
+      "passed": 23
+    },
+    {
+      "file": "test_video_lab.py",
+      "exit_code": 0,
+      "passed": 9
+    }
+  ]
+}
