@@ -21,10 +21,14 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from threadpoolctl import threadpool_limits
 
-from backend.config import CLASS_NAMES, FEATURE_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION
+from backend.config import (CLASS_NAMES, FEATURE_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION,
+                            OPEN_PALM_MAX_TILT_FROM_UP_DEGREES,
+                            OPEN_PALM_XY_MINIMUM_DEGREES, OPEN_PALM_XY_MAXIMUM_DEGREES,
+                            STOP_INVERTED_MAX_TILT_FROM_UP_DEGREES,
+                            STOP_INVERTED_XY_MINIMUM_DEGREES, STOP_INVERTED_XY_MAXIMUM_DEGREES)
 from backend.geometry import (GeometryResolver, hand_surface_orientation,
                               landmarks_to_feature, stop_inverted_geometry,
-                              open_hand_xy_orientation, OPEN_HAND_MAX_TILT_FROM_UP_DEGREES)
+                              open_hand_xy_orientation)
 from backend.config import RuntimeConfig
 from research.v18_20 import feature_keys, load_npz, predict_onnx
 from scripts.train_twelve_gesture_candidate import prepare as prepare_legacy, export_onnx, _partition
@@ -233,7 +237,8 @@ def prepare(seed=18065, per_class=4096):
         previous = data["y"].copy()
         for index in np.flatnonzero(palm_source):
             data["y"][index] = (CLASS_NAMES.index("open_palm")
-                                if open_hand_xy_orientation(data["landmarks"][index])["allowed_direction"] else REJECT)
+                                if open_hand_xy_orientation(data["landmarks"][index],
+                                    maximum_tilt_from_up=OPEN_PALM_MAX_TILT_FROM_UP_DEGREES)["allowed_direction"] else REJECT)
         palm_relabels[split] = int(np.sum(previous != data["y"]))
         # Some older 11K Dorsal negatives show the newly requested command.
         # Their category has no Stop-inverted review, so exclude ambiguous
@@ -289,10 +294,11 @@ def prepare(seed=18065, per_class=4096):
         negative = number >= per_class * 2
         # A soft classifier needs shape evidence across the exact runtime
         # endpoints. The geometry gate, not softmax mass, imposes the hard
-        # cutoff at +/-90 from up. A small synthetic guard band avoids placing
-        # each allowed horizontal endpoint at a learned 50/50 boundary.
-        tilt = (rng.choice((-1, 1)) * rng.uniform(110, 180) if negative
-                else rng.choice((-90., 90.)) if number % 4 == 0 else rng.uniform(-100, 100))
+        # cutoff at +/-55 from up. A small synthetic guard band avoids placing
+        # each allowed Stop-inverted endpoint at a learned 50/50 boundary.
+        limit = STOP_INVERTED_MAX_TILT_FROM_UP_DEGREES
+        tilt = (rng.choice((-1, 1)) * rng.uniform(limit + 20., 180.) if negative
+                else rng.choice((-limit, limit)) if number % 4 == 0 else rng.uniform(-limit - 10., limit + 10.))
         pose = rotate_tilt(source["landmarks"][index], tilt,
                            mirror=bool(number % 2), spread=float(rng.uniform(0, 24)))
         side = dorsal_side(pose)
@@ -305,15 +311,16 @@ def prepare(seed=18065, per_class=4096):
         # squashed 2-D winding would be too weak for a live surface decision.
         sides.append(side)
     groups["train"] = join([groups["train"], make_data(poses, labels, people, ids, sides)])
-    # Palm shares the same upper semicircle. Legacy horizontal Palm negatives
-    # are corrected above using their known HaGRID Palm provenance.
+    # Palm uses its own wider band. Known HaGRID Palm provenance
+    # above allows legacy poses to be relabelled against that angle policy.
     palm_indices = np.flatnonzero(source["y"] == CLASS_NAMES.index("open_palm"))
     palm_poses, palm_labels, palm_people, palm_identifiers = [], [], [], []
     for number in range(per_class * 2):
         index = int(rng.choice(palm_indices))
         negative = number >= per_class
-        tilt = (rng.choice((-1, 1)) * rng.uniform(110, 180) if negative
-                else rng.choice((-90., 90.)) if number % 4 == 0 else rng.uniform(-100, 100))
+        limit = OPEN_PALM_MAX_TILT_FROM_UP_DEGREES
+        tilt = (rng.choice((-1, 1)) * rng.uniform(limit + 20., 180.) if negative
+                else rng.choice((-limit, limit)) if number % 4 == 0 else rng.uniform(-limit - 10., limit + 10.))
         palm_poses.append(vary_image_aspect(
             rotate_tilt(source["landmarks"][index], tilt, mirror=bool(number % 2)), rng, number))
         palm_labels.append(REJECT if negative else CLASS_NAMES.index("open_palm"))
@@ -373,12 +380,17 @@ def prepare(seed=18065, per_class=4096):
     if any(overlap.values()):
         raise ValueError(f"Participant leakage: {overlap}")
     audit = dict(seed=seed, per_class=per_class, labels=LABELS, legacy=legacy_audit,
-                 open_hand_rotation=dict(xy_minimum=-180., xy_maximum=0., endpoints_inclusive=True,
-                                         maximum_tilt_from_up=OPEN_HAND_MAX_TILT_FROM_UP_DEGREES,
+                 open_hand_rotation=dict(xy_minimum=OPEN_PALM_XY_MINIMUM_DEGREES,
+                                         xy_maximum=OPEN_PALM_XY_MAXIMUM_DEGREES, endpoints_inclusive=True,
+                                         maximum_tilt_from_up=OPEN_PALM_MAX_TILT_FROM_UP_DEGREES,
                                          classifier_synthetic_guard_band_degrees=10.,
                                          normalized_xy_aspect_augmentation=[.5, 2.],
-                                         runtime_still_rejects_entire_lower_half=True),
-                 legacy_palm_rows_relabelled_for_upper_arc=palm_relabels,
+                                         runtime_rejects_outside_band=True),
+                 stop_inverted_rotation=dict(xy_minimum=STOP_INVERTED_XY_MINIMUM_DEGREES,
+                                             xy_maximum=STOP_INVERTED_XY_MAXIMUM_DEGREES,
+                                             maximum_tilt_from_up=STOP_INVERTED_MAX_TILT_FROM_UP_DEGREES,
+                                             endpoints_inclusive=True),
+                 legacy_palm_rows_relabelled_for_angle_band=palm_relabels,
                  expanded_thumb_direction_training_rows=len(pointing_poses),
                  reviewed_horizontal_augmentation=dict(
                      rows=0 if directional_variants is None else len(directional_variants["y"]),
@@ -584,14 +596,18 @@ def install():
     config = json.loads((models / "gesture_mobile_runtime_config.json").read_text())
     config.update(class_names=CLASS_NAMES, feedback_labels=FEEDBACK_LABELS, gesture_to_action=GESTURE_TO_ACTION,
                   model_format="ONNX float32, thirteen tensor outputs including retired Dorsal")
-    config["stop_inverted_validation"] = dict(maximum_tilt_from_up_degrees=90.,
+    config["stop_inverted_validation"] = dict(maximum_tilt_from_up_degrees=STOP_INVERTED_MAX_TILT_FROM_UP_DEGREES,
                                                angle_space="source image XY pixels", required_surface="dorsal",
                                                fingers_together_or_spread=True,
-                                               xy_minimum_degrees=-180., xy_maximum_degrees=0.,
+                                               xy_minimum_degrees=STOP_INVERTED_XY_MINIMUM_DEGREES,
+                                               xy_maximum_degrees=STOP_INVERTED_XY_MAXIMUM_DEGREES,
+                                               endpoints_inclusive=True, symmetric_about_up=True,
                                                above_limit="no_gesture")
-    config["open_palm_rotation_validation"] = dict(xy_minimum_degrees=-180., xy_maximum_degrees=0.,
+    config["open_palm_rotation_validation"] = dict(xy_minimum_degrees=OPEN_PALM_XY_MINIMUM_DEGREES,
+                                                    xy_maximum_degrees=OPEN_PALM_XY_MAXIMUM_DEGREES,
+                                                    maximum_tilt_from_up_degrees=OPEN_PALM_MAX_TILT_FROM_UP_DEGREES,
                                                     angle_space="source image XY pixels", endpoints_inclusive=True,
-                                                    lower_half="no_gesture")
+                                                    symmetric_about_up=True, outside_range="no_gesture")
     config.setdefault("directional_resolution", {}).update(
         angle_space="source image XY pixels when dimensions are available",
         positive_index_dx_command="left", negative_index_dx_command="right")

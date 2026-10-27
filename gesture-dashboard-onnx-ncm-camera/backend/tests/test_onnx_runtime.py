@@ -101,7 +101,7 @@ def test_open_set_output_stays_finite_when_retained_mass_underflows():
     assert ((known_mass >= 0.0) & (known_mass <= 1.0)).all()
 
 
-def test_shipped_onnx_recovers_left_and_right_facing_palms():
+def test_shipped_onnx_recovers_palms_only_within_the_angle_band():
     config = load_runtime_config()
     model = ModelManager(config)
     resolver = GeometryResolver(config)
@@ -109,7 +109,7 @@ def test_shipped_onnx_recovers_left_and_right_facing_palms():
     axis = upward[[5, 9, 13, 17]].mean(axis=0) - upward[0]
     original_angle = np.arctan2(axis[1], axis[0])
 
-    for target_angle in (0.0, np.pi):
+    for target_angle in np.deg2rad([-180, -160, -150, -145, -120, -60, -35, -30, -20, 0]):
         angle = target_angle - original_angle
         rotation = np.asarray([
             [np.cos(angle), -np.sin(angle)],
@@ -128,9 +128,13 @@ def test_shipped_onnx_recovers_left_and_right_facing_palms():
             handedness_confidence=.99,
         )
         pose = details['pose_validation']
-        assert pose['gesture'] == 'open_palm'
-        assert pose['valid'] and pose['geometry_supported']
-        assert pose['sideways_palm_recovery']
+        allowed = -160.0001 <= np.degrees(target_angle) <= -19.9999
+        assert pose['valid'] == allowed
+        if allowed:
+            assert pose['gesture'] == 'open_palm'
+            assert pose['geometry_supported']
+        else:
+            assert not pose['sideways_palm_recovery']
 
         gate = TemporalGate(config)
         for now in (1.0, 1.1, 1.2, 1.3, 1.4, 1.5):
@@ -141,5 +145,5 @@ def test_shipped_onnx_recovers_left_and_right_facing_palms():
                 geometry_supported=pose['geometry_supported'],
                 sideways_palm_recovery=pose['sideways_palm_recovery'],
             )
-        assert decision.execute
-        assert decision.predicted_gesture == 'open_palm'
+        assert decision.execute == allowed
+        assert decision.predicted_gesture == ('open_palm' if allowed else 'no_gesture')

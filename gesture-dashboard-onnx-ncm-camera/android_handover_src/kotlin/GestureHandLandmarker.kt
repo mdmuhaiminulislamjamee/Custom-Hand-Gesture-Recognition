@@ -8,7 +8,7 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 
-/** First-light hand detector; the full desktop recovery/face/stabilization port is still required. */
+/** Diagnostic two-hand detector; recovery, ownership and stabilization still need porting. */
 class GestureHandLandmarker(context: Context) : AutoCloseable {
     private val detector: HandLandmarker
     private var lastTimestampMs = -1L
@@ -17,7 +17,7 @@ class GestureHandLandmarker(context: Context) : AutoCloseable {
         val options = HandLandmarker.HandLandmarkerOptions.builder()
             .setBaseOptions(BaseOptions.builder().setModelAssetPath("hand_landmarker.task").build())
             .setRunningMode(RunningMode.VIDEO)
-            .setNumHands(1)
+            .setNumHands(2)
             .setMinHandDetectionConfidence(0.55f)
             .setMinHandPresenceConfidence(0.55f)
             .setMinTrackingConfidence(0.60f)

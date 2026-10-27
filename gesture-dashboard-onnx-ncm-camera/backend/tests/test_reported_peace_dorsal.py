@@ -101,12 +101,9 @@ def test_reported_dorsal_rejects_rotated_four_finger_shape_at_low_mass(xy, mirro
         world_landmarks=world_for_image(points),
     )
     pose = details['pose_validation']
-    if xy == 0:
-        # Horizontal is now an inclusive Stop-inverted endpoint. The low
-        # vocabulary mass below must still prevent any command execution.
-        assert pose['gesture'] == 'stop_inverted' and pose['valid']
-    else:
-        assert pose['gesture'] == 'no_gesture' and not pose['valid']
+    # Horizontal and all these lower poses are outside the narrowed
+    # Stop-inverted range, even with a verified back-of-hand surface.
+    assert pose['gesture'] == 'no_gesture' and not pose['valid']
     assert not pose['geometry_supported']
     gate = TemporalGate(config)
     for now in (1., 1.1, 1.2, 1.3, 1.4, 1.5):

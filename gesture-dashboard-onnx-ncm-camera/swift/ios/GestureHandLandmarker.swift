@@ -1,8 +1,8 @@
 import Foundation
 import MediaPipeTasksVision
 
-/// First-light detector wiring. For desktop parity the app must add the recovery,
-/// face guard and landmark stabilization described in IOS_INTEGRATION.md.
+/// Diagnostic detector wiring. Desktop parity additionally needs recovery,
+/// hand selection and landmark stabilization. Face/body vetoes are disabled.
 public final class GestureHandLandmarker {
     private let detector: HandLandmarker
     private var lastTimestampMS: Int = -1
@@ -11,7 +11,7 @@ public final class GestureHandLandmarker {
         let options = HandLandmarkerOptions()
         options.baseOptions.modelAssetPath = modelURL.path
         options.runningMode = .video
-        options.numHands = 1
+        options.numHands = 2
         options.minHandDetectionConfidence = 0.55
         options.minHandPresenceConfidence = 0.55
         options.minTrackingConfidence = 0.60

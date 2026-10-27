@@ -27,16 +27,17 @@ left, right, up, down, open_palm, like, dorsal, ok, fist, thumb_down, peace, roc
 `no_gesture` is the internal rejection/feedback label, not a command output.
 Peace maps to Turn 90 Degrees and Rock to Backup.
 `stop_inverted` maps to **Return to main position**. Both hands accept four
-extended fingers, together or spread. Palm and Stop inverted accept source-image
-XY angles from 0° at screen-right through −90° upward to −180° at screen-left,
-including both horizontal endpoints. The lower semicircle is rejected.
+extended fingers, together or spread. Stop inverted accepts source-image XY
+angles from −145° to −35°, inclusive (upright −90°, tilted at most 55° either way).
+Angles outside that range are no_gesture. Open Palm accepts a wider source-image
+XY range, −160° to −20°, including both endpoints.
 The reserved Dorsal tensor output remains disabled. This release incorporates
 all 103 reviewed feedback corrections in training, including 30 Left and 48 Right;
 they are excluded from evaluation. Direction angles use source-image pixels.
 The directional update and checks are recorded in
 `artifacts/directional_feedback_20261027/evaluation.json`.
-Open Palm is eligible when the palm axis points up, left, or right, including
-oblique side angles. Downward Open Palm poses are rejected. Fist and Thumbs Down are handedness-neutral. Fist accepts
+Open Palm is eligible when the palm axis points up or tilts at most 70° toward
+either side. Beyond that band it is rejected. Fist and Thumbs Down are handedness-neutral. Fist accepts
 horizontal left, up-left, up, up-right and horizontal right, including a
 30-degree forward pitch toward the camera. Any tilt below horizontal is
 `no_gesture`, even when ONNX is confident or a Fist was previously held.

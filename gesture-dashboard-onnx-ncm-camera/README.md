@@ -1,8 +1,10 @@
 # Gesture Dashboard: ONNX + USB-NCM Camera
 
-**Final NCM-only iOS app-team handover:** [README and run instructions](handover_final/v2026.10.08_ios_ncm_final_03/README.md). Build a fresh immutable delivery with `python scripts/create_final_handover.py --version vYYYY.MM.DD_ios_ncm_final_NN` using an unused version. Source guides live in [handover_docs](handover_docs/README.md).
+**Current iOS app-team handover:** [README and integration instructions](handover_final/v2026.10.27_ios_ncm_final_01/README.md) · [complete ZIP](handover_final/gesture-final-handover-v2026.10.27_ios_ncm_final_01.zip).
 
-**Android NCM app-team handover:** [README and integration instructions](handover_android/v2026.10.08_android_ncm_03/README.md). This supplies native NCM/MediaPipe/ONNX diagnostic sources, model assets and behavior references. The complete Android decision port and physical USB-NCM acceptance are still required. Build a new immutable version with `python scripts/create_android_handover.py --version vYYYY.MM.DD_android_ncm_NN` using an unused version.
+**Current Android app-team handover:** [README and integration instructions](handover_android/v2026.10.27_android_ncm_01/README.md) · [complete ZIP](handover_android/gesture-android-handover-v2026.10.27_android_ncm_01.zip).
+
+Both October 27 bundles include the current 13-output model, 12 enabled commands, Open Palm −160°…−20°, Stop inverted −145°…−35°, and the same verified desktop snapshot. Native diagnostics and porting references are supplied; full native decision parity, native builds and physical-device acceptance remain app-team work. See [the handover build guide](handover_docs/mobile/BUILD.md) to create a new immutable pair. Previous deliveries remain available in their dated folders.
 
 This repository is the Windows reference implementation for twelve active static hand gestures, with a reserved legacy Dorsal output. It contains the browser dashboard, Python/FastAPI inference backend, USB-NCM/JLIP camera receiver, MediaPipe-to-ONNX pipeline, data-collection and model-qualification tools, and the assets needed to port the classifier to iOS and Android.
 
@@ -12,9 +14,10 @@ The ten-command and `v18_20` materials are historical research evidence, not
 the active classifier. Peace maps to Turn 90 Degrees, Rock to Backup, and
 HaGRID `stop_inverted` to **Return to main position**. Stop inverted requires
 four extended fingers and the back of either hand, with fingers together or
-spread. Palm and Stop inverted share the source-image XY range from 0° at
-screen-right through −90° upward to −180° at screen-left. Both horizontal
-endpoints are included; the lower semicircle is no_gesture. Confidence and temporal holds still apply. The retrain
+spread. Stop inverted accepts source-image XY angles from −145° to −35°,
+inclusive: upright at −90° with up to 55° tilt toward either side. Beyond those
+limits it is no_gesture. Open Palm accepts a wider −160° to −20° range,
+including endpoints. Confidence and temporal holds still apply. The retrain
 includes all 103 saved feedback corrections in training only, including 30 Left
 and 48 Right examples. Direction angles use source-image pixels so wide camera
 frames preserve the intended Left/Right sector. The directional release record
@@ -158,7 +161,7 @@ The supplied reference receiver replies to a heartbeat with packet type `0x03`. 
 
 `backend/hand_detection.py` runs MediaPipe Hand Landmarker in VIDEO mode with monotonic timestamps and bounded IMAGE-mode recovery. Live inference observes up to two hands. If a recently tracked hand is missing from a frame, the bounded recovery pass runs immediately when time permits. `backend/hand_selection.py` qualifies both hands before distance arbitration. If exactly one hand has a valid gesture among the 11 active classes, that hand takes priority over an idle `no_gesture` / Hand observation regardless of apparent distance, palm size, or an uncertain distance comparison. A selected hand that becomes invalid automatically yields to the other hand's valid gesture after the normal gesture and selection holds. A valid owner stays selected when the other hand is idle. If both hands have valid gestures, the existing distance and ownership rules apply: a sustained foreground lead switches ownership after raw and filtered distance evidence agree, a clearly tracked owner stays selected at similar distance, and uncertain comparisons can pause actions. With neither gesture valid, no action is produced. Every change of owner clears landmark smoothing and gesture history, and uncertain track identity still pauses actions. Inactive previews remain `no_gesture`. Distance uses projected image/world landmark scale when coherent and apparent palm segments otherwise; neither measures camera depth. Hand positions continue updating during context rejections. A unique confident returning hand can reacquire its track after large movement, with a fresh gesture hold.
 
-Live recognition uses hand landmarks only. No body or face model runs, no body skeleton is drawn, and neither clothing nor arm/waist/face position vetoes a gesture. The old Dorsal output remains retired. The separately trained Stop inverted command returns to the main position. Both Stop inverted and Palm accept the full upper XY semicircle, 0° through −90° to −180°, including both horizontal endpoints. Lower open-hand poses remain `no_gesture`. The usual source-pixel, geometry, confidence and temporal checks apply. Without body context, a resting hand with the same shape as a command can also qualify.
+Live recognition uses hand landmarks only. No body or face model runs, no body skeleton is drawn, and neither clothing nor arm/waist/face position vetoes a gesture. The old Dorsal output remains retired. The separately trained Stop inverted command returns to the main position only within source-image XY −145° to −35°, inclusive. Open Palm uses −160° to −20°, inclusive. Open hands outside their respective bands remain `no_gesture`; crossing either limit immediately clears the hold. The usual source-pixel, geometry, confidence and temporal checks apply. Without body context, a resting hand with the same shape as a command can also qualify.
 
 Cold-start recovery revisits an upright central crop while also searching the sides of the image. Successful crops retain independent VIDEO tracking streams for both hands. When only one hand is found, recovery searches both sides of it with original and enhanced contrast; it does not assume the person is centred. Every frame starts with a full-frame scan, and recovery must find fresh landmarks. Recent coordinates guide searches for up to 650 ms and never count as detections. At most three passes run per frame: recovery starts within 55 ms and an additional peer pass within 85 ms. Two resident crop trackers preserve separate histories. The webcam runner requests 1280 × 720 capture, with driver fallback. These changes improve recovery opportunities; live range still depends on visible finger detail, motion and lighting. See [HAND_DISTANCE.md](HAND_DISTANCE.md) for testing and [DATA_COLLECTION.md](DATA_COLLECTION.md) for reviewed recordings.
 
@@ -200,8 +203,8 @@ The graph contract is:
 
 `backend/geometry.py::GeometryResolver` rejects incompatible directional,
 Like, OK, Fist, Thumbs Down, Open Palm and Stop inverted shapes. The retired Dorsal output is rejection evidence. Open Palm is eligible
-while its wrist-to-palm axis points up or sideways, including oblique angles,
-but downward poses are rejected. Fist accepts the upper arc from horizontal left
+while its wrist-to-palm axis stays within source-image XY −160° to −20°,
+including endpoints; other angles are rejected. Fist accepts the upper arc from horizontal left
 through up to horizontal right for both hands, including a 30-degree pitch
 toward the camera. Any lower tilt returns `no_gesture`.
 `backend/runtime.py::TemporalGate`
@@ -592,7 +595,7 @@ Interactive launcher:
 
 Choose `1` for a PC webcam or `2` for the USB-NCM board.
 Both sources run the same twelve-command contract; Fist maps to Mute, Thumbs Down
-maps to Volume Down, and Open Palm is accepted while pointing up, left, or right.
+maps to Volume Down, and Open Palm accepts image XY −160° to −20°, inclusive.
 
 Direct PC-webcam commands:
 

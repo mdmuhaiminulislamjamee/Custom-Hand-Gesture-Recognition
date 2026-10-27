@@ -269,12 +269,14 @@
     "dorsal"
   ],
   "stop_inverted_validation": {
-    "maximum_tilt_from_up_degrees": 90.0,
+    "maximum_tilt_from_up_degrees": 55.0,
     "angle_space": "source image XY pixels",
     "required_surface": "dorsal",
     "fingers_together_or_spread": true,
-    "xy_minimum_degrees": -180.0,
-    "xy_maximum_degrees": 0.0,
+    "xy_minimum_degrees": -145.0,
+    "xy_maximum_degrees": -35.0,
+    "endpoints_inclusive": true,
+    "symmetric_about_up": true,
     "above_limit": "no_gesture"
   },
   "stop_inverted_release": {
@@ -305,10 +307,12 @@
     "live_camera_validation_pending": true
   },
   "open_palm_rotation_validation": {
-    "xy_minimum_degrees": -180.0,
-    "xy_maximum_degrees": 0.0,
+    "xy_minimum_degrees": -160.0,
+    "xy_maximum_degrees": -20.0,
+    "maximum_tilt_from_up_degrees": 70.0,
     "angle_space": "source image XY pixels",
     "endpoints_inclusive": true,
-    "lower_half": "no_gesture"
+    "symmetric_about_up": true,
+    "outside_range": "no_gesture"
   }
 }

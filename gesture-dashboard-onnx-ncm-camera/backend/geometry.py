@@ -5,7 +5,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from .config import (DISABLED_GESTURES, DORSAL_REJECTION_REASON,
-                     OPEN_HAND_LOWER_ARC_REJECTION_REASON, RuntimeConfig)
+                     OPEN_HAND_LOWER_ARC_REJECTION_REASON, RuntimeConfig,
+                     OPEN_PALM_MAX_TILT_FROM_UP_DEGREES, OPEN_PALM_ANGLE_REJECTION_REASON,
+                     STOP_INVERTED_MAX_TILT_FROM_UP_DEGREES,
+                     STOP_INVERTED_ANGLE_REJECTION_REASON)
 
 
 MINIMUM_PEACE_TIP_SEPARATION_RATIO = 0.04
@@ -15,11 +18,13 @@ FIST_ORIENTATION_EPSILON = 1e-6
 OPEN_HAND_MAX_TILT_FROM_UP_DEGREES = 90.0
 
 
-def open_hand_xy_orientation(landmarks_xy: np.ndarray, image_shape=None) -> dict:
+def open_hand_xy_orientation(landmarks_xy: np.ndarray, image_shape=None, *,
+                             maximum_tilt_from_up=OPEN_HAND_MAX_TILT_FROM_UP_DEGREES) -> dict:
     """Accept screen-right (0), up (-90), through screen-left (-180).
 
-    Both horizontal endpoints are inclusive, including the equivalent +180
-    representation of left. Source dimensions remove normalized-XY stretching.
+    By default both horizontal endpoints are inclusive, including +180 for left.
+    Commands may supply a narrower tilt limit. Source dimensions remove
+    normalized-XY stretching.
     """
     points = np.asarray(landmarks_xy, dtype=np.float64).reshape(21, 2)
     axis = points[[5, 9, 13, 17]].mean(axis=0) - points[0]
@@ -32,19 +37,23 @@ def open_hand_xy_orientation(landmarks_xy: np.ndarray, image_shape=None) -> dict
     elif abs(xy) <= 1e-4:
         xy = 0.
     allowed = bool(np.linalg.norm(axis) > 1e-8
-                   and abs(tilt) <= OPEN_HAND_MAX_TILT_FROM_UP_DEGREES + 1e-4)
+                   and abs(tilt) <= maximum_tilt_from_up + 1e-4)
     return {"xy_degrees": xy, "tilt_from_up_degrees": tilt, "allowed_direction": allowed}
 
 
 def stop_inverted_geometry(landmarks_xy: np.ndarray, image_shape=None) -> dict:
     """Four extended fingers; measure screen tilt from up, independent of hand side.
 
+    Stop inverted is limited to upright +/-55 degrees (image XY -145 to -35).
     Finger separation is deliberately unrestricted. Runtime passes source image
     dimensions so the angle is measured in pixels rather than stretched UV space.
     Surface visibility is checked separately using detector handedness.
     """
     points = np.asarray(landmarks_xy, dtype=np.float64).reshape(21, 2)
     orientation = open_hand_xy_orientation(points, image_shape)
+    orientation["allowed_direction"] = bool(
+        orientation["allowed_direction"]
+        and abs(orientation["tilt_from_up_degrees"]) <= STOP_INVERTED_MAX_TILT_FROM_UP_DEGREES + 1e-4)
     # Joint angles and relative reaches also need square pixels. Measuring
     # normalized UV makes a sideways little finger appear folded/too short in
     # a wide camera image, despite a straight chain in the displayed overlay.
@@ -1300,6 +1309,14 @@ class GeometryResolver:
         peace_pair_recovery = bool(
             peace_image["strong_geometry"] and peace_geometry_supported
         )
+        # Near-zero vocabulary mass needs additional proof that neither of
+        # the remaining fingers is genuinely extended sideways. A projected
+        # straight folded finger is allowed only when its reach is very short.
+        peace_low_mass_pair_recovery = bool(
+            peace_pair_recovery
+            and (extensions[3] <= .55 or peace_image["ring_reach_ratio"] <= .45)
+            and (extensions[4] <= .55 or peace_image["pinky_reach_ratio"] <= .45)
+        )
         # Two extended fingers pointing up is unmistakably Peace, correcting an Up misclassification.
         is_two_finger_up = bool(
             model_raw == "up" and peace_image["valid"]
@@ -1368,7 +1385,10 @@ class GeometryResolver:
         palm_axis_dominance = float(np.max(np.abs(palm_axis)) / palm_axis_norm)
         open_palm_upward = palm_up_alignment >= .70
         stop_shape = stop_inverted_geometry(points, image_shape)
-        open_palm_allowed_direction = bool(stop_shape["allowed_direction"])
+        open_hand_upper_arc = open_hand_xy_orientation(points, image_shape)["allowed_direction"]
+        open_palm_orientation = open_hand_xy_orientation(
+            points, image_shape, maximum_tilt_from_up=OPEN_PALM_MAX_TILT_FROM_UP_DEGREES)
+        open_palm_allowed_direction = bool(open_palm_orientation["allowed_direction"])
         surface_settings = self.config.raw.get("palm_surface_validation") or {}
         surface_validation_enabled = bool(surface_settings.get("enabled", True))
         normalized_handedness = str(handedness or "").strip().lower()
@@ -1403,7 +1423,8 @@ class GeometryResolver:
         stop_rejection_reason = None
         if not stop_inverted_valid:
             if not stop_shape["allowed_direction"]:
-                stop_rejection_reason = OPEN_HAND_LOWER_ARC_REJECTION_REASON
+                stop_rejection_reason = (STOP_INVERTED_ANGLE_REJECTION_REASON if open_hand_upper_arc
+                                         else OPEN_HAND_LOWER_ARC_REJECTION_REASON)
             elif not stop_shape["extended_fingers"]:
                 stop_rejection_reason = "Stop inv: extend all four fingers"
             elif not surface["dorsal_visible"]:
@@ -1454,10 +1475,10 @@ class GeometryResolver:
         # separates the two trained open-hand commands, even with a close thumb.
         palm_geometry_supported = bool(palm_geometry_supported or (
             open_pair_model_support and model_raw == "stop_inverted"
-            and open_palm_valid and palm_visible and stop_shape["valid"]))
-        # The current classifier was trained with horizontal palms among its
-        # negatives. Only a strongly verified sideways palmar hand may recover
-        # when that classifier reports almost no known-vocabulary mass.
+            and open_palm_valid and palm_visible and stop_shape["extended_fingers"]
+            and open_palm_allowed_direction))
+        # Only a strongly verified palmar hand within the permitted band may
+        # recover low classifier mass at an oblique camera angle.
         sideways_palm_recovery = bool(
             palm_geometry_supported and palm_up_alignment <= .75
         )
@@ -1865,7 +1886,16 @@ class GeometryResolver:
             "open_palm_allowed_direction": open_palm_allowed_direction,
             "open_hand_xy_degrees": stop_shape["xy_degrees"],
             "open_hand_lower_arc": bool(stop_shape["extended_fingers"]
-                                         and not stop_shape["allowed_direction"]),
+                                         and not open_hand_upper_arc),
+            "open_palm_outside_angle": bool(
+                stop_shape["extended_fingers"] and not surface["dorsal_visible"]
+                # Edge-on folded fingers can project as straight chains.
+                # Preserve the existing 3-D proof of a genuine thumb command.
+                and not world_thumb_only and not world_folded_fingers
+                and open_hand_upper_arc and not open_palm_allowed_direction),
+            "stop_inverted_outside_angle": bool(
+                stop_shape["extended_fingers"] and surface["dorsal_visible"]
+                and open_hand_upper_arc and not stop_shape["allowed_direction"]),
             "palm_up_alignment": palm_up_alignment,
             "palm_axis_dominance": palm_axis_dominance,
             "dorsal_score": float(dorsal["score"]),
@@ -1888,6 +1918,7 @@ class GeometryResolver:
             "dorsal_geometry_supported": False,
             "peace_geometry_supported": peace_geometry_supported,
             "peace_pair_recovery": peace_pair_recovery,
+            "peace_low_mass_pair_recovery": peace_low_mass_pair_recovery,
             "dorsal_range_recovery": False,
             "dorsal_xy_degrees": dorsal_xy,
             "dorsal_allowed_direction": dorsal_allowed_direction,
@@ -2014,6 +2045,16 @@ class GeometryResolver:
             # Preserve the retired output as an explicit rejection sentinel.
             adjusted = np.zeros_like(adjusted)
             adjusted[self.config.class_to_idx["dorsal"]] = 1.0
+        if shape.get("stop_inverted_outside_angle", False) and not single_index and not hard_negative:
+            # A side-leaning dorsal open hand must not execute a different
+            # command simply because its classifier label changes.
+            valid = False
+            reason = STOP_INVERTED_ANGLE_REJECTION_REASON
+        if shape.get("open_palm_outside_angle", False) and not single_index and not hard_negative:
+            # An open palm beyond either limit must not become another command
+            # when the classifier changes its top label during rotation.
+            valid = False
+            reason = OPEN_PALM_ANGLE_REJECTION_REASON
         return adjusted, {
             "directional": directional,
             "hand_shape": shape,
@@ -2035,6 +2076,9 @@ class GeometryResolver:
                 ),
                 "stop_inverted_recovery": bool(
                     resolved == "stop_inverted" and shape.get("stop_inverted_geometry_supported", False)
+                ),
+                "peace_pair_recovery": bool(
+                    resolved == "peace" and shape.get("peace_low_mass_pair_recovery", False)
                 ),
                 "hard_negative": hard_negative,
                 "dorsal_range_recovery": False,

@@ -13,8 +13,8 @@
       "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 9215,
-      "sha256": "fdf747a98cb7bfa32cc8d855dcbd0bdf3446e0b25aeac8b03f93469478b1738d"
+      "bytes": 9365,
+      "sha256": "f81be1f771870f0cfaff762cb628a979e6f558ca4fdda5b0fd064c4a422a45f8"
     },
     "gesture_online_replay_cache.npz": {
       "bytes": 863867,
@@ -48,8 +48,8 @@
     "rock",
     "stop_inverted"
   ],
-  "created_utc": "2026-10-27T04:16:51.480029+00:00",
+  "created_utc": "2026-10-27T07:56:46.648289+00:00",
   "feature_count": 76,
-  "release_fingerprint": "8b3fa56ab16c96699b154ee938aa40c58dacd9a8e1f44de66c0daa2ce6de6b46",
+  "release_fingerprint": "2bb97873bda89fff23629bbb8a12e427d658eb7eaa82a0d56da7f9fe9ae0e412",
   "schema_version": 1
 }

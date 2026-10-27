@@ -80,7 +80,9 @@ def test_four_extended_fingers_respect_surface_and_dorsal_direction(angle, mirro
     pose = details["pose_validation"]
     assert details["hand_shape"]["hand_surface"] == surface
     palm_axis = points[[5, 9, 13, 17]].mean(0) - points[0]
-    if palm_axis[1] > 1e-6:
+    xy = float(np.degrees(np.arctan2(palm_axis[1], palm_axis[0])))
+    minimum, maximum = (-160.0001, -19.9999) if label == "open_palm" else (-145.0001, -34.9999)
+    if not minimum <= xy <= maximum:
         assert not pose["valid"]
         decision = TemporalGate(config).update(
             probabilities, now=1., **gate_arguments(details, dict(known_gesture_mass=.20)))

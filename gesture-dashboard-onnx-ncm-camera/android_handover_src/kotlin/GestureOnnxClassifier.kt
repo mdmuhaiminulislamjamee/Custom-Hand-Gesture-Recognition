@@ -60,7 +60,7 @@ class GestureOnnxClassifier(context: Context) : AutoCloseable {
                     require(values.all { it.isFinite() }) { "Nonfinite $name" }
                     return values
                 }
-                val probabilities = floats("probabilities", longArrayOf(1, 12))
+                val probabilities = floats("probabilities", longArrayOf(1, CLASS_NAMES.size.toLong()))
                 val mass = floats("known_gesture_mass", longArrayOf(1, 1))[0]
                 require(probabilities.all { it in 0f..1.00001f } &&
                     kotlin.math.abs(probabilities.sum() - 1f) < 0.0001f && mass in 0f..1f) {
@@ -75,6 +75,6 @@ class GestureOnnxClassifier(context: Context) : AutoCloseable {
 
     companion object {
         val CLASS_NAMES = listOf("left", "right", "up", "down", "open_palm", "like",
-            "dorsal", "ok", "fist", "thumb_down", "peace", "rock")
+            "dorsal", "ok", "fist", "thumb_down", "peace", "rock", "stop_inverted")
     }
 }

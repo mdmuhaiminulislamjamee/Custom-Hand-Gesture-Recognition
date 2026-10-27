@@ -56,7 +56,8 @@ def main() -> None:
     print(f"Commands ({len(config.gesture_to_action)}):")
     for gesture, action in config.gesture_to_action.items():
         print(f"  {gesture:<12} -> {action}")
-    print("Stop inverted: Return to main position. Palm and Stop inverted accept XY 0 to -180 degrees; the lower half is no_gesture.")
+    print("Stop inverted: Return to main position, only within image XY -145 to -35 degrees (up +/-55 degrees).")
+    print("Open Palm accepts image XY -160 to -20 degrees (up +/-70 degrees); outside it is no_gesture.")
     print("Hand-only detection: body position and clothing do not block gestures.")
     print("A valid gesture takes priority over the other hand's no_gesture, regardless of distance.")
     print("Face filtering removed: gestures can qualify in front of the face.\n")

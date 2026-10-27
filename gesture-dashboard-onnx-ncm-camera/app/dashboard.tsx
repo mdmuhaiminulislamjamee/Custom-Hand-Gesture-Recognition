@@ -1509,7 +1509,7 @@ export default function Dashboard() {
                   ? `Hand #${prediction.hand_selection.selected_track_id}` : 'Waiting for a clear hand'}</strong>
                 <span>{prediction.hand_selection?.message ?? 'Show a valid gesture with either hand. If both hands gesture, bring one forward.'}</span>
                 <span>Closeness uses image and hand landmark scale; camera depth is not measured.</span>
-                <span>Keep the whole hand visible. Palm and Stop inverted accept XY angles from 0° to −180°, through up and including both horizontal endpoints. Lower poses are no gesture.</span>
+                <span>Keep the whole hand visible. Open Palm accepts image XY −160° to −20° (up ±70°). Stop inverted accepts −145° to −35° (up ±55°). Endpoints are included; outside each range it is no gesture.</span>
               </article>
               <article className="result-card accent-mint">
                 <p>RUNTIME PREDICTION</p><strong>{humanize(runtimeGesture)}</strong>
@@ -1746,7 +1746,7 @@ export default function Dashboard() {
                 <div><dt>Execution provider</dt><dd>CPUExecutionProvider</dd></div>
                 <div><dt>Temporal filter</dt><dd>EMA α {health?.config.ema_alpha ?? 0.65}</dd></div>
                 <div><dt>Confidence floor</dt><dd>{percent(health?.config.confidence_floor ?? 0.70)}</dd></div>
-                <div><dt>Object tracking</dt><dd>Toggled by an Open Palm pointing up, left, or right</dd></div>
+                <div><dt>Object tracking</dt><dd>Toggled by an Open Palm within image XY −160° to −20°, inclusive</dd></div>
               </dl>
             </article>
 

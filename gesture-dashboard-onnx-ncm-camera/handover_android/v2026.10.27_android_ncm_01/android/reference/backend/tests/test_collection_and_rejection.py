@@ -1,0 +1,504 @@
+from io import BytesIO
+import json
+from pathlib import Path
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from backend.config import RuntimeConfig
+from backend.data_collection import CollectionStore, collection_plan, identifier
+from backend.face_guard import overlaps_face_as_small_hand
+from backend.geometry import GeometryResolver
+from backend.runtime import TemporalGate
+from backend.tests.test_multiview_training import directional_points
+from backend.tests.test_geometry import representative_hand, side_view_pointing_hand
+
+
+def jpeg_bytes():
+    stream = BytesIO()
+    Image.new('RGB', (80, 60), (120, 130, 140)).save(stream, 'JPEG')
+    return stream.getvalue()
+
+
+def test_save_raw_detector_failure_preserves_frozen_pair_and_restarts(tmp_path):
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    jpeg = jpeg_bytes()
+    store.observe(4, jpeg, {'status': 'no_hand', 'runtime_prediction': 'no_gesture'})
+    frozen = store.freeze()
+    store.observe(5, b'a different frame', {'runtime_prediction': 'left'})
+    result = store.save(token=frozen['token'], participant_id='person-001', session_id='session-1', step_id='up/casual')
+    assert result['has_features'] is False
+    from pathlib import Path
+    path = Path(result['image_path'])
+    assert path.read_bytes() == jpeg
+    record = json.loads(path.with_suffix('.json').read_text())
+    assert record['frame_id'] == 4
+    assert record['label'] == 'up'
+    assert record['prediction']['runtime_prediction'] == 'no_gesture'
+    assert CollectionStore(tmp_path).summary('person-001')['counts']['up/casual'] == 1
+    with pytest.raises(ValueError, match='expired'):
+        store.save(token=frozen['token'], participant_id='person-001', session_id='session-1', step_id='up/casual')
+
+
+def test_collection_can_freeze_and_save_a_webcam_frame(tmp_path):
+    from pathlib import Path
+
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-webcam')
+    frozen = store.freeze_bytes(
+        99,
+        jpeg_bytes(),
+        {'runtime_prediction': 'fist', 'action_reason': 'stable command emitted'},
+        source='webcam',
+    )
+    saved = store.save(
+        token=frozen['token'],
+        participant_id='person-webcam',
+        session_id='webcam-session',
+        step_id='left/front',
+    )
+    record = json.loads(Path(saved['image_path']).with_suffix('.json').read_text())
+    assert frozen['source'] == 'webcam'
+    assert record['source'] == 'webcam'
+    assert record['frame_id'] == 99
+
+
+def test_existing_eight_class_descriptor_is_migrated_without_losing_metadata(tmp_path):
+    old_classes = RuntimeConfig().class_names[:8] + ['no_gesture']
+    descriptor_path = tmp_path / 'dataset.json'
+    descriptor_path.write_text(json.dumps({
+        'schema_version': 2,
+        'type': 'gesture_image_collection',
+        'class_names': old_classes,
+        'raw_images': 'Original NCM JPEGs',
+        'operator_note': 'keep this custom value',
+    }), encoding='utf-8')
+
+    CollectionStore(tmp_path).initialize()
+
+    migrated = json.loads(descriptor_path.read_text(encoding='utf-8'))
+    assert migrated['class_names'] == RuntimeConfig().feedback_labels
+    assert migrated['raw_images'] == 'Original NCM or webcam JPEGs, no overlays or augmentation'
+    assert migrated['operator_note'] == 'keep this custom value'
+
+
+def test_collection_plan_keeps_all_sections_with_12_images_and_balanced_hand_angles():
+    plan = collection_plan()
+    assert len(plan) == 139  # includes four Stop-inverted capture steps
+    assert len({step['id'] for step in plan}) == len(plan)
+    assert all(step['target'] == 12 for step in plan)
+    assert all(step['per_hand_target'] == 6 and step['per_orientation_target'] * len(step['allowed_orientations']) == 6
+               for step in plan if step['hand_mode'] == 'single')
+    assert all(step['allowed_orientations'] == ['toward_camera']
+               for step in plan if step['label'] == 'fist')
+    assert all(step['per_hand_target'] is None and step['per_orientation_target'] is None
+               for step in plan if step['hand_mode'] in {'none', 'both'})
+    assert {step['group'] for step in plan if step['label'] == 'no_gesture'} == {
+        'Dorsal hard negatives', 'No hand', 'Unrelated hand shapes', 'Near-command shapes', 'Resting Dorsal', 'Resting Fist',
+        'Incidental pointing', 'Occlusion and motion', 'Two hands',
+    }
+
+
+def test_summary_counts_each_hand_angle_and_delete_last_removes_image_and_label(tmp_path):
+    from pathlib import Path
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    store.observe(1, jpeg_bytes(), {})
+    first = store.save(token=store.freeze()['token'], participant_id='person-001', session_id='session-1',
+                       step_id='up/front', handedness='right', finger_orientation='toward_camera')
+    store.observe(2, jpeg_bytes(), {})
+    second = store.save(token=store.freeze()['token'], participant_id='person-001', session_id='session-2',
+                        step_id='up/front', handedness='left', finger_orientation='away_from_camera')
+    summary = store.summary('person-001')
+    assert summary['counts']['up/front'] == 2
+    assert summary['counts_by_hand']['up/front'] == {'right': 1, 'left': 1}
+    assert summary['counts_by_hand_orientation']['up/front'] == {
+        'right': {'toward_camera': 1}, 'left': {'away_from_camera': 1},
+    }
+    latest = summary['recent'][0]
+    deleted = store.delete_last('person-001')
+    assert deleted['deleted']['sample_id'] == latest['sample_id']
+    assert deleted['deleted']['handedness'] == latest['handedness']
+    assert deleted['deleted']['finger_orientation'] == latest['finger_orientation']
+    deleted_path = Path(first['image_path'] if latest['handedness'] == 'right' else second['image_path'])
+    remaining_path = Path(second['image_path'] if latest['handedness'] == 'right' else first['image_path'])
+    assert deleted['summary']['total'] == 1
+    assert remaining_path.is_file()
+    assert not deleted_path.exists()
+    assert not deleted_path.with_suffix('.json').exists()
+    empty_store = CollectionStore(tmp_path / 'empty')
+    empty_store.add_participant('person-002')
+    with pytest.raises(ValueError, match='no saved images'):
+        empty_store.delete_last('person-002')
+
+
+def test_list_preview_and_delete_selected_images(tmp_path):
+    from pathlib import Path
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    saved = []
+    for frame_id, session_id, hand, orientation in (
+        (1, 'session-1', 'right', 'toward_camera'),
+        (2, 'session-2', 'left', 'away_from_camera'),
+    ):
+        store.observe(frame_id, jpeg_bytes(), {})
+        saved.append(store.save(
+            token=store.freeze()['token'], participant_id='person-001', session_id=session_id,
+            step_id='left/casual', handedness=hand, finger_orientation=orientation,
+        ))
+
+    listed = store.list_samples('person-001', 'left/casual')['samples']
+    assert len(listed) == 2
+    assert {item['finger_orientation'] for item in listed} == {'toward_camera', 'away_from_camera'}
+    assert store.sample_image('person-001', listed[0]['sample_ref']) == jpeg_bytes()
+
+    removed_ref = listed[0]['sample_ref']
+    removed_image = Path(tmp_path, *removed_ref.split('/')).with_suffix('.jpg')
+    result = store.delete_selected('person-001', [removed_ref, removed_ref])
+    assert len(result['deleted']) == 1
+    assert result['summary']['total'] == 1
+    assert not removed_image.exists()
+    assert not removed_image.with_suffix('.json').exists()
+    assert Path(saved[0]['image_path']).exists() != Path(saved[1]['image_path']).exists()
+
+    with pytest.raises(ValueError, match='Invalid selected image reference'):
+        store.delete_selected('person-001', ['../outside.json'])
+    with pytest.raises(ValueError, match='between 1 and 100'):
+        store.delete_selected('person-001', [])
+
+
+@pytest.mark.parametrize('value', ['../escape', 'CON', 'x/y', 'x\\y', 'x:y', 'person.', ''])
+def test_participant_paths_cannot_escape_or_use_reserved_names(value):
+    with pytest.raises(ValueError):
+        identifier(value, 'Participant')
+
+
+def test_stale_camera_image_cannot_be_frozen(tmp_path):
+    store = CollectionStore(tmp_path)
+    store.observe(1, jpeg_bytes(), {})
+    store._latest_at -= 3
+    with pytest.raises(ValueError, match='fresh'):
+        store.freeze()
+
+
+def test_frozen_preview_includes_landmarks_from_the_same_frame(tmp_path):
+    store = CollectionStore(tmp_path)
+    landmarks = representative_hand().round(6).tolist()
+    store.observe(7, jpeg_bytes(), {
+        'landmarks': landmarks,
+        'feature_vector': [0.0] * 76,
+        'runtime_prediction': 'open_palm',
+    })
+
+    frozen = store.freeze()
+
+    assert frozen['frame_id'] == 7
+    assert frozen['landmarks'] == landmarks
+    assert frozen['has_features'] is True
+
+
+@pytest.mark.parametrize('raised', [9, 13, 17])
+@pytest.mark.parametrize('direction,angle', [('up', -np.pi/2), ('down', np.pi/2), ('left', 0), ('right', np.pi)])
+def test_other_fingers_cannot_be_directional_even_with_confident_model(raised, direction, angle):
+    points = side_view_pointing_hand()
+    points[raised:raised+4] = points[5:9]  # Another finger extended.
+    points[5:9] = [[1, -.3], [1.1, -.3], [1.04, -.26], [.98, -.25]]  # Index folded.
+    rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    points = points @ rotation.T
+    config = RuntimeConfig()
+    probabilities = np.eye(len(config.class_names))[config.class_to_idx[direction]]
+    _, details = GeometryResolver(config).resolve(probabilities, points)
+    assert not details['pose_validation']['valid']
+    assert not details['directional']['index_only']
+
+
+@pytest.mark.parametrize('direction', ['left', 'right', 'up', 'down'])
+def test_real_index_has_strong_evidence_but_low_mass_still_rejected(direction):
+    config = RuntimeConfig(known_mass_floor=.95)
+    p, details = GeometryResolver(config).resolve(
+        np.eye(len(config.class_names))[config.class_to_idx[direction]],
+        directional_points(direction),
+    )
+    assert details['pose_validation']['valid']
+    gate = TemporalGate(config)
+    for t in (1., 1.1, 1.2, 1.3, 1.4, 1.5):
+        decision = gate.update(p, now=t, known_gesture_mass=.1, geometry_supported=True)
+    assert not decision.execute
+
+
+def test_open_palm_with_strong_shape_and_partial_mass_needs_longer_hold():
+    config = RuntimeConfig(known_mass_floor=.95)
+    p, details = GeometryResolver(config).resolve(
+        np.eye(len(config.class_names))[config.class_to_idx['open_palm']],
+        representative_hand(),
+        handedness='Left',
+        handedness_confidence=.99,
+    )
+    assert details['pose_validation']['geometry_supported']
+    gate = TemporalGate(config)
+    for t in (1., 1.1, 1.2, 1.3):
+        decision = gate.update(p, now=t, known_gesture_mass=.7, geometry_supported=True)
+        assert not decision.execute
+    assert gate.update(p, now=1.5, known_gesture_mass=.7, geometry_supported=True).execute
+    assert not gate.update(p, now=1.6, known_gesture_mass=.7, geometry_supported=False).execute
+
+
+def test_face_guard_rejects_small_ear_landmarks_but_allows_large_palm():
+    shape = (400, 400, 3)
+    boxes = [(150, 60, 90, 110)]
+    tiny = representative_hand() * .15 + [.32, .12]
+    assert overlaps_face_as_small_hand(tiny, shape, boxes)
+    assert not overlaps_face_as_small_hand(representative_hand(), shape, boxes)
+
+
+@pytest.mark.parametrize('label,view', [('up', 'casual'), ('open_palm', 'front'), ('no_gesture', 'middle_finger')])
+def test_dashboard_dataset_loads_human_labels_for_training(tmp_path, label, view):
+    from backend.geometry import landmarks_to_feature
+    from research.collection_dataset import load_collection_dataset
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    points = directional_points('up') if label == 'up' else representative_hand()
+    store.observe(1, jpeg_bytes(), dict(landmarks=points.tolist(), feature_vector=landmarks_to_feature(points).tolist(), runtime_prediction='left'))
+    store.save(token=store.freeze()['token'], participant_id='person-001', session_id='session-1', step_id=f'{label}/{view}')
+    data, audit = load_collection_dataset(tmp_path)
+    assert data['label'].tolist() == [label]
+    assert data['y'].tolist() == [(RuntimeConfig().class_names + ['no_gesture']).index(label)]
+    assert audit['usable_feature_rows'] == audit['raw_images'] == 1
+
+
+def test_raw_only_images_are_reported_without_fabricating_training_features(tmp_path):
+    from research.collection_dataset import load_collection_dataset
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    store.observe(1, jpeg_bytes(), {})
+    store.save(token=store.freeze()['token'], participant_id='person-001', session_id='session-1', step_id='no_gesture/face_ear')
+    data, audit = load_collection_dataset(tmp_path)
+    assert data['X'].shape == (0, 76)
+    assert audit['raw_images'] == 1
+    assert audit['raw_cases_for_review'] == []
+    assert audit['excluded_by_design'][0]['training_use'] == 'detector_only'
+
+
+@pytest.mark.parametrize('view', ['seated_fingers_over_edge', 'seated_fist_on_desk',
+                                   'index_resting_on_desk', 'both_hands_relaxed'])
+def test_context_negatives_are_saved_but_not_fitted_as_single_hand_shapes(tmp_path, view):
+    from backend.geometry import landmarks_to_feature
+    from research.collection_dataset import load_collection_dataset
+
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    points = representative_hand()
+    store.observe(1, jpeg_bytes(), dict(landmarks=points.tolist(),
+                                        feature_vector=landmarks_to_feature(points).tolist()))
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id=f'no_gesture/{view}',
+                       handedness='both' if view == 'both_hands_relaxed' else 'right',
+                       finger_orientation='none' if view == 'both_hands_relaxed' else 'toward_camera')
+    metadata = json.loads(Path(saved['image_path']).with_suffix('.json').read_text(encoding='utf-8'))
+    assert metadata['training_use'] == 'context_only'
+    assert metadata['hand_mode'] == ('both' if view == 'both_hands_relaxed' else 'single')
+    data, audit = load_collection_dataset(tmp_path)
+    assert data['X'].shape == (0, 76)
+    assert audit['raw_images'] == 1
+    assert audit['raw_cases_for_review'] == []
+    assert audit['excluded_by_design'][0]['training_use'] == 'context_only'
+
+
+@pytest.mark.parametrize('hand', ['left', 'right'])
+@pytest.mark.parametrize('orientation', ['toward_camera', 'away_from_camera'])
+def test_downward_fist_negative_can_be_collected_for_either_camera_facing(tmp_path, hand, orientation):
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    store.observe(1, jpeg_bytes(), {})
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id='no_gesture/downward_fist',
+                       handedness=hand, finger_orientation=orientation)
+    metadata = json.loads(Path(saved['image_path']).with_suffix('.json').read_text(encoding='utf-8'))
+    assert metadata['label'] == 'no_gesture'
+    assert metadata['finger_orientation'] == orientation
+    assert metadata['training_use'] == 'context_only'
+
+
+def test_reverse_facing_fist_cannot_be_saved_as_positive(tmp_path):
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    store.observe(1, jpeg_bytes(), {})
+    with pytest.raises(ValueError, match='Opposite-facing fists'):
+        store.save(token=store.freeze()['token'], participant_id='person-001',
+                   session_id='session-1', step_id='fist/casual',
+                   handedness='right', finger_orientation='away_from_camera')
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id='fist/casual',
+                       handedness='right', finger_orientation='toward_camera')
+    path = Path(saved['image_path']).with_suffix('.json')
+    metadata = json.loads(path.read_text())
+    metadata['finger_orientation'] = 'away_from_camera'
+    path.write_text(json.dumps(metadata), encoding='utf-8')
+    from research.collection_dataset import load_collection_dataset
+    data, report = load_collection_dataset(tmp_path)
+    assert len(data['y']) == 0
+    assert report['excluded_by_design'][0]['reason'] == 'reverse_facing_fist_requires_orientation_review'
+
+
+def test_video_relabeling_excludes_old_extracted_labels(tmp_path):
+    from backend.geometry import landmarks_to_feature
+    from research.collection_dataset import load_collection_dataset
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-001')
+    points = representative_hand()
+    store.observe(1, jpeg_bytes(), dict(landmarks=points.tolist(),
+                                      feature_vector=landmarks_to_feature(points).tolist()))
+    saved = store.save(token=store.freeze()['token'], participant_id='person-001',
+                       session_id='session-1', step_id='open_palm/casual')
+    path = Path(saved['image_path']).with_suffix('.json')
+    metadata = json.loads(path.read_text())
+    metadata['video_provenance'] = {'clip_id': 'a' * 32, 'timestamp_seconds': 1.0}
+    path.write_text(json.dumps(metadata), encoding='utf-8')
+    clip = tmp_path / 'videos' / 'clips' / ('a' * 32)
+    clip.mkdir(parents=True)
+    (clip / 'clip.json').write_text(json.dumps({'reviewed': True, 'segments': [
+        {'start': 0, 'end': 2, 'label': 'no_gesture', 'negative_reason': 'relaxed_hand'}
+    ]}), encoding='utf-8')
+    data, report = load_collection_dataset(tmp_path)
+    assert len(data['y']) == 0
+    assert report['excluded_by_design'][0]['training_use'] == 'superseded_video_annotation'
+
+
+def test_tracking_gap_does_not_rearm_a_held_action_too_soon():
+    from backend.model_runtime import RuntimeSession
+    session = RuntimeSession(RuntimeConfig(target_fps=10))
+    session.last_action_gesture = 'left'
+    for _ in range(5):
+        assert not session.observe_action_release(None, tracking_gap=True)
+    assert session.last_action_gesture == 'left'
+    assert session.observe_action_release(None, tracking_gap=True)
+
+
+def test_collection_api_lifecycle_validation_and_storage_failure(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from types import SimpleNamespace
+    import backend.app as module
+    store = CollectionStore(tmp_path)
+    monkeypatch.setattr(module, 'collection_store', store)
+    monkeypatch.setattr(module, 'ncm_camera', SimpleNamespace(status=lambda: {'connected': True}))
+    client = TestClient(module.app)
+    assert client.post('/api/collection/participants', json={'participant_id': '../x'}).status_code == 409
+    assert client.post('/api/collection/participants', json={'participant_id': 'person-001'}, headers={'origin': 'https://untrusted.example'}).status_code == 403
+    assert client.post('/api/collection/participants', json={'participant_id': 'person-001'}).status_code == 200
+    store.observe(7, jpeg_bytes(), {})
+    token = client.post('/api/collection/preview').json()['token']
+    payload = dict(participant_id='person-001', session_id='session-1', step_id='up/front', token=token,
+                   handedness='right', finger_orientation='toward_camera')
+    assert client.post('/api/collection/samples', json={**payload, 'step_id': 'bad'}).status_code == 409
+    saved = client.post('/api/collection/samples', json=payload)
+    assert saved.status_code == 200
+    summary = client.get('/api/collection?participant_id=person-001').json()
+    assert summary['total'] == 1
+    assert summary['counts_by_hand']['up/front']['right'] == 1
+    assert summary['counts_by_hand_orientation']['up/front']['right']['toward_camera'] == 1
+    listed = client.get('/api/collection/samples', params={
+        'participant_id': 'person-001', 'step_id': 'up/front',
+    }).json()['samples']
+    assert len(listed) == 1
+    image = client.get('/api/collection/image', params={
+        'participant_id': 'person-001', 'sample_ref': listed[0]['sample_ref'],
+    })
+    assert image.status_code == 200
+    assert image.headers['content-type'] == 'image/jpeg'
+    assert image.content == jpeg_bytes()
+    assert client.post('/api/collection/samples', json=payload).status_code == 409
+    selected = client.post('/api/collection/samples/delete-selected', json={
+        'participant_id': 'person-001', 'sample_refs': [listed[0]['sample_ref']],
+    })
+    assert selected.status_code == 200
+    assert selected.json()['summary']['total'] == 0
+    assert client.get('/api/collection/image', params={
+        'participant_id': 'person-001', 'sample_ref': listed[0]['sample_ref'],
+    }).status_code == 409
+
+    store.observe(8, jpeg_bytes(), {})
+    payload['token'] = client.post('/api/collection/preview').json()['token']
+    payload['session_id'] = 'session-2'
+    assert client.post('/api/collection/samples', json=payload).status_code == 200
+    deleted = client.post('/api/collection/samples/delete-last', json={'participant_id': 'person-001'})
+    assert deleted.status_code == 200
+    assert deleted.json()['summary']['total'] == 0
+    assert client.post('/api/collection/samples/delete-last', json={'participant_id': 'person-001'}).status_code == 409
+    def unavailable(*args, **kwargs):
+        raise OSError('disk unavailable')
+    monkeypatch.setattr(store, 'add_participant', unavailable)
+    assert client.post('/api/collection/participants', json={'participant_id': 'person-002'}).status_code == 503
+
+
+def test_collection_webcam_preview_processes_and_freezes_the_exact_uploaded_jpeg(
+    tmp_path, monkeypatch
+):
+    from fastapi.testclient import TestClient
+    import backend.app as module
+
+    store = CollectionStore(tmp_path)
+    monkeypatch.setattr(module, 'collection_store', store)
+    observed = {}
+
+    async def process_uploaded_frame(content, session, timestamp):
+        observed['content'] = content
+        observed['session'] = session
+        observed['timestamp'] = timestamp
+        return {
+            'runtime_prediction': 'thumb_down',
+            'action_reason': 'waiting for temporal confirmation',
+            'landmarks': representative_hand().tolist(),
+            'world_landmarks': [],
+            'plane_angles': None,
+            'feature_vector': [0.0] * 76,
+            'quality': {'issues': []},
+        }
+
+    monkeypatch.setattr(module, '_process_frame_with_limit', process_uploaded_frame)
+    client = TestClient(module.app)
+    jpeg = jpeg_bytes()
+
+    missing = client.post('/api/collection/preview?source=webcam')
+    assert missing.status_code == 400
+    response = client.post(
+        '/api/collection/preview?source=webcam',
+        files={'image': ('frame.jpg', jpeg, 'image/jpeg')},
+    )
+
+    assert response.status_code == 200
+    frozen = response.json()
+    assert observed['content'] == jpeg
+    assert observed['timestamp'] is None
+    assert frozen['source'] == 'webcam'
+    assert frozen['prediction'] == 'thumb_down'
+    assert frozen['has_features'] is True
+    assert frozen['image_url'].startswith('data:image/jpeg;base64,')
+
+
+def test_imported_photo_works_without_camera_and_normalizes_png_before_analysis(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    import backend.app as module
+    store = CollectionStore(tmp_path)
+    store.add_participant('person-import')
+    monkeypatch.setattr(module, 'collection_store', store)
+    observed = {}
+    async def process(content, session, model_name):
+        observed['jpeg'] = content
+        return {'status': 'no_hand', 'runtime_prediction': 'no_gesture'}
+    monkeypatch.setattr(module, '_process_frame_with_limit', process)
+    png = BytesIO()
+    Image.new('RGB', (80, 60), (30, 60, 90)).save(png, 'PNG')
+    client = TestClient(module.app)
+    response = client.post('/api/collection/image-preview?source=ncm',
+                           files={'image': ('photo.png', png.getvalue(), 'image/png')})
+    assert response.status_code == 200, response.text
+    frozen = response.json()
+    assert frozen['source'] == 'ncm'
+    assert frozen['has_features'] is False
+    assert observed['jpeg'].startswith(b'\xff\xd8')
+    saved = store.save(token=frozen['token'], participant_id='person-import',
+                       session_id='session-import', step_id='no_gesture/dorsal_casual')
+    assert Path(saved['image_path']).read_bytes() == observed['jpeg']
+    assert client.post('/api/collection/image-preview', files={'image': ('bad.jpg', b'invalid', 'image/jpeg')}).status_code == 400

@@ -1,0 +1,149 @@
+from __future__ import annotations
+
+import json
+
+import numpy as np
+
+from backend.artifact_integrity import ArtifactRegistry
+from backend.config import ACTIVE_CLASS_NAMES, CLASS_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION, MODELS_DIRECTORY, load_runtime_config
+from backend.geometry import GeometryResolver, hand_surface_orientation, landmarks_to_feature
+from backend.model_runtime import ModelManager
+from backend.runtime import TemporalGate
+from backend.tests.test_geometry import representative_hand
+from backend.app import _onnx_qualification
+
+
+def test_artifact_manifest_and_onnx_metadata_are_current():
+    verification = ArtifactRegistry().verify()
+    assert verification["verified"], verification["errors"]
+    metadata = json.loads(
+        (MODELS_DIRECTORY / "gesture_mlp_onnx_metadata.json").read_text(encoding="utf-8")
+    )
+    assert metadata["format"] == "ONNX"
+    assert metadata["parity"]["passed"] is True
+    assert metadata["parity"]["prediction_agreement"] >= 0.99
+    assert metadata["output_class_order"] == CLASS_NAMES
+    assert len(CLASS_NAMES) == 13
+    assert CLASS_NAMES[-3:] == ["peace", "rock", "stop_inverted"]
+    assert metadata["internal_class_order"] == [*CLASS_NAMES, "no_gesture"]
+    assert metadata["known_mass_output"] == "known_gesture_mass"
+
+
+def test_active_runtime_actions_and_safe_learning_caches_cover_all_commands():
+    config = load_runtime_config()
+    assert config.class_names == CLASS_NAMES
+    assert config.gesture_to_action == GESTURE_TO_ACTION
+    assert {name: config.gesture_to_action[name] for name in CLASS_NAMES[-3:]} == {
+        "peace": "Turn 90 Degrees",
+        "rock": "Backup",
+        "stop_inverted": "Return to main position",
+    }
+    for cache_name in (
+        "gesture_online_replay_cache.npz",
+        "gesture_online_validation_cache.npz",
+        "gesture_online_untouched_test_cache.npz",
+    ):
+        with np.load(MODELS_DIRECTORY / cache_name, allow_pickle=False) as archive:
+            assert archive["class_names"].tolist() == CLASS_NAMES
+            assert set(archive["y"].tolist()) == {CLASS_NAMES.index(name) for name in ACTIVE_CLASS_NAMES} | {-1}
+
+
+def test_health_qualification_uses_the_current_gesture_gate_schema():
+    qualification = _onnx_qualification()
+
+    assert qualification["status"] == "provisional", qualification["failing_gates"]
+    assert qualification["current"] is True
+    assert qualification["pc_release_ready"] is False
+    assert qualification["live_camera_validation_pending"] is True
+    assert qualification["failing_gates"] == []
+    assert qualification["gates"]["exact_class_contract"] is True
+    assert qualification["gates"]["complete_offline_checks"] is True
+    assert qualification["gates"]["selected_thresholds_match_runtime"] is True
+
+
+def test_model_manager_loads_only_qualified_onnx_runtime():
+    config = load_runtime_config()
+    manager = ModelManager(config)
+    assert manager.ready, manager.errors
+    assert manager.status()["available_models"] == ["ONNX"]
+    assert manager.status()["selectable_models"] == ["ONNX"]
+    probabilities, model_name, _ = manager.predict(
+        np.zeros(len(config.feature_names), dtype=np.float32)
+    )
+    assert model_name == "ONNX"
+    assert probabilities.shape == (len(config.class_names),)
+    assert np.isfinite(probabilities).all()
+    assert np.isclose(probabilities.sum(), 1.0)
+    _, _, _, quality = manager.predict_detailed(
+        np.zeros(len(config.feature_names), dtype=np.float32)
+    )
+    assert 0.0 <= quality["known_gesture_mass"] <= 1.0
+
+
+def test_handover_folder_contains_no_python_pickle_model():
+    assert not list(MODELS_DIRECTORY.glob("*.joblib"))
+    assert not list(MODELS_DIRECTORY.glob("*.pkl"))
+
+
+def test_open_set_output_stays_finite_when_retained_mass_underflows():
+    config = load_runtime_config()
+    classifier = ModelManager(config).models["ONNX"]
+    rows = np.vstack([
+        np.full((1, len(config.feature_names)), value, dtype=np.float32)
+        for value in (-1e6, -1e3, 1e3, 1e6)
+    ])
+
+    probabilities, known_mass = classifier.predict_with_quality(rows)
+
+    assert np.isfinite(probabilities).all()
+    assert np.isfinite(known_mass).all()
+    assert np.allclose(probabilities.sum(axis=1), 1.0)
+    assert ((known_mass >= 0.0) & (known_mass <= 1.0)).all()
+
+
+def test_shipped_onnx_recovers_palms_only_within_the_angle_band():
+    config = load_runtime_config()
+    model = ModelManager(config)
+    resolver = GeometryResolver(config)
+    upward = representative_hand()
+    axis = upward[[5, 9, 13, 17]].mean(axis=0) - upward[0]
+    original_angle = np.arctan2(axis[1], axis[0])
+
+    for target_angle in np.deg2rad([-180, -160, -150, -145, -120, -60, -35, -30, -20, 0]):
+        angle = target_angle - original_angle
+        rotation = np.asarray([
+            [np.cos(angle), -np.sin(angle)],
+            [np.sin(angle), np.cos(angle)],
+        ], dtype=np.float32)
+        points = (upward - upward[0]) @ rotation.T + upward[0]
+        handedness = next(
+            hand for hand in ('Right', 'Left')
+            if hand_surface_orientation(points, hand, .99)['surface'] == 'palmar'
+        )
+        probabilities, _, _, quality = model.predict_detailed(
+            landmarks_to_feature(points)
+        )
+        resolved, details = resolver.resolve(
+            probabilities, points, handedness=handedness,
+            handedness_confidence=.99,
+        )
+        pose = details['pose_validation']
+        allowed = -160.0001 <= np.degrees(target_angle) <= -19.9999
+        assert pose['valid'] == allowed
+        if allowed:
+            assert pose['gesture'] == 'open_palm'
+            assert pose['geometry_supported']
+        else:
+            assert not pose['sideways_palm_recovery']
+
+        gate = TemporalGate(config)
+        for now in (1.0, 1.1, 1.2, 1.3, 1.4, 1.5):
+            decision = gate.update(
+                resolved, now=now,
+                known_gesture_mass=quality['known_gesture_mass'],
+                pose_valid=pose['valid'],
+                geometry_supported=pose['geometry_supported'],
+                sideways_palm_recovery=pose['sideways_palm_recovery'],
+            )
+        assert decision.execute == allowed
+        assert decision.predicted_gesture == ('open_palm' if allowed else 'no_gesture')

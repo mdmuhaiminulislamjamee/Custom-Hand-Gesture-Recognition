@@ -1145,6 +1145,8 @@ class InferenceEngine:
             sideways_palm_recovery=bool(pose_validation.get("sideways_palm_recovery", False)),
             stop_inverted_recovery=bool(
                 geometry_supported and pose_validation.get("stop_inverted_recovery", False)),
+            peace_pair_recovery=bool(
+                geometry_supported and pose_validation.get("peace_pair_recovery", False)),
             horizontal_direction_recovery=bool(
                 geometry_supported and pose_validation.get("horizontal_direction_recovery", False)),
             dorsal_range_recovery=bool(pose_validation.get("dorsal_range_recovery", False)),
@@ -1183,6 +1185,8 @@ class InferenceEngine:
                     sideways_palm_recovery=bool(model_pose.get("sideways_palm_recovery", False)),
                     stop_inverted_recovery=bool(
                         model_geometry_supported and model_pose.get("stop_inverted_recovery", False)),
+                    peace_pair_recovery=bool(
+                        model_geometry_supported and model_pose.get("peace_pair_recovery", False)),
                     horizontal_direction_recovery=bool(
                         model_geometry_supported and model_pose.get("horizontal_direction_recovery", False)),
                     dorsal_range_recovery=bool(model_pose.get("dorsal_range_recovery", False)),

@@ -5,17 +5,31 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.SystemClock
 
+data class GestureWorldPoint(val x: Float, val y: Float, val z: Float)
+data class GestureHandObservation(
+    val landmarks: List<GesturePoint>,
+    val worldLandmarks: List<GestureWorldPoint>?,
+    val handedness: String?,
+    val handednessConfidence: Float?,
+    val probabilities: FloatArray,
+    val knownGestureMass: Float,
+)
+
 data class GestureObservation(
     val landmarks: List<GesturePoint>,
     val probabilities: FloatArray,
     val knownGestureMass: Float,
     val timestampMs: Long,
     val boardSequence: Long,
+    val imageWidth: Int,
+    val imageHeight: Int,
+    val candidates: List<GestureHandObservation>,
 )
 
 /**
  * Diagnostic NCM-to-model path. It emits raw scores only. The production action
- * path must add the complete geometry, face/recovery, temporal and latch rules.
+ * path must add hand selection, recovery, geometry, temporal and latch rules.
+ * Face and body vetoes are disabled in the current reference.
  */
 class GestureFrameAnalyzer(
     context: Context,
@@ -57,12 +71,23 @@ class GestureFrameAnalyzer(
                 val timestamp = maxOf(now, lastMediaPipeMs + 1)
                 lastMediaPipeMs = timestamp
                 val result = detector.detect(prepared, timestamp)
-                val hand = result.landmarks().firstOrNull()
-                if (hand == null || hand.size != 21) { onMissingHand(); continue }
-                val points = hand.map { GesturePoint(it.x(), it.y()) }
-                val model = classifier.predict(GestureFeatureExtractor.extract(points))
-                onObservation(GestureObservation(points, model.probabilities,
-                    model.knownGestureMass, timestamp, frame.boardSequence))
+                val candidates = result.landmarks().mapIndexedNotNull { index, hand ->
+                    if (hand.size != 21) return@mapIndexedNotNull null
+                    val points = hand.map { GesturePoint(it.x(), it.y()) }
+                    val model = classifier.predict(GestureFeatureExtractor.extract(points))
+                    val category = result.handedness().getOrNull(index)?.firstOrNull()
+                    val world = result.worldLandmarks().getOrNull(index)?.map {
+                        GestureWorldPoint(it.x(), it.y(), it.z())
+                    }
+                    GestureHandObservation(points, world, category?.categoryName(), category?.score(),
+                        model.probabilities, model.knownGestureMass)
+                }
+                if (candidates.isEmpty()) { onMissingHand(); continue }
+                // The first candidate is a diagnostic convenience, not gesture ownership.
+                val first = candidates.first()
+                onObservation(GestureObservation(first.landmarks, first.probabilities,
+                    first.knownGestureMass, timestamp, frame.boardSequence,
+                    prepared.width, prepared.height, candidates))
             } catch (error: Exception) {
                 onError(error)
             }

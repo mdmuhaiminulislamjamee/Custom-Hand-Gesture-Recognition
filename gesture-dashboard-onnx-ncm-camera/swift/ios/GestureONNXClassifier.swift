@@ -13,6 +13,7 @@ public struct GestureModelOutput {
 
 /// Keep one instance per serialized inference queue. Uses CPU execution.
 public final class GestureONNXClassifier {
+    public let modelSHA256: String
     private let environment: ORTEnv
     private let session: ORTSession
 
@@ -23,6 +24,7 @@ public final class GestureONNXClassifier {
         let runtime = try JSONSerialization.jsonObject(with: Data(contentsOf: runtimeURL)) as? [String: Any]
         let modelURL = modelsDirectory.appendingPathComponent("gesture_mlp_production.onnx")
         let digest = SHA256.hash(data: try Data(contentsOf: modelURL)).map { String(format: "%02x", $0) }.joined()
+        modelSHA256 = digest
         guard metadata?["onnx_sha256"] as? String == digest,
               metadata?["output_class_order"] as? [String] == GestureFeatureExtractor.classNames,
               runtime?["class_names"] as? [String] == GestureFeatureExtractor.classNames,
@@ -65,7 +67,7 @@ public final class GestureONNXClassifier {
         let input = try ORTValue(tensorData: bytes, elementType: .float, shape: [1, 76])
         let outputs = try session.run(withInputs: ["landmark_features": input],
                                       outputNames: ["probabilities", "known_gesture_mass"], runOptions: nil)
-        let probabilities = try floats(outputs["probabilities"], shape: [1,12])
+        let probabilities = try floats(outputs["probabilities"], shape: [1, GestureFeatureExtractor.classNames.count])
         let mass = try floats(outputs["known_gesture_mass"], shape: [1,1])[0]
         guard probabilities.allSatisfy({ $0 >= 0 && $0 <= 1.00001 }),
               abs(probabilities.reduce(0,+) - 1) < 0.0001, (0...1).contains(mass) else {

@@ -1,0 +1,622 @@
+{
+  "android/AndroidManifest.fragment.xml": {
+    "bytes": 332,
+    "sha256": "25b7e53ca67641985f267f27419d107ecfd0fd6b73e4dc0780b7e4af540c01f5"
+  },
+  "android/app-build.gradle.kts.fragment": {
+    "bytes": 391,
+    "sha256": "4c777d5dc349af6ed08b574379884ac08283206ec98982eab0b5f797827a50e2"
+  },
+  "android/kotlin/GestureFeatureExtractor.kt": {
+    "bytes": 4151,
+    "sha256": "8ea2a3314d9254e8d198621771251f71f49161837eec1f6db21bc9b1dab4d9a9"
+  },
+  "android/kotlin/GestureFrameAnalyzer.kt": {
+    "bytes": 4644,
+    "sha256": "02a8890ea822ee02eee40c3d0942773541a40df32ec00b231bf96065e7688695"
+  },
+  "android/kotlin/GestureHandLandmarker.kt": {
+    "bytes": 1629,
+    "sha256": "f8954a24a3fd11a5bab4eb90865e0e3e01292f4ac9ed5084b64a8d2850e0e581"
+  },
+  "android/kotlin/GestureNcmClient.kt": {
+    "bytes": 6553,
+    "sha256": "7fddfdfe397bfaa8edc8c9bf2879d20523bdb2df3e4503f1268e5d485f107e5e"
+  },
+  "android/kotlin/GestureOnnxClassifier.kt": {
+    "bytes": 4017,
+    "sha256": "61f79bc98ff960a5ad4dddad90c24483d73606f07b2c5086ae3627212d47c13d"
+  },
+  "android/kotlin/GestureParity.kt": {
+    "bytes": 3684,
+    "sha256": "4e4a38bf09ded914a33b6837f11330334c754501e5af700766ebe972eb03f0bd"
+  },
+  "android/kotlin/GestureRuntimePolicy.kt": {
+    "bytes": 1339,
+    "sha256": "c6fdb5cf57607753622897fe03ba5264573d638b9d93c473c2241bb2da31e6ff"
+  },
+  "android/kotlin/NcmNetworkSelector.kt": {
+    "bytes": 1047,
+    "sha256": "f11d8d353c9984435adb01a0d63b70ee6d2377e6359e3442c8eaeb1a81c056b1"
+  },
+  "android/models/blaze_face_short_range.tflite": {
+    "bytes": 229746,
+    "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+  },
+  "android/models/gesture_mlp_onnx_metadata.json": {
+    "bytes": 12245,
+    "sha256": "37c6422fd626421aabc1539acc4dc30a08ff5ded2744e16022da68cdd9b504e7"
+  },
+  "android/models/gesture_mlp_production.onnx": {
+    "bytes": 77797,
+    "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
+  },
+  "android/models/gesture_mobile_runtime_config.json": {
+    "bytes": 9365,
+    "sha256": "f81be1f771870f0cfaff762cb628a979e6f558ca4fdda5b0fd064c4a422a45f8"
+  },
+  "android/models/hand_landmarker.task": {
+    "bytes": 7819105,
+    "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+  },
+  "android/reference/backend/__init__.py": {
+    "bytes": 40,
+    "sha256": "fd823a1d5a6ad83af7d4d12bbaf0d90876f34e524f5a940d134fe55f8ebb857a"
+  },
+  "android/reference/backend/app.py": {
+    "bytes": 41738,
+    "sha256": "b9cea267de014a696cb600d20b140e1481f196dd856e5e3f3bcc6fb2e456e934"
+  },
+  "android/reference/backend/artifact_integrity.py": {
+    "bytes": 7918,
+    "sha256": "074c852f8fd07119bf1de6225f03394067ab3b42ba4a591490bc626d6bec3dd9"
+  },
+  "android/reference/backend/body_guard.py": {
+    "bytes": 23576,
+    "sha256": "4331c13027ef091b2588000aaf0371a626309fc1db8254d2d028531354f6c45f"
+  },
+  "android/reference/backend/config.py": {
+    "bytes": 13814,
+    "sha256": "119b0698658dc28fe65f401b54b2264355df23318c1e4fb7e4f8b9eddb7f9888"
+  },
+  "android/reference/backend/data_collection.py": {
+    "bytes": 35666,
+    "sha256": "177099c3f0f6ca1923c1e38c1ec906d224ab442d083a0afc6a6c7e7c178e1431"
+  },
+  "android/reference/backend/face_contact.py": {
+    "bytes": 26577,
+    "sha256": "859fdba778b12174f5ca0545e8e8353f894a783406f573e730296f0a7080993c"
+  },
+  "android/reference/backend/face_guard.py": {
+    "bytes": 5536,
+    "sha256": "e8a943cfbc4db9fd12c70495b234aef788fd4354cda4e4dacbff7f3ed1e85f1f"
+  },
+  "android/reference/backend/follow_object.py": {
+    "bytes": 5766,
+    "sha256": "fb60d3f6ed9f0b24cbf488774b66d3e01b9e4d650ee234359c3550293b1aa95d"
+  },
+  "android/reference/backend/geometry.py": {
+    "bytes": 107220,
+    "sha256": "f8a446aa877aba9919661df6d4e054bf75333bb6b3a6f65229d2e078204397e3"
+  },
+  "android/reference/backend/hand_detection.py": {
+    "bytes": 39439,
+    "sha256": "c05523dcea7242bff3c7c26e8ba9ce8f174ba79b35942d9a6358df1d68f08983"
+  },
+  "android/reference/backend/hand_selection.py": {
+    "bytes": 38115,
+    "sha256": "c7713900492d4a4842db7765e78ea63efe0d1aa24e18773c14a81ccf2d40c5aa"
+  },
+  "android/reference/backend/model_lab.py": {
+    "bytes": 7971,
+    "sha256": "1019558643aeed81d0e42d8108c3a0b526f20d6c5294b1e5dfae8920f38f01b1"
+  },
+  "android/reference/backend/model_runtime.py": {
+    "bytes": 65680,
+    "sha256": "74836123a731a7acb2165c7b4b642e9893f8696b59fb2c5b966e93f432bff5e5"
+  },
+  "android/reference/backend/ncm_camera.py": {
+    "bytes": 18008,
+    "sha256": "bcea58b59babeaa6eaf0c2ed1ce51481db21f03944d4256027eadcfcb1f8f045"
+  },
+  "android/reference/backend/observability.py": {
+    "bytes": 7139,
+    "sha256": "e4970defa60d11f1ecb71d7d8a1a4bc3ad0d17f50d590a7385266952951fe757"
+  },
+  "android/reference/backend/online_learning.py": {
+    "bytes": 67620,
+    "sha256": "1d1b88c742d9e1ef0ed397288b84f93cdda4d607069c17b8414f19952ec8ca9b"
+  },
+  "android/reference/backend/runtime.py": {
+    "bytes": 15340,
+    "sha256": "1ef9c16fba2e7f6b1e6459afc82db1829527a8b70ca73e9bbca097df368c8f12"
+  },
+  "android/reference/backend/storage.py": {
+    "bytes": 8358,
+    "sha256": "4ea1311c940a1afc32e1c26071cc6392213eeebf87f4cbac75da9ce0f6b2bfc4"
+  },
+  "android/reference/backend/tests/test_body_context_policy.py": {
+    "bytes": 13578,
+    "sha256": "6e40d1c48010022c4ce2455fc08489df1fdeeeab685ac20b6628a30fd4e9f4ed"
+  },
+  "android/reference/backend/tests/test_camera_stability.py": {
+    "bytes": 8630,
+    "sha256": "34a4386bfca17db30a7cecb12c9d8c7ba8eee521c769843bb3daa997665dd9dc"
+  },
+  "android/reference/backend/tests/test_cold_start_recovery.py": {
+    "bytes": 9470,
+    "sha256": "fb5a159dc25c578dff076dbf8104c642a899c26760058070ed92f19510c0e636"
+  },
+  "android/reference/backend/tests/test_collection_and_rejection.py": {
+    "bytes": 25311,
+    "sha256": "3e723c02a65b00e4bf1cd9d2a85f01371025e3d9f46f962f1a430f7b64071274"
+  },
+  "android/reference/backend/tests/test_deliberate_dorsal.py": {
+    "bytes": 3645,
+    "sha256": "76c19ef7135ec75cca808e87448610d22211474be5edd08ebd7dacb4c445fd29"
+  },
+  "android/reference/backend/tests/test_directional_pixel_angles.py": {
+    "bytes": 1598,
+    "sha256": "63664b1dbb9c6d31c3c17ca6025b4d3f85aef6aa7ed2b29e6c8eadabda4d07f9"
+  },
+  "android/reference/backend/tests/test_dorsal_and_fist_stability.py": {
+    "bytes": 4833,
+    "sha256": "dd888302d1e24b5460d6dae5f4c4172fbae50b635f36f9573c82422e5b606bf2"
+  },
+  "android/reference/backend/tests/test_dorsal_hard_negative_policy.py": {
+    "bytes": 8004,
+    "sha256": "a1e232bbf314502e80736b45b5db16c302bfedd33f379be42e95ab976cff2a77"
+  },
+  "android/reference/backend/tests/test_dorsal_posture.py": {
+    "bytes": 19442,
+    "sha256": "23365db5635fd3568a9e9a52bf330d91a3462a63c385fc71f479a32aa088dc35"
+  },
+  "android/reference/backend/tests/test_face_body_distinction.py": {
+    "bytes": 8716,
+    "sha256": "59b8bf973f590fe89bc6c6b5bbe7608b855076c941c637a3501567057930f669"
+  },
+  "android/reference/backend/tests/test_face_contact.py": {
+    "bytes": 24015,
+    "sha256": "6f655df594e08b159ee1ede34a6522ee489ff2cdcba387a8c0b1e5f53dd1f626"
+  },
+  "android/reference/backend/tests/test_face_context.py": {
+    "bytes": 6919,
+    "sha256": "3a67539fca0429824e42aa648fda43309473c491170ce9b5131b85c0d3d366a5"
+  },
+  "android/reference/backend/tests/test_fist_orientation_policy.py": {
+    "bytes": 7073,
+    "sha256": "9b4e53a14a350dcce6bd75357c0b110003749c013467862f7aea6ab84e5f1c70"
+  },
+  "android/reference/backend/tests/test_follow_object.py": {
+    "bytes": 1361,
+    "sha256": "9d9f63b7aa1520b39d96c581ab2d9099ab11d7e898fdac0edb6246c36dde9da1"
+  },
+  "android/reference/backend/tests/test_geometry.py": {
+    "bytes": 76686,
+    "sha256": "61dcf90d54cfedc41a1b027738cc952d36bd40794e946019d79e1812ad492c35"
+  },
+  "android/reference/backend/tests/test_gesture_orientation.py": {
+    "bytes": 19613,
+    "sha256": "f8533951fb8535509f15525de0fa491d41f7a6a1d5c18081c9e0c73dbf65170d"
+  },
+  "android/reference/backend/tests/test_gesture_resume.py": {
+    "bytes": 8735,
+    "sha256": "097ad69b932c16423111d0bc5e5cc9d07782d2900caff61c70bb4616f52422d7"
+  },
+  "android/reference/backend/tests/test_hand_detection.py": {
+    "bytes": 15402,
+    "sha256": "a3afef281c588a6419a748e95f540efb084c1087d46b2bbe7ef77964d9e4dc48"
+  },
+  "android/reference/backend/tests/test_hand_ownership.py": {
+    "bytes": 34950,
+    "sha256": "43d89294f23b1d3ba8a6aa12285421b446b309fcbf3bb14709d2a9d58ae0bd84"
+  },
+  "android/reference/backend/tests/test_hand_selection.py": {
+    "bytes": 25352,
+    "sha256": "ec3fef3ffb8ca5da8e67a46054f8081add4697099dd3f8607f00caa36906c0bb"
+  },
+  "android/reference/backend/tests/test_ios_contract.py": {
+    "bytes": 3522,
+    "sha256": "90808ddc16811068234828b14d63898972519763ffa153b279998abcbe709c04"
+  },
+  "android/reference/backend/tests/test_live_camera_startup.py": {
+    "bytes": 1162,
+    "sha256": "ee9d0422650178f8faf943ef10236d6162dc0d70c38fca356c49227a25a6cdb8"
+  },
+  "android/reference/backend/tests/test_model_lab.py": {
+    "bytes": 7209,
+    "sha256": "8ad4af491cc2e230a806c37608697cccc8f26598adf0f707f2242eeedcc2f010"
+  },
+  "android/reference/backend/tests/test_multiview_training.py": {
+    "bytes": 6831,
+    "sha256": "645ed2bf58c962f2f15578872fcde119f982c8241e6cdfe4ef4888780bf2157a"
+  },
+  "android/reference/backend/tests/test_ncm_camera.py": {
+    "bytes": 6653,
+    "sha256": "f93982c1a3602e76b1dc59de093bfc47144187817b0d734aec7f4c95cecb7caf"
+  },
+  "android/reference/backend/tests/test_online_integration.py": {
+    "bytes": 6758,
+    "sha256": "e9c1d6d285d1cd3c846a699d70c000603d90f5382f805ea941eb29cb436d286f"
+  },
+  "android/reference/backend/tests/test_online_learning.py": {
+    "bytes": 9837,
+    "sha256": "481e73bcac36c648e42ee8afe033adb41224c12de196e231dc55d506cf8dca75"
+  },
+  "android/reference/backend/tests/test_onnx_runtime.py": {
+    "bytes": 6423,
+    "sha256": "af65e0d18e7cf4652bf17388c4395fa8d010a24760f1ee894a58befe86b393a6"
+  },
+  "android/reference/backend/tests/test_reported_fist_views.py": {
+    "bytes": 7569,
+    "sha256": "d427978ade3959c0bdc95b8f7dc13ad9accc894567b8a45639d15aa68301e8f0"
+  },
+  "android/reference/backend/tests/test_reported_left_side_views.py": {
+    "bytes": 7193,
+    "sha256": "706e51c79d9bfc67cc6d5a7ef7ba7d25099d9bbc90e189ce109c026e660379bf"
+  },
+  "android/reference/backend/tests/test_reported_left_video.py": {
+    "bytes": 6957,
+    "sha256": "39d64b187f042bfd90398c04078c6ece6d33d68982a5f1f71d3868aebb7986f1"
+  },
+  "android/reference/backend/tests/test_reported_left_view.py": {
+    "bytes": 5729,
+    "sha256": "8749100c740566362f5b7b531ce47ddbf0030199ed3b55226e9283e6e86e8937"
+  },
+  "android/reference/backend/tests/test_reported_low_mass_peace.py": {
+    "bytes": 7771,
+    "sha256": "89c385062872d90fa4cf1547951ff988aa1aaa817197f0f68b4a1022404ce052"
+  },
+  "android/reference/backend/tests/test_reported_peace_dorsal.py": {
+    "bytes": 13563,
+    "sha256": "81dcfeeeca014b45f054ed0dd44b0a9df7b9c2820188d5b3a16a7114c536d744"
+  },
+  "android/reference/backend/tests/test_reported_pointing_2.py": {
+    "bytes": 3025,
+    "sha256": "c00ba6aecac1d6020754c4ea53bbfb40c8a167a5ac46d526b62760c052fb3d42"
+  },
+  "android/reference/backend/tests/test_reported_stop_inverted_spread.py": {
+    "bytes": 9323,
+    "sha256": "d0257fb3744dca925c0ac822621016b1f89188814cd38663166acd12c13c0a79"
+  },
+  "android/reference/backend/tests/test_reported_stop_inverted_video.py": {
+    "bytes": 7875,
+    "sha256": "1becf1e8aa0eb2916b4979d699e7685f44910290d0d2e4f30b32674bb7ec9ccf"
+  },
+  "android/reference/backend/tests/test_reported_stretched_thumb_and_stop.py": {
+    "bytes": 12091,
+    "sha256": "3eebdc846f4e778217c9cfe78c063e1bdedd81d405a02d2e6fc01967fbf6e31b"
+  },
+  "android/reference/backend/tests/test_reported_two_hand_palm.py": {
+    "bytes": 6506,
+    "sha256": "bab2c5a9a449845151153140496bd701c46e1f620852d3fba00940f9beb6c13d"
+  },
+  "android/reference/backend/tests/test_runtime.py": {
+    "bytes": 12276,
+    "sha256": "5664155f93c3f8a73c69259804c6aed12724638f17b1fceba4c1d4950da8df18"
+  },
+  "android/reference/backend/tests/test_stop_inverted.py": {
+    "bytes": 13286,
+    "sha256": "2c1fa369e7f79d093373c9162844ff8919824c7e622c4415e678f613adfc2bea"
+  },
+  "android/reference/backend/tests/test_stop_inverted_angle_band.py": {
+    "bytes": 8842,
+    "sha256": "1735a2f3a104b3ee196ee384c66ff5874d2f3712677015436bfae25015c3af4a"
+  },
+  "android/reference/backend/tests/test_ten_gesture_accuracy.py": {
+    "bytes": 4294,
+    "sha256": "c85d30cf608d39ed0f4d0ab77137f3b4c27ac341a9f18908f5e5601b7609cb70"
+  },
+  "android/reference/backend/tests/test_trouser_context.py": {
+    "bytes": 1572,
+    "sha256": "32bf8b76cbeacc2716d7d7550ffdf24c1202ddd0bcfcf63f6bd881f812a1c3ba"
+  },
+  "android/reference/backend/tests/test_twelve_candidate.py": {
+    "bytes": 11617,
+    "sha256": "86b095b7d5c977618b43c805a6ed17491553efd13deb54b3e16a66e695c40833"
+  },
+  "android/reference/backend/tests/test_two_hand_stability.py": {
+    "bytes": 13792,
+    "sha256": "6e4290b468eb31e6bda051a8e0f4f6bb6c56e61b809c944b065b0163153a55f9"
+  },
+  "android/reference/backend/tests/test_video_lab.py": {
+    "bytes": 11377,
+    "sha256": "9e70b5f27d2c08113bd2bc41e40c4d3438fc9d4b210c1b89b0376a1ac916f14f"
+  },
+  "android/reference/backend/video_lab.py": {
+    "bytes": 32412,
+    "sha256": "276c054fada809c9fe9c44ad4fa1fdc3cc64aa099ba6d1935acaafe4dc4aea62"
+  },
+  "android/reference/legacy_swift/GestureActionLatch.swift": {
+    "bytes": 2193,
+    "sha256": "20c6d339b2e2396f31387e419075972e5370b6930004f6d410f1c80aca9a720c"
+  },
+  "android/reference/legacy_swift/GestureDecisionPipeline.swift": {
+    "bytes": 2887,
+    "sha256": "65d707fa76a2aee09b5ee1e35f9bd4fb57adad19e2544aeff9c17adb04c7954c"
+  },
+  "android/reference/legacy_swift/GestureGeometryResolver.swift": {
+    "bytes": 40397,
+    "sha256": "0050c70cb712dc3c610ae6b7583d804a66c23b8b2ea7e1d8dd3bcdd57a713ffc"
+  },
+  "android/reference/legacy_swift/GestureLandmarkEngine.swift": {
+    "bytes": 1969,
+    "sha256": "7f97dad0a7c2d9c087a7196e58914e85bb9983984d312b98271609fe41474576"
+  },
+  "android/reference/legacy_swift/GestureTemporalGate.swift": {
+    "bytes": 6833,
+    "sha256": "d1503c912b3f9a2d5dd408f6aefdd22b932081b72d2f34677c6a2747d6aefd19"
+  },
+  "android/reference/legacy_swift/README.md": {
+    "bytes": 159,
+    "sha256": "a74a96060473944ad9df5ad4e7fde2d861b2494dac8091f8c6e63eec8dc812a4"
+  },
+  "android/reference/protocol/NcmCameraTester.cpp": {
+    "bytes": 39911,
+    "sha256": "d7fb869e990e259347324a0799143dbf177e82e1a054149573577a1dec51cbf3"
+  },
+  "android/tests/parity_vectors.json": {
+    "bytes": 23702384,
+    "sha256": "1d2e99116e31bd98d463de7630a389892a0214895e0649fe4461e3f19670e02c"
+  },
+  "ANDROID_INTEGRATION.md": {
+    "bytes": 4125,
+    "sha256": "fa4cbe19e05f3debfad41f947522908bd85f6e5e8545d1871a10ef6b03009790"
+  },
+  "CHANGES_SINCE_PREVIOUS.md": {
+    "bytes": 2196,
+    "sha256": "0fd560c599308ef5ddcb5033642e2b2aa4608acd8505a5fd1335c32c4600dbee"
+  },
+  "desktop_reference.zip": {
+    "bytes": 94407134,
+    "sha256": "a8e1632ac0d9d516f9dda3b6d29674581c6e2d5304570eeb1c8d4430fb3b71eb"
+  },
+  "MOBILE_RUNTIME_CONTRACT.json": {
+    "bytes": 13848,
+    "sha256": "3328d18c975b563cea4a115d345545172c6b3abdd6acb1c340e40328d6c06963"
+  },
+  "MODEL_CARD.md": {
+    "bytes": 11821,
+    "sha256": "b413a96241993f4986a799dc648f77c3cb7347a6ab594f6a63f28f8162bc24fc"
+  },
+  "NCM_PROTOCOL.md": {
+    "bytes": 3125,
+    "sha256": "cc830c4766db488a7ff7cdba0f20581dda2660d87ec9d16e7704a91b24eb58ff"
+  },
+  "README.md": {
+    "bytes": 6727,
+    "sha256": "8826567fa021ee3aeac56861e71733fb3cab995c842baea476cfe1b8e8a288b9"
+  },
+  "RELEASE_MANIFEST.json": {
+    "bytes": 10920,
+    "sha256": "368cf2931bcfd8f9e7b98cadfb11c692ee79a9a411d919431e0884000d744de0"
+  },
+  "RUNTIME_PORTING.md": {
+    "bytes": 6359,
+    "sha256": "6798e04f960b2d208322e795c5549cc9531b1a6bbedce248d99a43fd0027e03a"
+  },
+  "validation/backend/summary.json": {
+    "bytes": 4936,
+    "sha256": "70e78ba7259b6827f61ae35b03873d722f57a28571c5f3e3087ea005d7eca2d6"
+  },
+  "validation/backend/test_body_context_policy.log": {
+    "bytes": 182,
+    "sha256": "405b027f7fc613a0e67371604f8f49ac0acaad02ede751b4c24fbae4f304de3c"
+  },
+  "validation/backend/test_camera_stability.log": {
+    "bytes": 100,
+    "sha256": "b90db9f51b587358a2e21e9db35fce286504be287e8f1a6b79a39d7f14be41be"
+  },
+  "validation/backend/test_cold_start_recovery.log": {
+    "bytes": 100,
+    "sha256": "9e45a7e0b16810360cfa8225a4dea53fbf7356f657917400e46843633e304d79"
+  },
+  "validation/backend/test_collection_and_rejection.log": {
+    "bytes": 1276,
+    "sha256": "72ba3cc430e1a5f96756aff6e82442118110b7fa7f48360aa360e73462d29179"
+  },
+  "validation/backend/test_deliberate_dorsal.log": {
+    "bytes": 182,
+    "sha256": "37e57af0190ea480b123c15c95fc58a8c93c912945b2342f6a39958d5de3d8d3"
+  },
+  "validation/backend/test_directional_pixel_angles.log": {
+    "bytes": 101,
+    "sha256": "59f9b4ad73ff47edd5b376e3639d8cbf465b40d49fe1d2185972666d7dc6b806"
+  },
+  "validation/backend/test_dorsal_and_fist_stability.log": {
+    "bytes": 101,
+    "sha256": "fd177dbe28342d02ea4fd8b6e914795b5d24c65156b56bb4779e4efd7677dc81"
+  },
+  "validation/backend/test_dorsal_hard_negative_policy.log": {
+    "bytes": 993,
+    "sha256": "7171c683b9d2f916bd8796fff30f4d89b8f445436ebb9b19f04773de84b65b43"
+  },
+  "validation/backend/test_dorsal_posture.log": {
+    "bytes": 182,
+    "sha256": "3b64fd2aa6cdacc5e358ad3e59e018be1225449737556c8c7a89c198340e7f66"
+  },
+  "validation/backend/test_face_body_distinction.log": {
+    "bytes": 101,
+    "sha256": "e73e60120ebeddd0641fd3d2cd9540e16c1a2327b996b6568e3d739a5f14de43"
+  },
+  "validation/backend/test_face_contact.log": {
+    "bytes": 182,
+    "sha256": "2cf11affb56a57829966d7b651f720edf85bc8c3a7a18e8e044eb9edd7c9c3db"
+  },
+  "validation/backend/test_face_context.log": {
+    "bytes": 101,
+    "sha256": "c228965d1c8eb963d4bc4dcbc0c71fd925ab113418536e4784542b9724c40a18"
+  },
+  "validation/backend/test_fist_orientation_policy.log": {
+    "bytes": 588,
+    "sha256": "9175f09a5f5158995d8bc2c65c8a5376bf7e07f21e85dce43e85db913f32171d"
+  },
+  "validation/backend/test_follow_object.log": {
+    "bytes": 100,
+    "sha256": "5b581b8146eb94de21ac38ae754c4decbb7c1318ce5c8295dbbc36c62bd0ed63"
+  },
+  "validation/backend/test_geometry.log": {
+    "bytes": 264,
+    "sha256": "d3822c7a7872bb94b99b3fc0800371603723b36b0943a26790bb9335ca8e0b14"
+  },
+  "validation/backend/test_gesture_orientation.log": {
+    "bytes": 264,
+    "sha256": "972f5b2707d5f43d6bc0890db4aa6e74040885f642c09f44ef28ed444bf65005"
+  },
+  "validation/backend/test_gesture_resume.log": {
+    "bytes": 101,
+    "sha256": "5211d76f4653e76752b5ed33438e3a1d2b5950e9054705eefff815689ddae661"
+  },
+  "validation/backend/test_hand_detection.log": {
+    "bytes": 101,
+    "sha256": "97d18de061d9d3bd3453ce5b0810044993447460d2490cdc090e3a593dd1026c"
+  },
+  "validation/backend/test_hand_ownership.log": {
+    "bytes": 264,
+    "sha256": "366b7b70bd28feabdd2c0fd5e43b09abd85ca8ac13b4af971268d2b3464dcd24"
+  },
+  "validation/backend/test_hand_selection.log": {
+    "bytes": 101,
+    "sha256": "e3b2effce36b81bbb564c0a38d67400ee2ab2eb49f6af921f0261d75a341c18b"
+  },
+  "validation/backend/test_ios_contract.log": {
+    "bytes": 100,
+    "sha256": "5ba2d9629f3a413dd125c9b4444b15b4e6343386c2b9d7c9fef55300eb541f8e"
+  },
+  "validation/backend/test_live_camera_startup.log": {
+    "bytes": 100,
+    "sha256": "fd6f2f9fe355ca4d307a2f885253d64e78215ad3cbbd807717ea7d19f1a906f7"
+  },
+  "validation/backend/test_model_lab.log": {
+    "bytes": 1256,
+    "sha256": "166a71227bc39e053bf53121dc630f21946aa09b88c5d39a617e5cb84365a75a"
+  },
+  "validation/backend/test_multiview_training.log": {
+    "bytes": 101,
+    "sha256": "3ea1ec4d6b247380f0caefba57a6842c5e8d079c58e4ca4288dd3187dcc95621"
+  },
+  "validation/backend/test_ncm_camera.log": {
+    "bytes": 100,
+    "sha256": "0de179c64792e33d73f816d0597d64b1a53d06ac417200523e5831c50fcee14f"
+  },
+  "validation/backend/test_online_integration.log": {
+    "bytes": 100,
+    "sha256": "671974b05190d679c3f100105830259c0ff1d3c424db416d03230451eec1e6e0"
+  },
+  "validation/backend/test_online_learning.log": {
+    "bytes": 101,
+    "sha256": "21f115decbf8e534d37a4cf6556dd670b897e34bb3658f7824e199f8902feaa4"
+  },
+  "validation/backend/test_onnx_runtime.log": {
+    "bytes": 100,
+    "sha256": "c7dde21e3b6d38fe6d04065a42cfa620335c4eb036a728d376fc69343bf9512f"
+  },
+  "validation/backend/test_reported_fist_views.log": {
+    "bytes": 101,
+    "sha256": "e464ce41502497b4caa7293778b6945915aad2f7d6fd71acfacccdd29319ee85"
+  },
+  "validation/backend/test_reported_left_side_views.log": {
+    "bytes": 182,
+    "sha256": "cfd1d928ed2952ae2864ec945a918a9cb822985f9aae729ee2355d3d090b6e65"
+  },
+  "validation/backend/test_reported_left_video.log": {
+    "bytes": 264,
+    "sha256": "436b529f5d1b78e3152177a4deda2db6ec4e39a61bd37b42f23c64513a1f4251"
+  },
+  "validation/backend/test_reported_left_view.log": {
+    "bytes": 100,
+    "sha256": "9a9ddfa88f5bcc5379515ff04c257c1af986350802f22d769e0b7534c146d227"
+  },
+  "validation/backend/test_reported_low_mass_peace.log": {
+    "bytes": 101,
+    "sha256": "7ed8d03677a8f52b05d01ecf4f3f83df9e627c9496e541186ec568d8c23fa5b4"
+  },
+  "validation/backend/test_reported_peace_dorsal.log": {
+    "bytes": 101,
+    "sha256": "36ee0200e155669fe13f84c70701eae08fdd63cc6a91f1aa81d22ce94e9055ab"
+  },
+  "validation/backend/test_reported_pointing_2.log": {
+    "bytes": 101,
+    "sha256": "eab0c3a9938702eeb5cfaa114f09c26c7a8c3e71e5ee24e05f74c5a7f015e51a"
+  },
+  "validation/backend/test_reported_stop_inverted_spread.log": {
+    "bytes": 183,
+    "sha256": "6a3a96abcb7a8cbb5f227110eda196fe7e2073aac5ed1d0d70d2179576e21418"
+  },
+  "validation/backend/test_reported_stop_inverted_video.log": {
+    "bytes": 184,
+    "sha256": "9aeec452b2855bc1c6ac6c494772ed699f1ceb6b8c209e928609cdc2146a5a15"
+  },
+  "validation/backend/test_reported_stretched_thumb_and_stop.log": {
+    "bytes": 265,
+    "sha256": "7862f31c70dc4e4feac8a240348b3ada7ed2cd78d33747d6cdae2ed37bd8455d"
+  },
+  "validation/backend/test_reported_two_hand_palm.log": {
+    "bytes": 101,
+    "sha256": "bcd4041c3d01cce22391cd1d937843fea0196ea714e4952c730c194b7921a94f"
+  },
+  "validation/backend/test_runtime.log": {
+    "bytes": 101,
+    "sha256": "05bc457301a0863770226520821a1532ba258a426a93b7be79786c71c856c789"
+  },
+  "validation/backend/test_stop_inverted.log": {
+    "bytes": 589,
+    "sha256": "d0f77ee4aadb8349fdce96228ee817f47fa1c25dfc7f1fa284123ba0aa587159"
+  },
+  "validation/backend/test_stop_inverted_angle_band.log": {
+    "bytes": 832,
+    "sha256": "898c86f9741153d26a5a16900a7d58465ed6b7d740d2caba01a560fa04f8bc59"
+  },
+  "validation/backend/test_ten_gesture_accuracy.log": {
+    "bytes": 100,
+    "sha256": "cdf1fd5bf6d9d49f9ba3fe10976a7939bd2b5d273c1145286e690ba3692e786f"
+  },
+  "validation/backend/test_trouser_context.log": {
+    "bytes": 101,
+    "sha256": "fb376f014db6ec27a4a637b1d75a037242ac9d828a1c97be05d507cb930d7f24"
+  },
+  "validation/backend/test_twelve_candidate.log": {
+    "bytes": 101,
+    "sha256": "ce0fb2ecab91a156388a97b7d16d4682c70efab8d7d8a92d7e289a4828659bb1"
+  },
+  "validation/backend/test_two_hand_stability.log": {
+    "bytes": 101,
+    "sha256": "ec9b473c3b79f93197985d0fd6492f0b508749dcac915876f953e14fc2ba9d2f"
+  },
+  "validation/backend/test_video_lab.log": {
+    "bytes": 1174,
+    "sha256": "7d54a5810252b62fa374cb0634d7f703dcb188a367613799731a09692c257dd3"
+  },
+  "validation/backend_suite.log": {
+    "bytes": 4864,
+    "sha256": "26288299a659f9d6efe3021eae3c612b6f29014ec2aa1c5b8ddacf3d2d57c947"
+  },
+  "validation/fixture_reference.log": {
+    "bytes": 113,
+    "sha256": "7ededb595a37f937eeecfbc4500c9b39183239ce96a3c99627d86c4bb50d152c"
+  },
+  "validation/frontend_build.log": {
+    "bytes": 2230,
+    "sha256": "65fc4ad0856348d785fcfda3905c6e9e635b8ca635d47e5fd346f1775fd6601b"
+  },
+  "validation/onnx_preflight.log": {
+    "bytes": 2200,
+    "sha256": "192fb507e17c0e5ed0061506386c87886a3e6a707e6f666cba7578fe752b8d88"
+  },
+  "VALIDATION.md": {
+    "bytes": 3016,
+    "sha256": "90a9ee984f1f7a713d26b67a0e04f07f543d235ba9038405a386b2d8673fb70f"
+  },
+  "verify_package.py": {
+    "bytes": 8406,
+    "sha256": "8bb11ee1b356b956dd5be40f7048fddc68573f8783e14b90995193733d16c3e4"
+  },
+  "verify_reference_fixtures.py": {
+    "bytes": 3251,
+    "sha256": "f7d08ba331014248347222e64c95567a0fc3c3cb4e05c981c11464f5eaa75d44"
+  },
+  "WINDOWS_RUN.md": {
+    "bytes": 2517,
+    "sha256": "1344a650f4e6017f4dd5042d91c0462ab2670db113951ce853d613d75584479d"
+  }
+}

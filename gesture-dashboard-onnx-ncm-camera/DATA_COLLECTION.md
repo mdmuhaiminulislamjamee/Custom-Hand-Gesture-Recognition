@@ -1,5 +1,12 @@
 # Collecting images for the next model
 
+Open Palm positives must stay within source-image XY −160° to −20°, inclusive
+(upright −90°, tilted at most 70° toward either side). Stop inverted keeps
+XY −145° to −35°, inclusive (up ±55°). Open-hand poses beyond their respective
+limits belong in `no_gesture`, including horizontal
+poses. Review older Open Palm and Stop inverted captures outside the new band
+before using them in another training run.
+
 Open **05 Data Collection** at http://127.0.0.1:3200.
 
 1. Choose **Webcam** or **NCM camera**. Authorize the browser webcam when prompted, or connect the board for NCM. Create an ID such as `person-001`; reuse that ID for the same person on later visits.
@@ -21,9 +28,9 @@ Collect Fist with both hands and genuine camera/wrist-angle variation while
 the closed hand stays at or above horizontal. Up-left and up-right are valid;
 left-down, right-down and straight-down fists are `no_gesture`, including when
 pitched 30 degrees toward the camera. Horizontal left/right are valid boundaries.
-Review older downward-positive Fist captures before including them in training. Positive Open Palm examples should point up, left, right, and at
-oblique side angles, with the palm surface visible. Downward and diagonal-down
-palms belong in reviewed `no_gesture` hard-negative coverage so they cannot
+Review older downward-positive Fist captures before including them in training. Positive Open Palm examples should point up or tilt at most 70°
+toward either side, with the palm surface visible. Palms outside image XY −160°
+to −20° belong in reviewed `no_gesture` hard-negative coverage so they cannot
 enable object tracking. Collect upright and rotated Fists with both hands.
 Capture opposite-facing closed fists, partly bent open hands, and the retired
 thumb-and-little sign as `no_gesture` negatives. Opposite-facing fist examples

@@ -1,0 +1,18 @@
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+W0000 00:00:1793089192.179897    7916 inference_feedback_manager.cc:121] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793089192.191111    7916 inference_feedback_manager.cc:121] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793089192.211746    3428 inference_feedback_manager.cc:121] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793089192.223353    3428 inference_feedback_manager.cc:121] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+E0000 00:00:1793089192.296642    8844 portable_clearcut_uploader.cc:90] Failed to send to clearcut: INTERNAL: ResponseInfo[id: 1, type: 0, code: 2, description: "Status_ConnectFailed: 12029", headers: ]
+=== Source Location Trace: === 
+wireless/android/play/playlog/cplusplus/ion_http_client.cc:44
+E0000 00:00:1793089192.308048    8656 portable_clearcut_uploader.cc:90] Failed to send to clearcut: INTERNAL: ResponseInfo[id: 2, type: 0, code: 2, description: "Status_ConnectFailed: 12029", headers: ]
+=== Source Location Trace: === 
+wireless/android/play/playlog/cplusplus/ion_http_client.cc:44
+ONNX artifact integrity: PASS | release fingerprint: 2bb97873bda89fff23629bbb8a12e427d658eb7eaa82a0d56da7f9fe9ae0e412
+Gesture runtime contract: PASS | 12 active commands; Dorsal output reserved for rejection | 10 FPS / 100 ms | unmirrored with calibrated Left/Right semantics
+ONNX graph/session load: PASS | provider: CPUExecutionProvider
+MediaPipe initialization: PASS
+Classifier smoke test: PASS | 76 float32 features -> 13 probabilities + known-mass score
+Offline qualification metadata: accepted_precision=0.99495 | macro_f1=0.99089 | not a live NCM-camera measurement
+Live Webcam and NCM validation: REQUIRED | test all active gestures, Stop inverted angle boundaries and Dorsal negatives, both hands, varied angles, low light, empty scenes, landmark jitter, unmirrored directions, and observed FPS

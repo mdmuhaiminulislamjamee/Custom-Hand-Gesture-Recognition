@@ -1,4 +1,4 @@
-"""Stop inverted and Palm share the inclusive upper XY semicircle."""
+"""Open Palm accepts up +/-70 degrees; Stop inverted keeps up +/-55."""
 import json
 
 import numpy as np
@@ -36,17 +36,23 @@ def resolve(points, side, image_shape=(600, 600, 3), raw="stop_inverted", confid
 @pytest.mark.parametrize("shape", [(600, 600, 3), (540, 960, 3)])
 @pytest.mark.parametrize("gesture", ["stop_inverted", "open_palm"])
 @pytest.mark.parametrize("raw_output", ["stop_inverted", "open_palm"])
-def test_both_hands_together_and_spread_accept_upper_semicircle(tilt, mirror, spread, shape, gesture, raw_output):
+def test_both_hands_together_and_spread_respect_each_gesture_range(tilt, mirror, spread, shape, gesture, raw_output):
     points, side = stop_pose(tilt, mirror, spread, shape)
     if gesture == "open_palm":
         side = "Right" if side == "Left" else "Left"
     config, row, details = resolve(points, side, shape, raw=raw_output)
-    assert details["pose_validation"]["valid"]
-    assert details["pose_validation"]["gesture"] == gesture
     assert stop_inverted_geometry(points, shape)["tilt_from_up_degrees"] == pytest.approx(tilt, abs=1e-4)
     assert open_hand_xy_orientation(points, shape)["xy_degrees"] == pytest.approx(tilt - 90., abs=1e-4)
     gate = TemporalGate(config)
     arguments = gate_arguments(details, {"known_gesture_mass": .99})
+    if abs(tilt) > (70. if gesture == "open_palm" else 55.):
+        assert not details["pose_validation"]["valid"]
+        for now in (1., 1.1, 1.3, 1.8):
+            decision = gate.update(row, now=now, **arguments)
+            assert not decision.execute and decision.predicted_gesture == "no_gesture"
+        return
+    assert details["pose_validation"]["valid"]
+    assert details["pose_validation"]["gesture"] == gesture
     assert not gate.update(row, now=1., **arguments).execute
     assert not gate.update(row, now=1.1, **arguments).execute
     decision = gate.update(row, now=1.21, **arguments)
@@ -87,7 +93,8 @@ def test_palmar_or_unverified_surface_cannot_execute_stop(mirror, side_mode):
 @pytest.mark.parametrize("gesture", ["stop_inverted", "open_palm"])
 def test_crossing_boundary_rejects_immediately_and_return_needs_new_hold(gesture):
     gate = TemporalGate(RuntimeConfig())
-    points, side = stop_pose(89.)
+    boundary = 70. if gesture == "open_palm" else 55.
+    points, side = stop_pose(boundary - 1.)
     if gesture == "open_palm":
         side = "Right" if side == "Left" else "Left"
     _, row, details = resolve(points, side, raw=gesture)
@@ -95,7 +102,7 @@ def test_crossing_boundary_rejects_immediately_and_return_needs_new_hold(gesture
     for now in (1., 1.1, 1.21):
         decision = gate.update(row, now=now, **arguments)
     assert decision.execute
-    outside, side = stop_pose(90.1)
+    outside, side = stop_pose(boundary + .1)
     if gesture == "open_palm":
         side = "Right" if side == "Left" else "Left"
     _, bad_row, bad_details = resolve(outside, side, raw=gesture)
@@ -151,20 +158,26 @@ def test_saved_feedback_and_people_are_audited_without_evaluation_leakage():
             assert not any(str(s).startswith("feedback:") for s in data["source_id"])
 
 
-def test_live_configuration_uses_the_same_inclusive_rotation_range_for_both_gestures():
+def test_live_configuration_widens_only_the_open_palm_band():
     raw = load_runtime_config().raw
     stop = raw["stop_inverted_validation"]
     palm = raw["open_palm_rotation_validation"]
-    assert stop["maximum_tilt_from_up_degrees"] == 90.
+    assert stop["maximum_tilt_from_up_degrees"] == 55.
+    assert stop["xy_minimum_degrees"] == -145.
+    assert stop["xy_maximum_degrees"] == -35.
+    assert stop["endpoints_inclusive"] and stop["symmetric_about_up"]
+    assert palm["xy_minimum_degrees"] == -160.
+    assert palm["xy_maximum_degrees"] == -20.
+    assert palm["maximum_tilt_from_up_degrees"] == 70.
+    assert palm["endpoints_inclusive"] and palm["symmetric_about_up"]
+    assert palm["outside_range"] == "no_gesture"
     for policy in (stop, palm):
-        assert policy["xy_minimum_degrees"] == -180.
-        assert policy["xy_maximum_degrees"] == 0.
         assert policy["angle_space"] == "source image XY pixels"
 
 
 @pytest.mark.parametrize("mirror", [False, True])
 @pytest.mark.parametrize("spread", [0., 20.])
-@pytest.mark.parametrize("tilt", [-90., -80., 0., 80., 90.])
+@pytest.mark.parametrize("tilt", [-90., -70., -55., -40., 0., 40., 55., 70., 90.])
 @pytest.mark.parametrize("gesture", ["stop_inverted", "open_palm"])
 @pytest.mark.parametrize("shape", [(600, 600, 3), (540, 960, 3)])
 def test_trained_onnx_supports_both_hands_and_spread(mirror, spread, tilt, gesture, shape):
@@ -180,13 +193,16 @@ def test_trained_onnx_supports_both_hands_and_spread(mirror, spread, tilt, gestu
     gate = TemporalGate(config)
     for now in (1., 1.1, 1.21, 1.61):
         decision = gate.update(row, now=now, **gate_arguments(details, {"known_gesture_mass": float(mass[0])}))
-    assert decision.execute and decision.predicted_gesture == gesture
+    if abs(tilt) > (70. if gesture == "open_palm" else 55.):
+        assert not decision.execute and decision.predicted_gesture == "no_gesture"
+    else:
+        assert decision.execute and decision.predicted_gesture == gesture
 
 
 @pytest.mark.parametrize("mirror", [False, True])
 @pytest.mark.parametrize("spread", [0., 20.])
 @pytest.mark.parametrize("tracking_setup", [False, True])
-@pytest.mark.parametrize("tilt", [-90., 0., 90.])
+@pytest.mark.parametrize("tilt", [-55., 0., 55.])
 def test_live_pipeline_selects_stop_over_invalid_peer_and_rejects_lowering(mirror, spread, tracking_setup, tilt):
     import threading
     from types import SimpleNamespace

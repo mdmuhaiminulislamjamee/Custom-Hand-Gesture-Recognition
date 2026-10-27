@@ -749,17 +749,17 @@ def test_reverse_side_of_open_hand_is_not_accepted_as_open_palm(angle):
 
 
 
-def test_open_palm_accepts_upward_sideways_and_reported_oblique_angle():
+def test_open_palm_accepts_upward_endpoints_and_reported_oblique_angle():
     config = RuntimeConfig()
     upward = representative_hand()
     probabilities = np.full(len(config.class_names), 0.001)
-    # The shipped model can call a sideways palm Like. Geometry should recover
-    # a clearly visible palm with five extended fingers at the camera angle.
+    # Geometry should recover a clearly visible palm within the permitted band
+    # even when the shipped model calls it Like at an oblique camera angle.
     probabilities[config.class_to_idx['like']] = 0.993
     palm_axis = upward[[5, 9, 13, 17]].mean(axis=0) - upward[0]
     original_angle = np.arctan2(palm_axis[1], palm_axis[0])
 
-    for target_angle in (-np.pi / 2, 0, np.pi, np.deg2rad(-53)):
+    for target_angle in np.deg2rad([-160, -145, -90, -53, -35, -20]):
         angle = target_angle - original_angle
         rotation = np.asarray([
             [np.cos(angle), -np.sin(angle)],
@@ -781,7 +781,7 @@ def test_open_palm_accepts_upward_sideways_and_reported_oblique_angle():
         assert accepted['pose_validation']['geometry_supported'] is True
 
 
-def test_open_palm_rejects_downward_and_diagonal_down_poses():
+def test_open_palm_rejects_sideways_downward_and_just_outside_band_poses():
     config = RuntimeConfig()
     upward = representative_hand()
     probabilities = np.full(len(config.class_names), 0.001)
@@ -789,7 +789,7 @@ def test_open_palm_rejects_downward_and_diagonal_down_poses():
     palm_axis = upward[[5, 9, 13, 17]].mean(axis=0) - upward[0]
     original_angle = np.arctan2(palm_axis[1], palm_axis[0])
 
-    for target_angle in (np.pi / 4, np.pi / 2, 3 * np.pi / 4):
+    for target_angle in np.deg2rad([-180, -170, -160.01, -19.99, -10, 0, 45, 90, 135]):
         angle = target_angle - original_angle
         rotation = np.asarray([
             [np.cos(angle), -np.sin(angle)],

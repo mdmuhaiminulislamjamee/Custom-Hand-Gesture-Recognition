@@ -10,7 +10,8 @@ import time
 import numpy as np
 
 from .config import (DISABLED_GESTURES, DORSAL_REJECTION_REASON,
-                     OPEN_HAND_LOWER_ARC_REJECTION_REASON, RuntimeConfig)
+                     OPEN_HAND_LOWER_ARC_REJECTION_REASON, OPEN_PALM_ANGLE_REJECTION_REASON, RuntimeConfig,
+                     STOP_INVERTED_ANGLE_REJECTION_REASON)
 
 
 class InferenceStartLimiter:
@@ -183,6 +184,7 @@ class TemporalGate:
         dorsal_range_recovery: bool = False,
         expanded_thumb_direction_recovery: bool = False,
         continued_direction_recovery: bool = False,
+        peace_pair_recovery: bool = False,
     ) -> TemporalDecision:
         now = time.monotonic() if now is None else float(now)
         row = np.asarray(probabilities, dtype=np.float64).reshape(-1)
@@ -208,7 +210,8 @@ class TemporalGate:
         raw_confidence = float(order[-1])
         probability_margin = float(order[-1] - order[-2]) if len(order) > 1 else raw_confidence
         if not pose_valid:
-            if rejection_reason in {DORSAL_REJECTION_REASON, OPEN_HAND_LOWER_ARC_REJECTION_REASON}:
+            if rejection_reason in {DORSAL_REJECTION_REASON, OPEN_HAND_LOWER_ARC_REJECTION_REASON,
+                                    STOP_INVERTED_ANGLE_REJECTION_REASON, OPEN_PALM_ANGLE_REJECTION_REASON}:
                 self.reset()
             return self.reject(
                 rejection_reason or "pose geometry rejected",
@@ -257,7 +260,10 @@ class TemporalGate:
         peace_fallback = bool(
             geometry_supported
             and geometry_gesture == "peace"
-            and recovery_mass_ok
+            # The reported clear two-finger pose displays 0.01 mass. Only a
+            # separately verified pair may recover that miss; ordinary Peace
+            # geometry still needs the established vocabulary evidence.
+            and (recovery_mass_ok or (peace_pair_recovery and known_gesture_mass >= .005))
         )
         stop_fallback = bool(
             stop_inverted_recovery and geometry_supported

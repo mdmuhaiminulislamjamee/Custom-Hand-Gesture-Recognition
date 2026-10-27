@@ -54,7 +54,7 @@ LABEL_TITLES.update({
 # classifier whose only input is one hand's 76 landmark features.
 NEGATIVE_GROUPS = (
     ("Dorsal hard negatives", "single", "hand_classifier", "The old Dorsal output is retired. Capture back-of-hand poses outside the valid Stop inverted range; vary distance, background and lighting for both hands.", tuple(
-        (f"dorsal_{view}", "Show the back of the hand with fingers pointing below horizontal. Stop inverted is valid from screen-right through up to screen-left (XY 0 to -180 degrees), with fingers together or spread; do not label these upper poses negative.")
+        (f"dorsal_{view}", "Show the back of the hand outside XY -145 to -35 degrees, including near-horizontal and downward poses. Stop inverted is valid only within that upright band, with fingers together or spread; do not label poses inside the band negative.")
         for view in ("front", "yaw_left", "yaw_right", "casual")
     )),
     ("No hand", "none", "detector_only", "Vary the person, background, lighting and camera position; keep every hand out of view.", (
@@ -86,12 +86,12 @@ NEGATIVE_GROUPS = (
         ("palm_two_fingers_curled", "Show a partly open palm with two clearly curled fingers; do not form Peace or Open Palm."),
         ("ok_circle_fingers_folded", "Make a thumb-index circle but curl at least two of the other fingers; this is not the three-finger-extended OK command."),
         ("rock_middle_partly_open", "Extend index and little finger while leaving the middle finger clearly partly open; avoid the folded-middle Rock shape."),
-        ("dorsal_fingers_spread", "Show spread back-of-hand fingers below horizontal. Spread Stop inverted anywhere in the upper semicircle, including horizontal, is valid and must not be labeled negative."),
+        ("dorsal_fingers_spread", "Show spread back-of-hand fingers outside XY -145 to -35 degrees, including near-horizontal and downward poses. Spread Stop inverted inside that upright band is valid and must not be labeled negative."),
         ("dorsal_one_finger_curled", "Show the back of the hand with one of the four fingers clearly curled; do not make Dorsal."),
         ("fist_one_finger_loose", "Curl most fingers but leave the ring or little finger clearly partly open; do not make a closed Fist."),
     )),
     ("Resting Dorsal", "single", "context_only", "Capture ordinary rest, not an intentional command. Include shoulder, elbow and wrist when possible; vary seated and standing views.", (
-        ("dorsal_body_not_visible", "Show the back of the hand with the body cropped and fingers pointing below horizontal. Upper-semicircle Stop inverted remains valid even without the body visible."),
+        ("dorsal_body_not_visible", "Show the back of the hand with the body cropped and fingers outside XY -145 to -35 degrees. Stop inverted inside that upright band remains valid even without the body visible."),
         ("standing_arm_hanging", "Stand naturally with one arm hanging and the back of its relaxed hand toward the camera."),
         ("standing_hand_on_thigh", "Stand with a relaxed hand resting against the hip or thigh, fingers dropping downward."),
         ("seated_hand_on_lap", "Sit with a relaxed hand lying on the lap, back of hand visible."),
@@ -148,14 +148,14 @@ def collection_plan():
             "right": "Extend ONLY the index finger toward your right (left side of the unmirrored preview). Use either hand; vary palm, back and edge views, thumb position and a small upward/downward tilt while keeping the index primarily horizontal. Fold the middle, ring and little fingers.",
             "up": "Point ONLY the index finger upward. Fold the middle, ring, and little fingers.",
             "down": "Point ONLY the index finger downward. Fold the middle, ring, and little fingers.",
-            "open_palm": "Show your palm with all five fingers visible. Point up, left, or right; never down. Vary the wrist angle across captures.",
+            "open_palm": "Show your palm with all five fingers visible. Start upright and tilt at most 70 degrees toward either side: image XY -160 to -20 degrees, including endpoints. Beyond either limit is no_gesture. Vary the wrist angle within this range across captures.",
             "like": "Give a thumbs-up with the other four fingers folded.",
             "ok": "Join thumb and index into a circle; extend the other three fingers.",
             "fist": "Close all four fingers into the palm and keep the thumb across them. Sweep from horizontal left through up to horizontal right with both hands. Include a 30-degree pitch toward the camera. Fists below horizontal are no_gesture.",
             "thumb_down": "Point the thumb downward and keep the other four fingers folded.",
             "peace": "Extend index and middle fingers as a V. Fold ring and little fingers; vary wrist direction.",
             "rock": "Extend index and little finger. Fold middle and ring fingers. The thumb may be folded or extended.",
-            "stop_inverted": "Show the back of the hand with four fingers extended, together or spread. Sweep from screen-right through up to screen-left, XY 0 to -180 degrees, including horizontal endpoints. Use both hands in separate captures. This returns to the main position.",
+            "stop_inverted": "Show the back of the hand with four fingers extended, together or spread. Start upright and tilt at most 55 degrees toward either side: image XY -145 to -35 degrees, including endpoints. Beyond either limit is no_gesture. Use both hands in separate captures. This returns to the main position.",
         }[label]
         for view in views:
             plan.append(dict(id=f"{label}/{view}", label=label, title=LABEL_TITLES[label],
