@@ -10,6 +10,8 @@ import DataCollection, { type CameraSource } from './data-collection';
 import VideoLab from './video-lab';
 import ModelLab from './model-lab';
 import { planeAnglesFromLandmarks, validPlaneAngles, type PlaneAngles } from './landmark-angles';
+import { drawHandOverlay } from './hand-overlay';
+import NcmHandPreview from './ncm-hand-preview';
 
 const API_URL = process.env.NEXT_PUBLIC_GESTURE_API_URL ?? 'http://127.0.0.1:8200';
 const WS_URL = API_URL.replace(/^http/, 'ws');
@@ -45,11 +47,6 @@ const DEMO_COMMANDS: Record<string, string> = {
   stop_inverted: 'RETURN_HOME',
 };
 const CANONICAL_CLASS_SET = new Set(DEFAULT_CLASSES);
-const HAND_CONNECTIONS = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
-  [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15],
-  [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
-];
 
 type Artifact = {
   label: string;
@@ -244,6 +241,7 @@ type Prediction = RangePrediction & {
   camera_fps?: number;
   ncm_camera?: NcmStatus;
   ncm_frame_id?: number;
+  ncm_preview_jpeg_base64?: string;
   timing?: Timing;
   diagnostics?: Record<string, Diagnostic>;
 };
@@ -481,6 +479,8 @@ export default function Dashboard() {
     const context = canvas.getContext('2d');
     if (!context) return;
     context.clearRect(0, 0, width, height);
+    // The NCM preview paints its paired JPEG and overlays atomically itself.
+    if (canvas.parentElement?.querySelector('.ncm-overlay-preview')) return;
     // Both camera paths now analyze the full frame. Match the preview's contain
     // fit, including letterboxing and the optional picture-in-picture position.
     const surface = canvas.parentElement?.querySelector<HTMLVideoElement | HTMLImageElement>('.camera-video');
@@ -495,50 +495,7 @@ export default function Dashboard() {
     const frameHeight = (sourceHeight || height) * fit;
     const left = surfaceRect.left - canvasRect.left + (surfaceRect.width - frameWidth) / 2;
     const top = surfaceRect.top - canvasRect.top + (surfaceRect.height - frameHeight) / 2;
-    const size = Math.min(frameWidth, frameHeight);
-    const project = ([x, y]: number[]) => [left + x * frameWidth, top + y * frameHeight];
-    context.save();
-    context.beginPath();
-    context.rect(left, top, frameWidth, frameHeight);
-    context.clip();
-    const rows = hands?.length ? hands : (landmarks?.length === 21 ? [{
-      landmarks, display_landmarks: undefined, selected: true, track_id: null,
-      handedness: undefined, reason: undefined,
-    }] : []);
-    rows.forEach(hand => {
-      const points = hand.selected && landmarks?.length === 21 ? landmarks
-        : hand.display_landmarks?.length === 21 ? hand.display_landmarks : hand.landmarks;
-      if (points.length !== 21) return;
-      const selected = hand.selected && landmarks?.length === 21;
-      const color = selected ? (classified ? '#49d9d1' : '#ffb454') : '#a5adbf';
-      context.lineWidth = Math.max(selected ? 2 : 1, size / 180);
-      context.strokeStyle = color;
-      context.beginPath();
-      HAND_CONNECTIONS.forEach(([from, to]) => {
-        const a = project(points[from]);
-        const b = project(points[to]);
-        context.moveTo(a[0], a[1]);
-        context.lineTo(b[0], b[1]);
-      });
-      context.stroke();
-      points.map(project).forEach(([x, y]) => {
-        context.beginPath();
-        context.fillStyle = color;
-        context.arc(x, y, Math.max(2, size / 130), 0, Math.PI * 2);
-        context.fill();
-      });
-      const handState = selected ? 'selected' : 'observed';
-      const label = `${hand.handedness ?? 'Hand'}${hand.track_id ? ` #${hand.track_id}` : ''} · ${handState}`;
-      context.font = `${Math.max(11, size / 34)}px sans-serif`;
-      const labelWidth = context.measureText(label).width;
-      const x = Math.max(left + 4, Math.min(left + frameWidth - labelWidth - 8, left + Math.min(...points.map(p => p[0])) * frameWidth));
-      const y = Math.max(top + 22, Math.min(top + frameHeight - 8, top + Math.min(...points.map(p => p[1])) * frameHeight - 10));
-      context.fillStyle = 'rgba(10, 15, 24, .85)';
-      context.fillRect(x - 3, y - 16, labelWidth + 6, 21);
-      context.fillStyle = color;
-      context.fillText(label, x, y);
-    });
-    context.restore();
+    drawHandOverlay(context, { left, top, width: frameWidth, height: frameHeight }, landmarks, classified, hands);
   }, []);
 
   const drawLandmarks = useCallback((landmarks?: number[][], classified = false, hands?: TrackedHand[]) => {
@@ -659,6 +616,9 @@ export default function Dashboard() {
         } else if (message.type === 'ncm_status' && message.camera) {
           setNcmStatus(message.camera);
           setCameraFps(message.camera.camera_fps ?? null);
+          if (!message.camera.connected) {
+            setPrediction({ status: 'no_hand', message: 'Waiting for fresh NCM frames.' });
+          }
           if (message.camera.last_error) setNcmMessage(message.camera.last_error);
         } else if (message.type === 'error') {
           setPrediction({ status: 'error', message: message.message });
@@ -1440,12 +1400,7 @@ export default function Dashboard() {
                       style={{ transform: `translate(${demoTransform.x}%, ${demoTransform.y}%) rotate(${demoTransform.rotation}deg) scale(${demoTransform.scale})` }}
                     />}
                 </div>}
-                {cameraActive && cameraSource === 'ncm' && <img
-                  key={streamRevision}
-                  src={`${API_URL}/api/ncm/stream.mjpg?revision=${streamRevision}`}
-                  alt="Live JPEG stream from the USB-NCM development-board camera"
-                  className="camera-video active ncm-camera-video"
-                />}
+                {cameraActive && cameraSource === 'ncm' && <NcmHandPreview key={streamRevision} frame={prediction} />}
                 {cameraActive && cameraSource === 'webcam' && <WebcamVideo stream={webcamStream} className="camera-video active webcam-camera-video" />}
                 <canvas ref={landmarkCanvasRef} className="landmark-canvas live-hand-overlay" />
                 {demoVideo && <div className="demo-live-action" aria-live="polite">
@@ -1621,12 +1576,7 @@ export default function Dashboard() {
             <article className="panel feedback-preview">
               <div className="panel-header"><div><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> LIVE FEEDBACK CAMERA</div><span>{cameraActive ? `${fps(cameraFps)} FPS` : 'OFFLINE'}</span></div>
               <div className="camera-stage live-stage feedback-camera-stage">
-                {cameraActive && cameraSource === 'ncm' && <img
-                  key={`feedback-${streamRevision}`}
-                  src={`${API_URL}/api/ncm/stream.mjpg?revision=${streamRevision}`}
-                  alt="Unmirrored live JPEG stream from the USB-NCM development-board camera"
-                  className="camera-video active ncm-camera-video feedback-camera-video"
-                />}
+                {cameraActive && cameraSource === 'ncm' && <NcmHandPreview key={`feedback-${streamRevision}`} frame={prediction} />}
                 {cameraActive && cameraSource === 'webcam' && <WebcamVideo stream={webcamStream} className="camera-video active webcam-camera-video feedback-camera-video" />}
                 <canvas ref={feedbackLandmarkCanvasRef} className="landmark-canvas live-hand-overlay" />
                 <div className="guide-box live-guide feedback-live-guide">

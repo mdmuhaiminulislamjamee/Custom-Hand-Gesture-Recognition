@@ -21,7 +21,14 @@ New-Item -ItemType Directory -Force -Path $RuntimeDirectory | Out-Null
 $MatplotlibCache = Join-Path $RuntimeDirectory "matplotlib"
 New-Item -ItemType Directory -Force -Path $MatplotlibCache | Out-Null
 $env:MPLCONFIGDIR = $MatplotlibCache
-$env:NODE_OPTIONS = "--max-old-space-size=384 --max-semi-space-size=2"
+$NodeHeapMb = if ($env:NCM_NODE_HEAP_MB) { [int]$env:NCM_NODE_HEAP_MB } else { 1536 }
+if ($NodeHeapMb -lt 768 -or $NodeHeapMb -gt 8192) {
+    throw "NCM_NODE_HEAP_MB must be between 768 and 8192."
+}
+# Vinext builds the client, RSC and SSR graphs in one process. The previous
+# 384 MB / 2 MB V8 limits were below the current graph's peak and caused a
+# native allocation failure during the RSC stage.
+$env:NODE_OPTIONS = "--max-old-space-size=$NodeHeapMb --max-semi-space-size=16"
 $env:RAYON_NUM_THREADS = if ($env:RAYON_NUM_THREADS) { $env:RAYON_NUM_THREADS } else { "1" }
 $env:OPENBLAS_NUM_THREADS = if ($env:OPENBLAS_NUM_THREADS) { $env:OPENBLAS_NUM_THREADS } else { "1" }
 $env:OMP_NUM_THREADS = if ($env:OMP_NUM_THREADS) { $env:OMP_NUM_THREADS } else { "1" }
@@ -48,6 +55,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Building the independent ONNX + NCM dashboard..." -ForegroundColor Cyan
+Write-Host "Node build heap: $NodeHeapMb MB" -ForegroundColor DarkGray
 & $NodeCommand.Source $VinextScript "build"
 if ($LASTEXITCODE -ne 0) {
     throw "Frontend build failed. Review the output above."

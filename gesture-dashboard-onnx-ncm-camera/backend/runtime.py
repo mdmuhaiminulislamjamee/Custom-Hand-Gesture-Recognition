@@ -289,11 +289,20 @@ class TemporalGate:
                 probabilities=row,
                 known_gesture_mass=known_gesture_mass,
             )
-        # Start a fresh hold for a confident pose change or capture outage;
-        # the previous EMA must never execute an action for the new pose.
+        # The backend-safe profile starts a fresh hold whenever the top label
+        # changes.  The responsive camera profile instead keeps a three-frame
+        # vote window, matching the mobile runtime's ordinary two-of-three
+        # confirmation while still discarding stale history after an outage.
+        label_changed = bool(
+            self._history
+            and int(self._history[-1].argmax()) != int(row.argmax())
+        )
+        stale_history = bool(
+            self._last_update_at is not None and now - self._last_update_at >= 0.5
+        )
         if self._history and (
-            int(self._history[-1].argmax()) != int(row.argmax())
-            or (self._last_update_at is not None and now - self._last_update_at >= 0.5)
+            stale_history
+            or (label_changed and not self.config.responsive_confirmation)
         ):
             self.reset()
         if self._last_update_at is not None and now <= self._last_update_at:
@@ -303,10 +312,20 @@ class TemporalGate:
         self._history.append(row)
         ema_rows = probability_ema(np.vstack(self._history), self.config.ema_alpha)
         labels = ema_rows.argmax(axis=1)
-        final_index = int(labels[-1])
+        final_probabilities = (
+            row if self.config.responsive_confirmation else ema_rows[-1]
+        )
+        final_index = int(np.argmax(final_probabilities))
         gesture = self.config.class_names[final_index]
-        confidence = float(ema_rows[-1, final_index])
-        stable_frames = trailing_equal_count(labels)
+        confidence = float(final_probabilities[final_index])
+        if self.config.responsive_confirmation:
+            window_size = max(1, int(self.config.confirmation_window_frames))
+            recent_rows = list(self._history)[-window_size:]
+            stable_frames = sum(
+                int(np.argmax(value)) == final_index for value in recent_rows
+            )
+        else:
+            stable_frames = trailing_equal_count(labels)
 
         if gesture != self._last_label:
             self._last_label = gesture
@@ -324,14 +343,32 @@ class TemporalGate:
             required_hold = max(required_hold, 0.50)
         if stop_fallback and known_gesture_mass < self.config.known_mass_floor:
             required_hold = max(required_hold, 0.45)
+        strong_confirmation = bool(
+            self.config.responsive_confirmation
+            and known_gesture_mass >= self.config.known_mass_floor
+            and raw_confidence >= self.config.strong_confirmation_confidence
+            and probability_margin >= self.config.strong_confirmation_margin
+        )
+        required_stable_frames = (
+            max(1, int(self.config.confirmation_votes_required))
+            if self.config.responsive_confirmation
+            else self.config.stable_frames_required
+        )
         execute = bool(
             confidence >= self.config.confidence_floor
-            and stable_frames >= self.config.stable_frames_required
-            and held_seconds >= required_hold
+            and (
+                strong_confirmation
+                or (
+                    stable_frames >= required_stable_frames
+                    and held_seconds >= required_hold
+                )
+            )
         )
         if confidence < self.config.confidence_floor:
             reason = "below confidence floor"
-        elif stable_frames < self.config.stable_frames_required:
+        elif strong_confirmation:
+            reason = "strong gesture confirmed immediately"
+        elif stable_frames < required_stable_frames:
             reason = "insufficient consecutive stable frames"
         elif held_seconds < required_hold:
             reason = "gesture hold requirement not reached"
@@ -353,7 +390,7 @@ class TemporalGate:
             frames_used=len(ema_rows),
             reason=reason,
             probabilities={
-                name: float(ema_rows[-1, index])
+                name: float(final_probabilities[index])
                 for index, name in enumerate(self.config.class_names)
             },
             held_seconds=held_seconds,

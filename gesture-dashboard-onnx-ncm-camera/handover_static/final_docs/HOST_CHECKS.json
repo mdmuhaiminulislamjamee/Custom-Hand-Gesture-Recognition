@@ -1,0 +1,79 @@
+{
+  "status": "passed",
+  "date": "2026-10-29",
+  "scope": "Current fix1 source in isolated host test copies; current rebuilt ARM64 Android APK",
+  "toolchain": {
+    "flutter": "3.47.8",
+    "dart": "3.13.7",
+    "python": "3.12.10",
+    "native_python_litert": "2.1.5"
+  },
+  "locked_dependency_resolution": {
+    "command": "flutter pub get --offline --enforce-lockfile",
+    "runtime_and_example": "passed",
+    "android_tester": "passed"
+  },
+  "dart_analysis": {
+    "command": "flutter analyze --no-pub",
+    "runtime_and_example": "No issues found",
+    "android_tester": "No issues found"
+  },
+  "flutter_tests": {
+    "command": "flutter test --no-pub --concurrency=1 --reporter=expanded <each test file>",
+    "runtime_passed": 48,
+    "tester_passed": 2,
+    "native_classifier_reference_rows": 26,
+    "native_classifier_maximum_probability_error": 9.7000659127211e-07,
+    "ncm_tests": "Real local TCP/JLIP server, heartbeat replies, reconnect, latest-frame replacement and stale-epoch cancellation; injected hand detector",
+    "opencv_host_hook": "Skipped only in isolated host copies; the real APK and delivered source use normal native builds",
+    "surface_adapter_cases": 8
+  },
+  "python_native_model_verification": {
+    "passed": true,
+    "dynamic_detector_files_verified": 40,
+    "fp32_reference_rows": 26,
+    "fp32_top1_agreement": 1.0,
+    "fp32_maximum_probability_error": 3.0481924706560193e-07,
+    "fp32_maximum_known_mass_error": 1.1920928955078125e-07,
+    "int8_qualified_for_loading": false
+  },
+  "android_artifact": {
+    "version_name": "2.0.1",
+    "version_code": 3,
+    "build_command": "Flutter assemble android_aot_bundle_release_android-arm64 without icon trimming, then Gradle assembleRelease -x :app:compileFlutterBuildRelease using those completed compile outputs",
+    "build": "passed",
+    "bytes": 25607763,
+    "sha256": "44764b30409748e28529d9fa8993947d1063af228a6ec10207d9594241f8c8da",
+    "apksigner_verify": "passed, APK Signature Scheme v2",
+    "certificate": "Android Debug",
+    "minimum_android_api": 24,
+    "abi": "arm64-v8a only",
+    "model_assets_matching_runtime": 4,
+    "retired_onnx_or_mediapipe_task_assets": 0,
+    "audio_or_storage_permissions": 0,
+    "physical_device_tested": false,
+    "libapp_changed_from_v2_0_0": true,
+    "native_opencv_present": true
+  },
+  "physical_ios_tested": false,
+  "physical_ncm_tested": false,
+  "ios_compile_tested": false,
+  "remaining_acceptance": "DEVICE_ACCEPTANCE.md",
+  "release_revision": "thumb_surface_fix1",
+  "source_sha256": {
+    "static_gesture_runtime/flutter/lib/src/geometry_policy.dart": "d6b92a88222c106b2843f27285a21b5940e47719f2966533a0b58c722a73a9d3",
+    "static_gesture_runtime/flutter/lib/src/detector_adapter.dart": "e02f0ec47e106077d3a45e5f0129732ec7d3a90a41d2abbfc22807ecae7ae6df",
+    "static_gesture_runtime/flutter/lib/src/runtime_api.dart": "f34f2205f74dd49daeed4b44604f9d1a112f102880665a51b4fb8a079d0423b8",
+    "static_gesture_runtime/flutter/lib/src/command_controller.dart": "831cf9f34149baceab3420456f13e74e1fb46f8ae0d620f5b323575b519262b2",
+    "static_gesture_runtime/flutter/tool/check_geometry_parity.dart": "d0a5b097de3ad5337296903392e135af15b70c0b7f5e94f70f5249d343582397",
+    "static_gesture_runtime/flutter/test/open_hand_surface_test.dart": "59d8f3ab4586ab4a036b988cdbc995adfc334071c1a3b83a8d0f2e7ca2a18daa",
+    "static_gesture_runtime/flutter/test/detector_adapter_test.dart": "61aa91a566be4b505dab19fb4411878c9300f5607a2575d9517cd1b98e55e68e",
+    "flutter_gesture_tester/lib/services/phone_static_gesture_engine.dart": "8c7343e12f897c1be5d8e833f23b4e375b7056108ee01e4db525488217072441",
+    "flutter_gesture_tester/lib/models/gesture_result.dart": "80fb7670f740beb95f986b47c5f5c26313e1f618c9c33c416dee6197b80772eb"
+  },
+  "geometry_parity": {
+    "canonical_geometry_cases": 1142,
+    "known_mass_cases": 5710,
+    "cache_geometry_cases": 400
+  }
+}

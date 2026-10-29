@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -26,6 +27,18 @@ def test_default_runtime_contract_is_backend_safe_ten_fps():
     assert config.known_mass_floor == 0.70
     assert config.stable_frames_required == 3
     assert config.minimum_hold_seconds == 0.18
+
+
+def test_process_frame_accepts_direct_bgr_without_jpeg_round_trip():
+    config = RuntimeConfig()
+    engine = object.__new__(InferenceEngine)
+    engine.config = config
+    engine.model_manager = SimpleNamespace(ready=False)
+    frame = np.full((32, 48, 3), 127, dtype=np.uint8)
+
+    result = engine.process_frame(frame, RuntimeSession(config), now=1.0)
+
+    assert result["status"] == "model_missing"
 
 
 def test_inference_start_limiter_serializes_aggregate_starts_at_ten_fps():
@@ -108,6 +121,51 @@ def test_temporal_gate_requires_stability_confidence_margin_and_hold_time():
     assert third.predicted_gesture == "left"
 
 
+def test_responsive_gate_confirms_a_strong_known_gesture_immediately():
+    config = RuntimeConfig(
+        responsive_confirmation=True,
+        stable_frames_required=2,
+        minimum_hold_seconds=0.0,
+    )
+    gate = TemporalGate(config)
+    row = np.zeros(len(config.class_names), dtype=np.float64)
+    row[config.class_to_idx["left"]] = 0.96
+    row[config.class_to_idx["right"]] = 0.04
+
+    decision = gate.update(row, now=1.0, known_gesture_mass=0.90)
+
+    assert decision.execute is True
+    assert decision.predicted_gesture == "left"
+    assert decision.reason == "strong gesture confirmed immediately"
+
+
+def test_responsive_gate_uses_two_matching_votes_from_three():
+    config = RuntimeConfig(
+        responsive_confirmation=True,
+        strong_confirmation_confidence=0.99,
+        stable_frames_required=2,
+        minimum_hold_seconds=0.0,
+    )
+    gate = TemporalGate(config)
+
+    def row(primary: str) -> np.ndarray:
+        values = np.zeros(len(config.class_names), dtype=np.float64)
+        secondary = "right" if primary == "left" else "left"
+        values[config.class_to_idx[primary]] = 0.80
+        values[config.class_to_idx[secondary]] = 0.20
+        return values
+
+    first = gate.update(row("left"), now=1.0)
+    second = gate.update(row("right"), now=1.1)
+    third = gate.update(row("left"), now=1.2)
+
+    assert first.execute is False
+    assert second.execute is False
+    assert third.execute is True
+    assert third.predicted_gesture == "left"
+    assert third.stable_frames == 2
+
+
 def test_temporal_hold_time_handles_zero_timestamp():
     config = RuntimeConfig(stable_frames_required=2, minimum_hold_seconds=0.10)
     gate = TemporalGate(config)
@@ -133,6 +191,23 @@ def test_action_latch_requires_configured_consecutive_release_frames():
     # Seeing the held gesture again cancels a transient release sequence.
     assert session.observe_action_release("like") is False
     assert session.observe_action_release(None) is False
+    assert session.observe_action_release(None) is False
+    assert session.observe_action_release(None) is True
+    assert session.last_action_gesture is None
+
+
+def test_responsive_action_latch_requires_confirmed_no_gesture():
+    config = RuntimeConfig(
+        responsive_confirmation=True,
+        release_frames_required=2,
+    )
+    session = RuntimeSession(config)
+    session.last_action_gesture = "like"
+
+    assert session.observe_action_release(None, tracking_gap=True) is False
+    assert session.observe_action_release(None, tracking_gap=True) is False
+    assert session.observe_action_release("left") is False
+    assert session.last_action_gesture == "like"
     assert session.observe_action_release(None) is False
     assert session.observe_action_release(None) is True
     assert session.last_action_gesture is None

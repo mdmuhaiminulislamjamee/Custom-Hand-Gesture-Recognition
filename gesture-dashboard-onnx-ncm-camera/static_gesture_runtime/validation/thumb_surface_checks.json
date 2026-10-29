@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "date": "2026-10-29",
+  "revision": "thumb_surface_fix1",
+  "changes": [
+    "Source-pixel thumb direction overrides an opposite Like/Thumb Down model label",
+    "Physical handedness is used once for Open Palm/Stop Inverted surface winding",
+    "Mirrored detector coordinates normalize to unmirrored image/world X"
+  ],
+  "flutter_tests": {
+    "runtime": 48,
+    "tester": 2
+  },
+  "surface_adapter_cases": 8,
+  "canonical_geometry_cases": 1142,
+  "known_mass_cases": 5710,
+  "cache_geometry_cases": 400,
+  "analysis": {
+    "runtime": "No issues found",
+    "example": "No issues found",
+    "tester": "No issues found"
+  },
+  "test_execution": "Each test file separately with --no-pub --concurrency=1; OpenCV hook skipped only in isolated host test copies",
+  "source_sha256": {
+    "static_gesture_runtime/flutter/lib/src/geometry_policy.dart": "d6b92a88222c106b2843f27285a21b5940e47719f2966533a0b58c722a73a9d3",
+    "static_gesture_runtime/flutter/lib/src/detector_adapter.dart": "e02f0ec47e106077d3a45e5f0129732ec7d3a90a41d2abbfc22807ecae7ae6df",
+    "static_gesture_runtime/flutter/lib/src/runtime_api.dart": "f34f2205f74dd49daeed4b44604f9d1a112f102880665a51b4fb8a079d0423b8",
+    "static_gesture_runtime/flutter/lib/src/command_controller.dart": "831cf9f34149baceab3420456f13e74e1fb46f8ae0d620f5b323575b519262b2",
+    "static_gesture_runtime/flutter/tool/check_geometry_parity.dart": "d0a5b097de3ad5337296903392e135af15b70c0b7f5e94f70f5249d343582397",
+    "static_gesture_runtime/flutter/test/open_hand_surface_test.dart": "59d8f3ab4586ab4a036b988cdbc995adfc334071c1a3b83a8d0f2e7ca2a18daa",
+    "static_gesture_runtime/flutter/test/detector_adapter_test.dart": "61aa91a566be4b505dab19fb4411878c9300f5607a2575d9517cd1b98e55e68e",
+    "flutter_gesture_tester/lib/services/phone_static_gesture_engine.dart": "8c7343e12f897c1be5d8e833f23b4e375b7056108ee01e4db525488217072441",
+    "flutter_gesture_tester/lib/models/gesture_result.dart": "80fb7670f740beb95f986b47c5f5c26313e1f618c9c33c416dee6197b80772eb"
+  },
+  "limitations": "Synthetic/landmark regressions and native model checks; supplied screenshots were not replayed through MediaPipe. No physical phone/NCM acceptance performed."
+}

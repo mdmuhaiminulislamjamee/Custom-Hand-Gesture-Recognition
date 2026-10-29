@@ -1,0 +1,13 @@
+{
+  "cases": 400,
+  "feature_passes": 400,
+  "probability_row_passes": 400,
+  "decision_passes": 400,
+  "geometry_support_passes": 400,
+  "known_mass_cases": 0,
+  "known_mass_qualification_passes": 0,
+  "maximum_feature_absolute_error": 0.000027179718017578125,
+  "maximum_probability_absolute_error": 0.0,
+  "passed": true,
+  "failures": []
+}

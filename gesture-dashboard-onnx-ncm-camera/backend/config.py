@@ -180,6 +180,11 @@ class RuntimeConfig:
     release_frames_required: int = 3
     minimum_hold_seconds: float = 0.18
     action_cooldown_seconds: float = 0.80
+    responsive_confirmation: bool = False
+    strong_confirmation_confidence: float = 0.92
+    strong_confirmation_margin: float = 0.25
+    confirmation_window_frames: int = 3
+    confirmation_votes_required: int = 2
     follow_timeout_seconds: float = 20.0
     follow_hold_seconds: float = 2.5
     follow_session_timeout_seconds: float = 120.0
@@ -225,6 +230,11 @@ class RuntimeConfig:
             "release_frames_required": self.release_frames_required,
             "minimum_hold_seconds": self.minimum_hold_seconds,
             "action_cooldown_seconds": self.action_cooldown_seconds,
+            "responsive_confirmation": self.responsive_confirmation,
+            "strong_confirmation_confidence": self.strong_confirmation_confidence,
+            "strong_confirmation_margin": self.strong_confirmation_margin,
+            "confirmation_window_frames": self.confirmation_window_frames,
+            "confirmation_votes_required": self.confirmation_votes_required,
             "follow_timeout_seconds": self.follow_timeout_seconds,
             "follow_hold_seconds": self.follow_hold_seconds,
             "follow_session_timeout_seconds": self.follow_session_timeout_seconds,

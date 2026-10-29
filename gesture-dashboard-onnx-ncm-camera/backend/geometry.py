@@ -1484,6 +1484,22 @@ class GeometryResolver:
         )
         palm_scale = max(float(np.linalg.norm(points[9] - points[0])), 1e-6)
         thumb_lead = float(min(points[tip, 1] - points[4, 1] for tip in (8, 12, 16, 20)) / palm_scale)
+        # MediaPipe image landmarks are normalized independently by width and
+        # height. Measure the new thumb-direction shortcut in camera pixels.
+        screen_points = (
+            points * np.asarray([image_shape[1], image_shape[0]], dtype=np.float32)
+            if image_shape is not None else points
+        )
+        screen_palm_scale = max(float(np.linalg.norm(screen_points[9] - screen_points[0])), 1e-6)
+        screen_thumb_vector = screen_points[4] - screen_points[2]
+        screen_thumb_norm = max(float(np.linalg.norm(screen_thumb_vector)), 1e-8)
+        screen_thumb_up_score = float(-screen_thumb_vector[1] / screen_thumb_norm)
+        screen_thumb_lead = float(min(
+            screen_points[tip, 1] - screen_points[4, 1] for tip in (8, 12, 16, 20)
+        ) / screen_palm_scale)
+        screen_thumb_down_lead = float(min(
+            screen_points[4, 1] - screen_points[tip, 1] for tip in (8, 12, 16, 20)
+        ) / screen_palm_scale)
         non_thumb_reach = np.asarray([
             np.linalg.norm(points[tip] - points[mcp]) / palm_scale
             for mcp, tip in ((5, 8), (9, 12), (13, 16), (17, 20))
@@ -1497,9 +1513,9 @@ class GeometryResolver:
         like_finger_shape = bool(
             thumb_lead >= .10 and raised_non_thumb_count == 0
         )
-        # The model can retain Like/Thumb Down through a screen rotation even
-        # when the vertical thumb lead test changes sign. Require the world
-        # joints to show one long thumb and four genuinely folded fingers.
+        # The model can retain Like/Thumb Down through a screen rotation.
+        # World joints confirm the thumb-only shape; screen direction is
+        # checked separately before accepting either command.
         world_thumb_only = False
         if world_landmarks is not None:
             world_points = np.asarray(world_landmarks, dtype=np.float32)
@@ -1530,6 +1546,10 @@ class GeometryResolver:
             and float(adjusted.max()) >= .60
             and float(adjusted.max() - np.partition(adjusted, -2)[-2]) >= .25
         )
+        rotated_thumb_up_support = bool(
+            rotated_thumb_model_support
+            and screen_thumb_up_score >= .25 and screen_thumb_lead >= .10
+        )
         like_valid = bool(
             like_finger_shape
             and (
@@ -1540,7 +1560,7 @@ class GeometryResolver:
                     and extensions[0] >= .40 and thumb_up_score >= .20)
             )
         )
-        like_valid = like_valid or (raw == "like" and rotated_thumb_model_support)
+        like_valid = like_valid or rotated_thumb_up_support
         # In an edge-on fist, folded fingers can look straight in the image.
         # Their tips still cluster around the palm; when available, the world
         # joints provide an independent check of the actual finger bends.
@@ -1583,13 +1603,20 @@ class GeometryResolver:
             and thumb_lead >= .25
             and palm_up_alignment >= -.35
         )
-        like_geometry_supported = like_geometry_supported or bool(
-            raw == "like" and rotated_thumb_model_support)
+        like_geometry_supported = (
+            like_geometry_supported or rotated_thumb_up_support)
         like_valid = like_valid or like_geometry_supported
         thumb_down_score = float(thumb_vector[1] / thumb_norm)
         thumb_down_lead = float(
             min(points[4, 1] - points[tip, 1] for tip in (8, 12, 16, 20))
             / palm_scale
+        )
+        # World joints prove that only the thumb is extended, but do not
+        # identify its screen direction. A confident Thumb Down score must
+        # not rescue an upward thumb in an edge-on Like view.
+        rotated_thumb_down_support = bool(
+            rotated_thumb_model_support
+            and -screen_thumb_up_score >= .25 and screen_thumb_down_lead >= .15
         )
         thumb_down_valid = bool(
             extensions[0] >= .55
@@ -1603,8 +1630,7 @@ class GeometryResolver:
             and thumb_down_score >= .25
             and thumb_down_lead >= .15
         )
-        thumb_down_valid = thumb_down_valid or bool(
-            raw == "thumb_down" and rotated_thumb_model_support)
+        thumb_down_valid = thumb_down_valid or rotated_thumb_down_support
         thumb_down_geometry_supported = bool(
             thumb_down_valid
             and extensions[0] >= .70
@@ -1612,8 +1638,8 @@ class GeometryResolver:
             and thumb_down_score >= .70
             and thumb_down_lead >= .25
         )
-        thumb_down_geometry_supported = thumb_down_geometry_supported or bool(
-            raw == "thumb_down" and rotated_thumb_model_support)
+        thumb_down_geometry_supported = (
+            thumb_down_geometry_supported or rotated_thumb_down_support)
         # A high model score alone is not evidence of a closed hand. In
         # particular, four partly bent but raised fingers can look like Fist
         # to the MLP. Keep a geometry requirement for every Fist decision.
@@ -1824,15 +1850,16 @@ class GeometryResolver:
             if model_raw == "open_palm" or stop_inverted_geometry_supported:
                 adjusted = _set_probability_floor(adjusted, self.config.class_to_idx["stop_inverted"], .96)
             raw = "stop_inverted"
-        elif raw == "thumb_down" and rotated_thumb_model_support:
-            adjusted = _set_probability_floor(
-                adjusted, self.config.class_to_idx["thumb_down"], 0.96
-            )
         elif like_geometry_supported:
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx["like"], 0.96
             )
             raw = "like"
+        elif raw in {"like", "thumb_down"} and thumb_down_geometry_supported:
+            adjusted = _set_probability_floor(
+                adjusted, self.config.class_to_idx["thumb_down"], 0.96
+            )
+            raw = "thumb_down"
         elif fist_foreshortened_relabel:
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx["fist"], 0.96
@@ -1874,9 +1901,13 @@ class GeometryResolver:
             "pinky_extension": float(extensions[4]),
             "thumb_up_score": thumb_up_score,
             "thumb_lead_ratio": thumb_lead,
+            "screen_thumb_up_score": screen_thumb_up_score,
+            "screen_thumb_lead_ratio": screen_thumb_lead,
+            "screen_thumb_down_lead_ratio": screen_thumb_down_lead,
             "raised_non_thumb_count": raised_non_thumb_count,
             "thumb_down_score": thumb_down_score,
             "thumb_down_lead_ratio": thumb_down_lead,
+            "rotated_thumb_down_support": rotated_thumb_down_support,
             "thumb_index_gap_ratio": gap,
             "thumb_middle_gap_ratio": thumb_middle_gap,
             "closest_other_thumb_gap_ratio": closest_other_thumb_gap,
@@ -1930,6 +1961,7 @@ class GeometryResolver:
             "like_compact_fingers": compact_like_fingers,
             "like_world_folded_fingers": world_folded_fingers,
             "like_geometry_supported": like_geometry_supported,
+            "rotated_thumb_up_support": rotated_thumb_up_support,
             "fist_geometry_supported": fist_geometry_supported,
             "fist_world_compact_geometry": world_compact_fist,
             "fist_toward_camera_pitch_degrees": (

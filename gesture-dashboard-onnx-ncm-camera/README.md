@@ -297,7 +297,15 @@ has its own `0.15` mass floor and does not bypass the pose validators. Always
 read `temporal_smoothing` from the matching runtime JSON; thresholds copied from
 an older handover are not part of this release.
 
-The standalone `scripts/run_live_camera.py` calls `InferenceEngine.process_frame()` for every captured frame and does **not** use the backend-wide limiter or the dashboard's 0.92 crop. It also does not attach the Safe Learn adapter or perform the full production manifest check. Use it as a convenient same-model viewer, not as proof that the qualified dashboard path is reproduced.
+The standalone `scripts/run_live_camera.py` defaults to the responsive preview
+profile. It drains the camera continuously, retains only the latest frame,
+admits at most 10 inference starts per second, and passes webcam BGR pixels
+directly without a JPEG round trip. Strong known gestures can confirm
+immediately at 0.92 confidence with a 0.25 margin; the ordinary path uses two
+matching votes among three. Repeated commands require confirmed `no_gesture`
+to rearm, and there is no fixed 800 ms cooldown. The viewer does not attach the
+Safe Learn adapter or perform the full production manifest check, so it remains
+a convenient runtime preview rather than production qualification evidence.
 
 ## Repository map
 
@@ -508,11 +516,17 @@ $env:NCM_TCP_PORT = "5000"
 $env:NCM_DISCOVERY_PORT = "5001"
 $env:NCM_DISCOVERY_PAYLOAD = "JL-CAMERA-DISCOVER"
 $env:NCM_ROTATE_180 = "false"
+$env:NCM_NODE_HEAP_MB = "1536"
 $env:GESTURE_COLLECTION_DIR = "D:\Data-Collection"
 .\start_ncm_onnx_dashboard.bat
 ```
 
-Other supported NCM variables include connect/receive/discovery timeouts, reconnect delay, maximum JPEG bytes, and auto-connect; see `.env.example` and `backend/ncm_camera.py`. Useful runtime paths include `GESTURE_MODELS_DIR`, `GESTURE_FEEDBACK_DIR`, `GESTURE_COLLECTION_DIR`, and `GESTURE_LOG_DIR`.
+`NCM_NODE_HEAP_MB` controls the temporary Node/Vinext build heap and accepts
+values from 768 through 8192 MB; the launcher defaults to 1536 MB. Other
+supported NCM variables include connect/receive/discovery timeouts, reconnect
+delay, maximum JPEG bytes, and auto-connect; see `.env.example` and
+`backend/ncm_camera.py`. Useful runtime paths include `GESTURE_MODELS_DIR`,
+`GESTURE_FEEDBACK_DIR`, `GESTURE_COLLECTION_DIR`, and `GESTURE_LOG_DIR`.
 
 The standard start script deliberately forces production safeguards: the manifest is required, forced learning is disabled, and artifact reload/rollback endpoints are disabled.
 
@@ -593,7 +607,9 @@ Interactive launcher:
 .\run_live_camera.bat
 ```
 
-Choose `1` for a PC webcam or `2` for the USB-NCM board.
+Choose `1` for a PC webcam or `2` for the USB-NCM board. The batch file enables
+the `responsive` profile. The HUD reports processing time and the cumulative
+number of stale source frames replaced by newer ones.
 Both sources run the same twelve-command contract; Fist maps to Mute, Thumbs Down
 maps to Volume Down, and Open Palm accepts image XY −160° to −20°, inclusive.
 
@@ -610,7 +626,21 @@ Direct NCM command:
 .\.venv\Scripts\python.exe .\scripts\run_live_camera.py --source ncm
 ```
 
+For an A/B comparison with the former controller timing, add
+`--runtime-profile legacy`. The responsive profile changes controller timing
+while latest-frame scheduling remains enabled; the Python preview continues to
+use the qualified ONNX classifier and preserves the same gestures and feature
+contract.
+
 Press `q` or `Esc` in the OpenCV window to exit. The overlay shows the skeleton, predicted gesture, confidence, action, known mass, and observed processing FPS.
+
+The browser dashboard's Live and Feedback NCM previews show a bounding box,
+21 landmark dots and a skeleton for each detected hand, including a hand whose
+gesture is rejected. Every prediction carries `ncm_preview_jpeg_base64` for
+the exact processed JPEG; the browser paints that JPEG and its landmarks in one
+canvas update. This preview follows processing FPS rather than an independent
+MJPEG stream. Its visual boxes enclose current landmarks; the detector's
+internal ROI/crop and gesture acceptance rules are unchanged.
 
 The standalone NCM path currently hard-codes `192.168.50.1 -> 192.168.50.2:5000`; its address does not come from `.env.example`. Change `scripts/run_live_camera.py` if a different board subnet is required.
 

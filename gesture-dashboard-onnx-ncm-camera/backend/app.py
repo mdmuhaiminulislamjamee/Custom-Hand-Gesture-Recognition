@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -959,7 +960,12 @@ async def ncm_live_socket(websocket: WebSocket) -> None:
                     "prediction": result.get("runtime_prediction"),
                     "confidence": result.get("confidence", 0.0),
                 })
-            await send_json({"type": "prediction", **result})
+            # Preview and landmarks belong to the exact same source JPEG.
+            # An independent MJPEG feed can run ahead of inference results.
+            await send_json({
+                "type": "prediction", **result,
+                "ncm_preview_jpeg_base64": base64.b64encode(frame).decode("ascii"),
+            })
 
     async def command_consumer() -> None:
         nonlocal selected_model

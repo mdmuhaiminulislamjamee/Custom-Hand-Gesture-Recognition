@@ -40,9 +40,11 @@ def export(destination):
     config, cases, transitions = load_runtime_config(), [], []
     resolver = GeometryResolver(config)
 
-    def add(points, raw, source, *, shape=None, side=None, world=None, require_depth=False):
+    def add(points, raw, source, *, shape=None, side=None, world=None, require_depth=False,
+            probabilities=None):
         points = np.asarray(points, np.float32)
-        probabilities = np.eye(len(CLASS_NAMES))[CLASS_NAMES.index(raw)]
+        probabilities = (np.eye(len(CLASS_NAMES))[CLASS_NAMES.index(raw)]
+                         if probabilities is None else np.asarray(probabilities, np.float64))
         kwargs = dict(handedness=side, handedness_confidence=.99 if side else None,
                       world_landmarks=None if world is None else np.asarray(world, np.float32),
                       require_fist_depth=require_depth, image_shape=shape)
@@ -117,6 +119,28 @@ def export(destination):
                 points, world = rotated_closed_fist(angle, pitch, 'x', mirror)
                 add(points, 'fist', f'synthetic closed fist/angle={angle}/pitch={pitch}',
                     world=world, require_depth=True)
+
+    # The reported side-on thumb was scored 98.3% Thumb Down despite pointing
+    # upward. Check both thumb directions and both raw labels with world bends.
+    from backend.tests.test_geometry import side_on_like_pose
+    for mirror in (False, True):
+        for thumb_up in (False, True):
+            pixels = side_on_like_pose()
+            if mirror:
+                pixels[:, 0] = 2 * pixels[0, 0] - pixels[:, 0]
+            if not thumb_up:
+                pixels[:, 1] = 2 * pixels[0, 1] - pixels[:, 1]
+            world = np.column_stack(((pixels - pixels[0]) / 1000., np.zeros(21)))
+            for mcp in (5, 9, 13, 17):
+                world[mcp+1:mcp+4] = world[mcp] + .45 * (world[mcp+1:mcp+4] - world[mcp])
+            for raw in ('like', 'thumb_down'):
+                probabilities = np.zeros(len(CLASS_NAMES))
+                probabilities[CLASS_NAMES.index(raw)] = .983
+                probabilities[CLASS_NAMES.index('thumb_down' if raw == 'like' else 'like')] = .017
+                add(pixels / [1280., 720.], raw,
+                    f'approximate reported side thumb/up={thumb_up}/mirror={mirror}/raw={raw}; not pixel replay',
+                    shape=(720, 1280, 3), world=world, require_depth=True,
+                    probabilities=probabilities)
 
     manager = ModelManager(config)
     assert manager.ready, manager.errors

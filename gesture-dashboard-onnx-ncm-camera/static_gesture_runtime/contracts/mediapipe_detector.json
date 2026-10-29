@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "detector": "MediaPipe Hands",
+  "palm_model": "hand_detection.tflite",
+  "landmark_model": "hand_landmark_full.tflite",
+  "landmark_model_variant": "full",
+  "model_precision": "float16",
+  "target_inference_fps": 10,
+  "maximum_hands": 2,
+  "detection_confidence": 0.5,
+  "landmark_confidence": 0.6,
+  "tracking_enabled": true,
+  "mediapipe_gesture_classifier_enabled": false,
+  "frame_queue_policy": "latest_frame_only",
+  "preferred_backend": "LiteRT GPU",
+  "fallback_backend": "XNNPACK CPU"
+}

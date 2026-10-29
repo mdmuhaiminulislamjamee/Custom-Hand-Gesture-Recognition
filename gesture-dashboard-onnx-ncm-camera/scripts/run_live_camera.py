@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Standalone eleven-command real-time gesture recognition with ONNX
+Standalone twelve-command real-time gesture recognition with ONNX
 Runs directly in an OpenCV window on your PC without starting the web server.
 
 Usage:
@@ -13,6 +13,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 
 # Ensure thread limit for OpenBLAS on Windows
@@ -30,9 +32,101 @@ from backend.model_runtime import InferenceEngine, RuntimeSession
 from backend.ncm_camera import NcmCameraClient, NcmCameraConfig
 
 
+def _apply_runtime_profile(config, profile: str) -> None:
+    """Apply standalone preview timing without changing model calibration."""
+    if profile == "legacy":
+        return
+    if profile != "responsive":
+        raise ValueError(f"Unknown runtime profile: {profile}")
+    config.responsive_confirmation = True
+    config.stable_frames_required = 2
+    config.release_frames_required = 2
+    config.minimum_hold_seconds = 0.0
+    config.action_cooldown_seconds = 0.0
+    config.confirmation_window_frames = 3
+    config.confirmation_votes_required = 2
+
+
+class LatestWebcamFrame:
+    """Continuously drain OpenCV capture and retain only the newest frame."""
+
+    def __init__(self, capture) -> None:
+        self.capture = capture
+        self._condition = threading.Condition()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._frame_id = 0
+        self._frame: np.ndarray | None = None
+        self._captured_at = 0.0
+        self._read_failures = 0
+
+    def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="latest-webcam-frame",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            ok, frame = self.capture.read()
+            if not ok or frame is None:
+                with self._condition:
+                    self._read_failures += 1
+                    self._condition.notify_all()
+                self._stop.wait(0.01)
+                continue
+            with self._condition:
+                self._frame_id += 1
+                self._frame = frame
+                self._captured_at = time.monotonic()
+                self._read_failures = 0
+                self._condition.notify_all()
+
+    def wait_for_frame(
+        self, after_frame_id: int, timeout_seconds: float = 0.2
+    ) -> tuple[int, np.ndarray | None, float]:
+        deadline = time.monotonic() + max(0.0, timeout_seconds)
+        with self._condition:
+            while (
+                self._frame_id <= after_frame_id
+                and not self._stop.is_set()
+                and time.monotonic() < deadline
+            ):
+                self._condition.wait(max(0.0, deadline - time.monotonic()))
+            return self._frame_id, self._frame, self._captured_at
+
+    def stop(self) -> None:
+        self._stop.set()
+        try:
+            self.capture.release()
+        finally:
+            with self._condition:
+                self._condition.notify_all()
+            thread = self._thread
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=1.0)
+            self._thread = None
+
+
+def _scheduler_result(
+    result: dict, *, source_frame_id: int, replaced_frames: int
+) -> dict:
+    result["frame_scheduler"] = {
+        "policy": "latest_frame_only",
+        "source_frame_id": int(source_frame_id),
+        "replaced_frames": int(replaced_frames),
+    }
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Live eleven-command ONNX gesture recognition"
+        description="Live twelve-command ONNX gesture recognition"
     )
     parser.add_argument(
         "--source",
@@ -46,10 +140,18 @@ def main() -> None:
         default=0,
         help="Webcam device index (default: 0)",
     )
+    parser.add_argument(
+        "--runtime-profile",
+        choices=["responsive", "legacy"],
+        default="responsive",
+        help="Controller timing profile (default: responsive)",
+    )
     args = parser.parse_args()
 
     print("Loading models and runtime configuration...")
     config = load_runtime_config()
+    _apply_runtime_profile(config, args.runtime_profile)
+    profile_title = args.runtime_profile.capitalize()
     engine = InferenceEngine(config)
     session = RuntimeSession(config)
 
@@ -61,6 +163,15 @@ def main() -> None:
     print("Hand-only detection: body position and clothing do not block gestures.")
     print("A valid gesture takes priority over the other hand's no_gesture, regardless of distance.")
     print("Face filtering removed: gestures can qualify in front of the face.\n")
+    print(
+        f"Runtime profile: {args.runtime_profile} | model: ONNX | "
+        f"frame admission: latest only, {config.target_fps:.0f} FPS maximum"
+    )
+    if config.responsive_confirmation:
+        print(
+            "Confirmation: strong 92%/25% margin is immediate; otherwise 2 of 3. "
+            "A confirmed no-gesture rearms repeats.\n"
+        )
 
     status = engine.status()
     if not status.get("ready"):
@@ -76,14 +187,25 @@ def main() -> None:
         client = NcmCameraClient(ncm_config)
         client.start()
         
-        window_title = "ONNX Gesture Recognition - USB-NCM Camera (q: exit, r: reset)"
+        window_title = f"{profile_title} ONNX Gesture Recognition - USB-NCM (q: exit, r: reset)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
         last_frame_id = -1
+        replaced_frames = 0
+        next_inference_at = 0.0
+        interval_seconds = config.frame_interval_ms / 1000.0
         try:
             while True:
-                frame_id, jpeg_bytes = client.wait_for_frame(last_frame_id, timeout_seconds=0.2)
+                remaining = next_inference_at - time.monotonic()
+                if remaining > 0.0:
+                    wait_ms = max(1, min(30, round(remaining * 1000)))
+                    if _handle_key(cv2.waitKey(wait_ms), session):
+                        break
+                    continue
+                frame_id, jpeg_bytes = client.wait_for_frame(
+                    last_frame_id, timeout_seconds=0.05
+                )
                 if jpeg_bytes is None or frame_id == last_frame_id:
                     # Check connection status
                     status = client.status()
@@ -103,12 +225,20 @@ def main() -> None:
                             break
                     continue
 
+                if last_frame_id >= 0:
+                    replaced_frames += max(0, frame_id - last_frame_id - 1)
                 last_frame_id = frame_id
-                result = engine.process_frame(jpeg_bytes, session)
-                
-                # Decode for display
                 frame = cv2.imdecode(np.frombuffer(jpeg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
                 if frame is not None:
+                    admitted_at = time.monotonic()
+                    next_inference_at = admitted_at + interval_seconds
+                    # Decode once: the same BGR frame goes to inference and display.
+                    result = engine.process_frame(frame, session, now=admitted_at)
+                    _scheduler_result(
+                        result,
+                        source_frame_id=frame_id,
+                        replaced_frames=replaced_frames,
+                    )
                     _draw_overlay(frame, result)
                     cv2.imshow(window_title, frame)
 
@@ -133,30 +263,50 @@ def main() -> None:
         print(f"Webcam capture: {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))} x "
               f"{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
 
-        window_title = "ONNX Gesture Recognition - PC Webcam (q: exit, r: reset)"
+        window_title = f"{profile_title} ONNX Gesture Recognition - PC Webcam (q: exit, r: reset)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
+        source = LatestWebcamFrame(cap)
+        source.start()
+        last_frame_id = -1
+        replaced_frames = 0
+        next_inference_at = 0.0
+        interval_seconds = config.frame_interval_ms / 1000.0
         try:
             while True:
-                ret, frame = cap.read()
-                if not ret or frame is None:
-                    print("Failed to grab frame from webcam.")
-                    break
-
-                # Encode frame to JPEG bytes for InferenceEngine
-                success, encoded = cv2.imencode(".jpg", frame)
-                if not success:
+                remaining = next_inference_at - time.monotonic()
+                if remaining > 0.0:
+                    wait_ms = max(1, min(30, round(remaining * 1000)))
+                    if _handle_key(cv2.waitKey(wait_ms), session):
+                        break
                     continue
-
-                result = engine.process_frame(encoded.tobytes(), session)
+                frame_id, frame, captured_at = source.wait_for_frame(
+                    last_frame_id, timeout_seconds=0.05
+                )
+                if frame is None or frame_id == last_frame_id:
+                    if _handle_key(cv2.waitKey(10), session):
+                        break
+                    continue
+                if last_frame_id >= 0:
+                    replaced_frames += max(0, frame_id - last_frame_id - 1)
+                last_frame_id = frame_id
+                admitted_at = time.monotonic()
+                next_inference_at = admitted_at + interval_seconds
+                # Pass BGR directly; avoid an unnecessary JPEG encode/decode pair.
+                result = engine.process_frame(frame, session, now=captured_at)
+                _scheduler_result(
+                    result,
+                    source_frame_id=frame_id,
+                    replaced_frames=replaced_frames,
+                )
                 _draw_overlay(frame, result)
                 cv2.imshow(window_title, frame)
 
                 if _handle_key(cv2.waitKey(1), session):
                     break
         finally:
-            cap.release()
+            source.stop()
             cv2.destroyAllWindows()
             engine.close()
 
@@ -341,6 +491,10 @@ def _draw_overlay(
     conf = float(result.get("confidence", 0.0))
     mass = float(result.get("known_gesture_mass", 0.0))
     fps = float(result.get("actual_fps", 0.0))
+    processing_ms = float((result.get("timing") or {}).get("total_ms", 0.0))
+    replaced_frames = int(
+        (result.get("frame_scheduler") or {}).get("replaced_frames", 0)
+    )
     selected_preview = next((hand for hand in result.get("hands", []) if hand.get("selected")), {})
     landmarks = (result.get("display_landmarks") or selected_preview.get("display_landmarks")
                  or result.get("landmarks"))
@@ -388,8 +542,8 @@ def _draw_overlay(
             cv2.LINE_AA,
         )
 
-    # Show every observed hand, including blocked/ambiguous candidates. Only the
-    # selected hand receives the existing gesture overlay and motion axes.
+    # Every observed hand gets a box and 21-point skeleton. The selected hand
+    # additionally receives gesture feedback and motion axes below.
     for hand in hands:
         if hand.get("selected") and landmarks:
             continue
@@ -397,11 +551,20 @@ def _draw_overlay(
         if len(points) != 21:
             continue
         pixels = [(int(point[0] * w), int(point[1] * h)) for point in points]
-        color = (160, 160, 160)
+        color = (100, 220, 100)
+        xs = [point[0] for point in pixels]
+        ys = [point[1] for point in pixels]
+        padding = max(5, round(max(max(xs) - min(xs), max(ys) - min(ys)) * .1))
+        cv2.rectangle(
+            frame,
+            (max(0, min(xs) - padding), max(0, min(ys) - padding)),
+            (min(w - 1, max(xs) + padding), min(h - 1, max(ys) + padding)),
+            (255, 140, 190), 2, cv2.LINE_AA,
+        )
         for start, end in HAND_CONNECTIONS:
             cv2.line(frame, pixels[start], pixels[end], color, 1, cv2.LINE_AA)
         for point in pixels:
-            cv2.circle(frame, point, 2, color, -1, cv2.LINE_AA)
+            cv2.circle(frame, point, 3, (100, 255, 190), -1, cv2.LINE_AA)
         identifier = f" #{hand['track_id']}" if hand.get("track_id") else ""
         state_label = (hand.get("reason") or "observed").replace("_", " ")
         label = f"{hand.get('handedness') or 'Hand'}{identifier} | {state_label}"
@@ -512,7 +675,10 @@ def _draw_overlay(
 
     # Stats on top right
     dist_hud = f"Dist: ~{distance_m:.2f}m | " if distance_m is not None else ""
-    stats_text = f"{dist_hud}Mass: {mass:.2f} | FPS: {fps:.1f}"
+    stats_text = (
+        f"{dist_hud}Mass: {mass:.2f} | Proc: {processing_ms:.0f}ms | "
+        f"FPS: {fps:.1f} | Skip: {replaced_frames}"
+    )
     (sw, _), _ = cv2.getTextSize(stats_text, cv2.FONT_HERSHEY_SIMPLEX, 0.58, 1)
     cv2.putText(frame, stats_text, (max(20, w - sw - 20), 34), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (200, 200, 200), 1, cv2.LINE_AA)
 

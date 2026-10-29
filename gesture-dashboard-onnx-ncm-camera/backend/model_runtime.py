@@ -96,7 +96,17 @@ class RuntimeSession:
         if self.last_action_gesture is None:
             self._action_release_frames = 0
             return False
+        if self.config.responsive_confirmation and tracking_gap:
+            # A missing hand is not a confirmed neutral pose.  Preserve the
+            # duplicate latch so a detector dropout cannot repeat an action.
+            self._action_release_frames = 0
+            return False
         if gesture == self.last_action_gesture:
+            self._action_release_frames = 0
+            return False
+        if self.config.responsive_confirmation and gesture is not None:
+            # The mobile controller rearms a repeated command only after a
+            # confirmed no-gesture observation, not after another command.
             self._action_release_frames = 0
             return False
         self._action_release_frames += 1
@@ -887,7 +897,7 @@ class InferenceEngine:
 
     def process_frame(
         self,
-        image_bytes: bytes,
+        image_bytes: bytes | np.ndarray,
         session: RuntimeSession,
         model_name: str | None = None,
         *,
@@ -903,7 +913,18 @@ class InferenceEngine:
             import cv2
         except ImportError as error:
             return {"status": "dependency_missing", "message": str(error)}
-        image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+        if isinstance(image_bytes, np.ndarray):
+            image = np.asarray(image_bytes)
+            if image.ndim != 3 or image.shape[2] != 3 or image.dtype != np.uint8:
+                image = None
+            else:
+                # The detector's preprocessing may return views into the input;
+                # keep the capture thread's latest-frame buffer independent.
+                image = np.ascontiguousarray(image)
+        else:
+            image = cv2.imdecode(
+                np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR
+            )
         if image is None:
             return {"status": "invalid_image", "message": "The frame could not be decoded."}
         source_height, source_width = image.shape[:2]
@@ -1253,7 +1274,10 @@ class InferenceEngine:
             action_reason = follow.message
         elif decision.execute:
             new_action_edge = decision.predicted_gesture != session.last_action_gesture
-            cooldown_ready = now - session.last_action_at >= self.config.action_cooldown_seconds
+            cooldown_ready = bool(
+                self.config.responsive_confirmation
+                or now - session.last_action_at >= self.config.action_cooldown_seconds
+            )
             if new_action_edge and cooldown_ready:
                 runtime_action = mapped_action
                 action_reason = "stable command emitted"

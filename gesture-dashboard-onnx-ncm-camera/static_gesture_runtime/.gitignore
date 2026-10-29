@@ -1,0 +1,7 @@
+**/.dart_tool/
+**/build/
+**/.flutter-plugins-dependencies
+**/.idea/
+**/ios/Pods/
+**/ios/.symlinks/
+**/__pycache__/

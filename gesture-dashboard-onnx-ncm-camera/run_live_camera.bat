@@ -4,7 +4,8 @@ cd /d "%~dp0"
 set OPENBLAS_NUM_THREADS=1
 
 echo ========================================================
-echo   Starting 11-Command ONNX Gesture Recognition...
+echo   Starting 12-Command Responsive ONNX Gesture Recognition...
+echo   Latest-frame scheduling and responsive confirmation are enabled.
 echo   Automatic two-hand selection is enabled.
 echo ========================================================
 echo.
@@ -24,11 +25,11 @@ set /p choice="Choose camera source [1 or 2, default: 1]: "
 if "%choice%"=="2" (
     echo.
     echo Connecting to USB-NCM Camera...
-    .\.venv\Scripts\python.exe scripts\run_live_camera.py --source ncm
+    .\.venv\Scripts\python.exe scripts\run_live_camera.py --source ncm --runtime-profile responsive
 ) else (
     echo.
     echo Opening PC Webcam...
-    .\.venv\Scripts\python.exe scripts\run_live_camera.py --source webcam
+    .\.venv\Scripts\python.exe scripts\run_live_camera.py --source webcam --runtime-profile responsive
 )
 
 pause

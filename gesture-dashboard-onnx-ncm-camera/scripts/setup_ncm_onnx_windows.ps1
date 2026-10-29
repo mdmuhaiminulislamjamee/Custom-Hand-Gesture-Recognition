@@ -2,7 +2,11 @@ $ErrorActionPreference = "Stop"
 $ProjectDirectory = Split-Path -Parent $PSScriptRoot
 $VirtualEnvironment = Join-Path $ProjectDirectory ".venv"
 $PythonExecutable = Join-Path $VirtualEnvironment "Scripts\python.exe"
-$env:NODE_OPTIONS = "--max-old-space-size=512 --max-semi-space-size=4"
+$NodeHeapMb = if ($env:NCM_NODE_HEAP_MB) { [int]$env:NCM_NODE_HEAP_MB } else { 1536 }
+if ($NodeHeapMb -lt 768 -or $NodeHeapMb -gt 8192) {
+    throw "NCM_NODE_HEAP_MB must be between 768 and 8192."
+}
+$env:NODE_OPTIONS = "--max-old-space-size=$NodeHeapMb --max-semi-space-size=16"
 $env:OPENBLAS_NUM_THREADS = if ($env:OPENBLAS_NUM_THREADS) { $env:OPENBLAS_NUM_THREADS } else { "1" }
 $env:OMP_NUM_THREADS = if ($env:OMP_NUM_THREADS) { $env:OMP_NUM_THREADS } else { "1" }
 

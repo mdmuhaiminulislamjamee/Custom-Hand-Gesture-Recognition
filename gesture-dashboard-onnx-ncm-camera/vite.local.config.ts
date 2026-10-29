@@ -25,7 +25,7 @@ export default defineConfig({
     port: 3200,
     strictPort: true,
     watch: {
-      ignored: ['**/.venv/**', '**/.runtime/**', '**/feedback/**', '**/models/**'],
+      ignored: ['**/.venv/**', '**/.runtime/**', '**/feedback/**', '**/models/**', '**/build/**', '**/.dart_tool/**'],
     },
   },
 });

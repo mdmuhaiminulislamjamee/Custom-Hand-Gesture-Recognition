@@ -189,8 +189,18 @@ def test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_th
         assert decision.execute and decision.predicted_gesture == "fist"
 
 
-@pytest.mark.parametrize("label,index", [("like", 2000), ("thumb_down", 3600)])
-def test_recorded_thumb_command_survives_screen_rotations(label, index):
+@pytest.mark.parametrize("label,index,expected_by_angle", [
+    ("like", 2000, {
+        0: "like", 45: "like", 90: "no_gesture", 135: "thumb_down",
+        180: "thumb_down", 225: "thumb_down", 270: "no_gesture", 315: "like",
+    }),
+    ("thumb_down", 3600, {
+        0: "thumb_down", 45: "no_gesture", 90: "no_gesture",
+        135: "like", 180: "like", 225: "no_gesture",
+        270: "no_gesture", 315: "thumb_down",
+    }),
+])
+def test_recorded_thumb_command_respects_screen_direction(label, index, expected_by_angle):
     from backend.config import PROJECT_ROOT, load_runtime_config
     from backend.geometry import landmarks_to_feature
     from backend.model_runtime import ModelManager
@@ -208,13 +218,16 @@ def test_recorded_thumb_command_survives_screen_rotations(label, index):
             probabilities, points, world_landmarks=world,
         )
         assert details["hand_shape"]["world_thumb_only"]
-        assert details["pose_validation"]["valid"]
-        assert config.class_names[int(resolved.argmax())] == label
+        expected = expected_by_angle[angle]
+        assert details["pose_validation"]["valid"] is (expected != "no_gesture")
+        if expected != "no_gesture":
+            assert config.class_names[int(resolved.argmax())] == expected
         gate = TemporalGate(config)
         for frame in range(8):
             decision = gate.update(resolved, now=1 + frame * .1,
                                    **gate_arguments(details, quality))
-        assert decision.execute and decision.predicted_gesture == label
+        assert decision.predicted_gesture == expected
+        assert decision.execute is (expected != "no_gesture")
 
 
 def test_two_extended_fingers_cannot_take_the_rotated_thumb_shortcut():

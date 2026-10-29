@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "source_onnx_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
+  "weights_retrained": false,
+  "converter": "explicit_builtin_flatbuffer_graph",
+  "calibration": {
+    "source": "models\\gesture_online_replay_cache.npz",
+    "sha256": "351a59f4d64e0db69b3575fc21da59a3e68179d6054814c1cd141c0b461b8245",
+    "rows": 1391,
+    "indices_sha256": "6a6f556e49d175498bebb3d5edcd4dfc30b572bcff577ad9a08eb3a36ba95945",
+    "test_used_for_calibration": false
+  },
+  "models": {
+    "float32": {
+      "passed": true,
+      "model_sha256": "712c1fa0689370861ec42ff649117853fffb6cacf885f7d3b570c3e3acbb3c1a",
+      "bytes": 78960,
+      "evaluation": {
+        "validation": {
+          "rows": 9031,
+          "source_sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648",
+          "top1_agreement": 1.0,
+          "maximum_probability_error": 1.4007091522216797e-06,
+          "mean_probability_error": 2.68880917531078e-09,
+          "maximum_mass_error": 1.6689300537109375e-06,
+          "scalar_gate_agreement": 1.0,
+          "source_scalar_metrics": {
+            "accepted_precision": 0.995829244357213,
+            "unknown_false_accept_rate": 0.012746234067207415,
+            "acceptance_rate": 0.9026685859816189
+          },
+          "tflite_scalar_metrics": {
+            "accepted_precision": 0.995829244357213,
+            "unknown_false_accept_rate": 0.012746234067207415,
+            "acceptance_rate": 0.9026685859816189
+          },
+          "host_invoke": {
+            "p50_ms": 0.0034,
+            "p95_ms": 0.0041,
+            "scope": "warm host CPU invoke only; not iPhone or camera latency"
+          },
+          "geometry_and_temporal_not_included": true
+        },
+        "untouched_test": {
+          "rows": 9042,
+          "source_sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008",
+          "top1_agreement": 1.0,
+          "maximum_probability_error": 1.4007091522216797e-06,
+          "mean_probability_error": 2.7068183250378297e-09,
+          "maximum_mass_error": 1.7583370208740234e-06,
+          "scalar_gate_agreement": 1.0,
+          "source_scalar_metrics": {
+            "accepted_precision": 0.9949488727362326,
+            "unknown_false_accept_rate": 0.011123470522803115,
+            "acceptance_rate": 0.8976996239769962
+          },
+          "tflite_scalar_metrics": {
+            "accepted_precision": 0.9949488727362326,
+            "unknown_false_accept_rate": 0.011123470522803115,
+            "acceptance_rate": 0.8976996239769962
+          },
+          "host_invoke": {
+            "p50_ms": 0.0034,
+            "p95_ms": 0.0037,
+            "scope": "warm host CPU invoke only; not iPhone or camera latency"
+          },
+          "geometry_and_temporal_not_included": true
+        }
+      }
+    },
+    "int8": {
+      "passed": false,
+      "model_sha256": "02cecca35294fa7e62d9551a98bba285816b81c5c780d07a0150a133f2aaa208",
+      "bytes": 23240,
+      "evaluation": {
+        "validation": {
+          "rows": 9031,
+          "source_sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648",
+          "top1_agreement": 0.9937991363082715,
+          "maximum_probability_error": 0.3237713575363159,
+          "mean_probability_error": 0.0005029823514632881,
+          "maximum_mass_error": 0.21879678964614868,
+          "scalar_gate_agreement": 0.999114162329753,
+          "source_scalar_metrics": {
+            "accepted_precision": 0.995829244357213,
+            "unknown_false_accept_rate": 0.012746234067207415,
+            "acceptance_rate": 0.9026685859816189
+          },
+          "tflite_scalar_metrics": {
+            "accepted_precision": 0.9957065750736016,
+            "unknown_false_accept_rate": 0.016222479721900347,
+            "acceptance_rate": 0.9026685859816189
+          },
+          "host_invoke": {
+            "p50_ms": 0.0029,
+            "p95_ms": 0.0031,
+            "scope": "warm host CPU invoke only; not iPhone or camera latency"
+          },
+          "geometry_and_temporal_not_included": true
+        },
+        "untouched_test": {
+          "rows": 9042,
+          "source_sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008",
+          "top1_agreement": 0.9948020349480203,
+          "maximum_probability_error": 0.6226279735565186,
+          "mean_probability_error": 0.0004969630972482264,
+          "maximum_mass_error": 0.330379843711853,
+          "scalar_gate_agreement": 0.9982304799823049,
+          "source_scalar_metrics": {
+            "accepted_precision": 0.9949488727362326,
+            "unknown_false_accept_rate": 0.011123470522803115,
+            "acceptance_rate": 0.8976996239769962
+          },
+          "tflite_scalar_metrics": {
+            "accepted_precision": 0.994703781253849,
+            "unknown_false_accept_rate": 0.008898776418242492,
+            "acceptance_rate": 0.8979208139792081
+          },
+          "host_invoke": {
+            "p50_ms": 0.0029,
+            "p95_ms": 0.0031,
+            "scope": "warm host CPU invoke only; not iPhone or camera latency"
+          },
+          "geometry_and_temporal_not_included": true
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Landmark-level conversion checks do not measure camera detection or iPhone latency.",
+    "New command-controller timing is tested separately; scalar-gate agreement is not full runtime parity.",
+    "INT8 candidate quantizes the three dense layers; normalization and open-set probability tail remain FP32."
+  ]
+}

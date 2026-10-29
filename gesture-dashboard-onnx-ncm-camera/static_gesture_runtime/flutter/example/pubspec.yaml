@@ -1,0 +1,24 @@
+name: static_gesture_ncm_example
+description: Physical iOS NCM tester for the static gesture runtime.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  static_gesture_runtime:
+    path: ../
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+flutter:
+  uses-material-design: true
+
+hooks:
+  user_defines:
+    dartcv4:
+      parallel_jobs: 1
+      include_modules:
+        - imgcodecs
+        - imgproc

@@ -539,6 +539,50 @@ def test_side_on_like_recovery_requires_an_upward_thumb():
     assert resolved[config.class_to_idx['like']] < config.confidence_floor
 
 
+@pytest.mark.parametrize('mirror', [False, True])
+@pytest.mark.parametrize('thumb_up,expected', [(True, 'like'), (False, 'thumb_down')])
+@pytest.mark.parametrize('model_label', ['like', 'thumb_down'])
+def test_side_view_thumb_direction_overrides_wrong_thumb_score(mirror, thumb_up, expected, model_label):
+    """Approximate the reported wide-camera side view with folded 3-D fingers."""
+    config = RuntimeConfig()
+    pixels = side_on_like_pose()
+    if mirror:
+        pixels[:, 0] = 2 * pixels[0, 0] - pixels[:, 0]
+    if not thumb_up:
+        pixels[:, 1] = 2 * pixels[0, 1] - pixels[:, 1]
+    points = pixels / np.asarray([1280.0, 720.0])
+    world = np.column_stack(((pixels - pixels[0]) / 1000.0, np.zeros(21)))
+    for mcp in (5, 9, 13, 17):
+        world[mcp + 1:mcp + 4] = (
+            world[mcp] + .45 * (world[mcp + 1:mcp + 4] - world[mcp]))
+    probabilities = np.zeros(len(config.class_names))
+    probabilities[config.class_to_idx[model_label]] = .983
+    other_label = 'like' if model_label == 'thumb_down' else 'thumb_down'
+    probabilities[config.class_to_idx[other_label]] = .017
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities, points, world_landmarks=world,
+        image_shape=(720, 1280, 3), require_fist_depth=True,
+    )
+    shape = details['hand_shape']
+    pose = details['pose_validation']
+    assert shape['world_thumb_only'] is True
+    assert shape['rotated_thumb_up_support'] is thumb_up
+    assert shape['rotated_thumb_down_support'] is (not thumb_up)
+    assert pose['valid'] is True
+    assert pose['gesture'] == expected
+    assert config.class_names[int(resolved.argmax())] == expected
+
+    gate = TemporalGate(config)
+    for timestamp in (1.0, 1.1, 1.2):
+        decision = gate.update(
+            resolved, now=timestamp, known_gesture_mass=1.0,
+            pose_valid=pose['valid'], geometry_supported=pose['geometry_supported'],
+        )
+    assert decision.execute is True
+    assert decision.predicted_gesture == expected
+
+
 @pytest.mark.parametrize("gesture,rotation", [
     ("left", 0), ("right", np.pi),
 ])
