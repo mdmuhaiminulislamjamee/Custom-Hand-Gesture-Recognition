@@ -50,7 +50,8 @@ def verify(root: Path) -> dict:
         if sha256(checked_path(package, relative)) != expected:
             raise ValueError(f"Changed runtime file: {relative}")
     provenance = json.loads((package / "contracts/detector_provenance.json").read_text(encoding="utf-8"))
-    for relative, expected in provenance["files"].items():
+    detector_files = {**provenance["files"], **provenance.get("local_patches", {})}
+    for relative, expected in detector_files.items():
         if sha256(checked_path(package, relative)) != expected:
             raise ValueError(f"Detector differs from supplied dynamic source: {relative}")
 
@@ -71,6 +72,7 @@ def verify(root: Path) -> dict:
         "assets/flutter_assets/packages/static_gesture_runtime/assets/models/gesture_static_int8.tflite": models / "gesture_static_int8.tflite",
         "assets/flutter_assets/packages/hand_detection/assets/models/hand_detection.tflite": package / "flutter/third_party/hand_detection/assets/models/hand_detection.tflite",
         "assets/flutter_assets/packages/hand_detection/assets/models/hand_landmark_full.tflite": package / "flutter/third_party/hand_detection/assets/models/hand_landmark_full.tflite",
+        "assets/flutter_assets/packages/hand_detection/assets/models/blaze_face_short_range.tflite": package / "flutter/third_party/hand_detection/assets/models/blaze_face_short_range.tflite",
     }
     with zipfile.ZipFile(apk) as archive:
         if archive.testzip() is not None:
@@ -99,7 +101,7 @@ def verify(root: Path) -> dict:
         "passed": True,
         "payload_files_verified": len(sums),
         "runtime_files_verified": len(runtime_sums),
-        "dynamic_detector_files_verified": len(provenance["files"]),
+        "dynamic_detector_files_verified": len(detector_files),
         "apk_model_assets_matched": len(asset_sources),
         "android_abi": "arm64-v8a",
         "default_classifier": "qualified FP32 TFLite",

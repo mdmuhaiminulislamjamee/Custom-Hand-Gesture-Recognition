@@ -15,6 +15,7 @@ import numpy as np
 
 from .config import RuntimeConfig
 from .runtime import TemporalGate
+from .hand_validation import NON_HAND_REASONS
 
 DORSAL_HANDS_SIMILAR_REASON = "dorsal_requires_one_clearly_larger_hand"
 
@@ -286,7 +287,7 @@ class AutomaticHandSelector:
 
     def _physical_hand(self, row):
         """Idle/context-blocked hands still count for the distance comparison."""
-        if row.get("rejection_reason") in {"face_detected_as_hand", "incomplete_hand", "insufficient_hand_pixels"}:
+        if row.get("rejection_reason") in NON_HAND_REASONS:
             return False
         metrics = row["metrics"]
         values = np.asarray(metrics["palm_segments_px"], dtype=float)

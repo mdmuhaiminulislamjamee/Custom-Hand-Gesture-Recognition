@@ -1,4 +1,4 @@
-# Boss static gesture handover - 29 October 2026
+# Boss static gesture handover - 31 October 2026
 
 Read [README.md](README.md) for the step-by-step integration guide, why the
 model alone is insufficient, and the responsibility of every main component.
@@ -8,9 +8,12 @@ Use this bundle for the latest static gesture integration. It supersedes
 `static_gesture_runtime_20261029_overlay.zip` and the earlier
 `Boss_Static_Gesture_Handover_20261029_final.zip`.
 
-The `fix1` revision includes the Like/Thumb Down camera-direction correction
-and removes the extra handedness swap that reversed Open Palm/Stop Inverted
-in the shared tester/runtime. The Android tester is now version 2.0.1.
+The `false_hands` revision filters compact face/ear, incomplete, undersized and
+collapsed candidates before classification, overlays and continued tracking.
+The Android tester is now version 2.0.2. The earlier thumb-direction and
+Open Palm/Stop Inverted corrections remain included. The separate
+`native_false_hand_update/` contains Android/iOS integration-source patches,
+the required face asset, policy fixtures and integration notes.
 
 The delivery preserves the learned static gestures, copies the hand detector
 from the supplied dynamic runtime v10.3, and supplies the feature extraction,
@@ -22,8 +25,9 @@ performed. The default is the qualified FP32 TFLite model.
 1. Read `static_gesture_runtime/IOS_INTEGRATION.md`.
 2. Keep `static_gesture_runtime/flutter` and its bundled `third_party` directory
    together. Add the documented path dependencies to the existing Flutter app.
-3. If the Boss app already runs the dynamic detector, reuse those raw hand
-   results with `StaticDetectorAdapter` and `StaticGestureRuntimeApi`.
+3. Use the updated bundled detector for both static and dynamic recognition.
+   If reusing another detector, port the filtering before passing accepted hand
+   results to `StaticDetectorAdapter` and `StaticGestureRuntimeApi`.
    Initialize the static classifier once per active session. Feed each fresh
    detector result, including empty results, and use monotonic timestamps.
 4. Connect `onCommand` to the app's existing action handler. The example/tester
@@ -46,7 +50,7 @@ the iOS host must be built and signed by the app owner on a Mac.
 | `static_gesture_runtime/VALIDATION.md` | Model and geometry parity evidence and qualification limits |
 | `static_gesture_runtime/validation/` | Conversion results and shared fixtures |
 | `flutter_gesture_tester/` | Current Android Flutter source using the same static runtime |
-| `flutter_gesture_tester/releases/GestureLab-v2.0.1-litert-ncm-arm64-release.apk` | Optional Android test app; Android 7/API 24+, 64-bit ARM |
+| `flutter_gesture_tester/releases/GestureLab-v2.0.2-litert-ncm-arm64-release.apk` | Optional Android test app; Android 7/API 24+, 64-bit ARM |
 | `RELEASE_NOTES.md` | Final delivery changes and retained behavior |
 | `DEVICE_ACCEPTANCE.md` | iPhone/NCM checks and aggregate timing template |
 | `release_manifest.json` | Model/APK identifiers, payload metadata and test evidence |
@@ -63,7 +67,7 @@ toolchain path-length limits.
 Use Python 3.10+; the first check needs only the standard library:
 
 ```sh
-cd Boss_Static_Gesture_Handover_20261029
+cd Boss_Static_Gesture_Handover_20261031
 python verify_handover.py
 ```
 
@@ -86,8 +90,10 @@ force it into production.
 The twelve command labels and actions are listed in the runtime README.
 `dorsal` remains rejection evidence, and `no_gesture` releases/rearms command
 state. Both physical hands have independent state; at most one product command
-is dispatched from a source frame. Boxes and landmarks display raw detections,
-including rejected poses; a visible box does not imply an accepted command.
+is dispatched from a source frame. Boxes and landmarks display accepted hand
+candidates, including real hands with rejected gestures. Face/background
+candidates rejected by the detector are omitted; a visible hand box does not
+imply an accepted command.
 
 ## NCM setup
 

@@ -14,7 +14,7 @@ PACKAGE = ROOT / "static_gesture_runtime"
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "handover_static/static_gesture_runtime_20261029_fix1.zip")
+    parser.add_argument("--output", type=Path, default=ROOT / "handover_static/static_gesture_runtime_20261031_false_hands.zip")
     args = parser.parse_args()
     reference = json.loads((PACKAGE / "validation/python_reference.json").read_text(encoding="utf-8"))
     small = {key: reference[key] for key in ("schema_version", "model_sha256", "class_names", "feature_count", "probability_tolerance", "model_cases")}

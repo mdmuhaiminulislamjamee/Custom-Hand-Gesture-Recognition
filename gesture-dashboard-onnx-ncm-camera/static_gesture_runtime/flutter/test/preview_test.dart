@@ -27,10 +27,11 @@ void main() {
       image.dispose();
       picture.dispose();
     });
-    NcmStaticPreviewFrame frame(List<Hand> hands, int sequence) =>
+    NcmStaticPreviewFrame frame(List<Hand> hands, int sequence,
+            {Uint8List? bytes}) =>
         NcmStaticPreviewFrame(
           source: NcmJpegFrame(
-              jpeg: png,
+              jpeg: bytes ?? png,
               sequence: sequence,
               boardTimestampMs: sequence,
               receivedTimestampMs: sequence * 100),
@@ -46,7 +47,8 @@ void main() {
               replacedFrames: 0),
         );
     final boundaryKey = GlobalKey();
-    Future<void> show(NcmStaticPreviewFrame preview) async {
+    Future<void> show(NcmStaticPreviewFrame preview,
+        {bool waitForDecode = true}) async {
       await tester.pumpWidget(MaterialApp(
           home: Center(
               child: SizedBox(
@@ -54,6 +56,7 @@ void main() {
         child: RepaintBoundary(
             key: boundaryKey, child: StaticNcmPreview(frame: preview)),
       ))));
+      if (!waitForDecode) return;
       await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 40)));
       await tester.pumpAndSettle();
@@ -83,7 +86,28 @@ void main() {
       final offset = (63 * 400 + x) * 4;
       expect(pixels.getUint8(offset), greaterThan(100));
     }
-    await show(frame([], 2));
+    final previewImage = find.descendant(
+        of: find.byType(StaticNcmPreview), matching: find.byType(Image));
+    final imageElement = tester.element(previewImage);
+    final rawImage = find.descendant(
+        of: find.byType(StaticNcmPreview), matching: find.byType(RawImage));
+    final lastPicture = tester.widget<RawImage>(rawImage).image;
+    expect(lastPicture, isNotNull);
+    // A fresh byte buffer forces an uncached asynchronous image decode. During
+    // that gap the old picture stays visible, but new landmarks must not paint.
+    await show(frame([], 2, bytes: Uint8List.fromList(png)),
+        waitForDecode: false);
+    expect(tester.element(previewImage), same(imageElement));
+    expect(tester.widget<RawImage>(rawImage).image, same(lastPicture));
+    expect(
+        tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .map((w) => w.foregroundPainter)
+            .whereType<MultiOverlayPainter>(),
+        isEmpty);
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+    await tester.pumpAndSettle();
     final emptyPainter = tester
         .widgetList<CustomPaint>(find.byType(CustomPaint))
         .map((w) => w.foregroundPainter)

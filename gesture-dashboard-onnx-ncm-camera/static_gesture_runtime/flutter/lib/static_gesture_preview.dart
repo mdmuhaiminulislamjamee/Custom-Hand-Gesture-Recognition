@@ -27,15 +27,13 @@ class StaticNcmPreview extends StatelessWidget {
               child: SizedBox.expand(
                 child: Image.memory(
                   frame.source.jpeg,
-                  key: ValueKey(
-                      '${frame.source.sequence}:${frame.source.receivedTimestampMs}'),
                   fit: BoxFit.fill,
-                  gaplessPlayback: false,
+                  gaplessPlayback: true,
                   excludeFromSemantics: true,
                   frameBuilder: (context, child, imageFrame, synchronous) =>
                       CustomPaint(
-                    // Wait for this JPEG to decode before painting its overlay.
-                    // A previous image must never sit beneath new landmarks.
+                    // Retain the last decoded picture while this JPEG loads,
+                    // but show landmarks only once their matching image arrives.
                     foregroundPainter: showOverlay && imageFrame != null
                         ? MultiOverlayPainter(results: frame.detections)
                         : null,

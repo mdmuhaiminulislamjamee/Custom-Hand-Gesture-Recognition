@@ -91,7 +91,7 @@ def test_mediapipe_video_receives_recorded_clock_with_strict_ordering():
     assert timestamps == [1000000, 1000200, 1000201]
 
 
-def test_initialization_loads_only_hand_models(tmp_path, monkeypatch):
+def test_initialization_loads_hand_models_and_small_face_guard(tmp_path, monkeypatch):
     from types import SimpleNamespace
     import sys
     vision = SimpleNamespace(
@@ -99,18 +99,22 @@ def test_initialization_loads_only_hand_models(tmp_path, monkeypatch):
         HandLandmarkerOptions=lambda **kwargs: kwargs,
         HandLandmarker=SimpleNamespace(create_from_options=lambda options:
                                       SimpleNamespace(close=lambda: None)),
+        FaceDetectorOptions=lambda **kwargs: kwargs,
+        FaceDetector=SimpleNamespace(create_from_options=lambda options:
+                                    SimpleNamespace(close=lambda: None)),
     )
     fake_mp = SimpleNamespace(tasks=SimpleNamespace(
         BaseOptions=lambda **kwargs: kwargs, vision=vision))
     monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
     model_path = tmp_path / "hand_landmarker.task"
     model_path.write_bytes(b"hand-model-fixture")
+    model_path.with_name("blaze_face_short_range.tflite").write_bytes(b"face-model-fixture")
     detector = HandDetector(model_path)
     try:
         assert detector.ready
         assert detector.error is None
         assert not hasattr(detector, "_body_guard")
-        assert detector._face_guard is None
+        assert detector._face_guard.detector is not None
     finally:
         detector.close()
 

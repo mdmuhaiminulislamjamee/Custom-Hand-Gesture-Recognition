@@ -14,7 +14,8 @@ counts/timings locally; no Boss app images or recordings need to be shared.
 3. With each physical hand, check all twelve gestures in the runtime README.
    Check both hands simultaneously, one hand leaving/reentering, crossing and
    near-overlap. Boxes/points must match the same upright source frame. A rejected
-   pose can still have a visible raw hand overlay.
+   real-hand pose can still have a visible hand overlay; detector-rejected
+   face/background candidates must be absent from the preview.
    Confirm a palm facing the camera is Open Palm and the back of the upright
    open hand is Stop Inverted. Check Like with an upward thumb and Thumb Down
    with a downward thumb, including the reported sideways-arm view. Repeat on
@@ -27,6 +28,10 @@ counts/timings locally; no Boss app images or recordings need to be shared.
    geometry restrictions. In particular, validate Open Palm/Stop inverted angle
    bands and Fist world-depth/surface rules. Do not loosen gates merely to hide a
    coordinate or handedness mismatch.
+   Include profiles/ears, hair, wardrobe/shelves, desk clutter, and real hands
+   beside and in front of the face. Confirm an extra ear candidate cannot
+   activate a command or displace the real hand. Document legitimate small
+   hands rejected directly over the face and the effect on dim/distant hands.
 6. Measure a sustained session with one hand, two hands and an empty scene.
    Record p50/p95 timings after warm-up, replacement counts, invalid frames and
    false/duplicate commands. Repeat with preview disabled to isolate rendering

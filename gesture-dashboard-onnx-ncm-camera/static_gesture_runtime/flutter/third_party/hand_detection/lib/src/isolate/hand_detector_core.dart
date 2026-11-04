@@ -10,6 +10,8 @@ import '../shared/hand_geometry.dart' show associateRois, roiFromHandLandmarks;
 import '../models/palm_detector.dart';
 import '../models/hand_landmark_model.dart';
 import '../models/gesture_recognizer.dart';
+import '../models/face_guard.dart';
+import '../shared/false_hand_policy.dart';
 
 /// Helper class to store preprocessing data for each detected palm inside the isolate.
 class _HandCropData {
@@ -45,6 +47,8 @@ class HandDetectorCore {
   PalmDetector? _palm;
   HandLandmarkModelRunner? _lm;
   GestureRecognizer? _gestureRecognizer;
+  FaceGuardRunner? _faceGuard;
+  List<FaceBox> _faces = const [];
 
   HandMode _mode = HandMode.boxesAndLandmarks;
   int _maxDetections = 10;
@@ -82,6 +86,7 @@ class HandDetectorCore {
   Future<void> initializeFromBuffers({
     required Uint8List palmDetectionBytes,
     required Uint8List handLandmarkBytes,
+    required Uint8List faceDetectionBytes,
     Uint8List? gestureEmbedderBytes,
     Uint8List? gestureClassifierBytes,
     required HandMode mode,
@@ -107,6 +112,7 @@ class HandDetectorCore {
     _enableTracking = enableTracking;
     _tracking = trackingConfig;
     resetTracking();
+    _faceGuard = FaceGuardRunner()..initialize(faceDetectionBytes);
 
     _palm = PalmDetector(
       scoreThreshold: detectorConf,
@@ -178,6 +184,12 @@ class HandDetectorCore {
 
     final int imgW = image.cols;
     final int imgH = image.rows;
+    try {
+      _faces = _faceGuard!.detect(image);
+    } catch (_) {
+      resetTracking();
+      rethrow;
+    }
 
     // MediaPipe detection + tracking: reuse each tracked hand's ROI from the
     // previous frame, and only run the palm detector to discover new hands (or
@@ -358,13 +370,26 @@ class HandDetectorCore {
         transformedLandmarks.add(
           HandLandmark(
             type: lm.type,
-            x: xOrig.clamp(0, image.cols.toDouble()),
-            y: yOrig.clamp(0, image.rows.toDouble()),
+            x: xOrig,
+            y: yOrig,
             z: lm.z,
             visibility: lm.visibility,
           ),
         );
       }
+
+      final reason = falseHandReason(
+          [
+            for (final p in transformedLandmarks) [p.x, p.y]
+          ],
+          image.cols,
+          image.rows,
+          _faces,
+          world: [
+            for (final p in lms.worldLandmarks) [p.x, p.y, p.z]
+          ]);
+      // Reject before gesture inference, overlays and next-frame tracked ROIs.
+      if (reason != null) continue;
 
       GestureResult? gesture;
       if (_gestureRecognizer != null && _gestureRecognizer!.isInitialized) {
@@ -436,6 +461,9 @@ class HandDetectorCore {
   /// video, or independent still images) so a stale ROI is not reused.
   void resetTracking() {
     _trackedRois = const [];
+    _nextTrackedRois = const [];
+    _faces = const [];
+    _faceGuard?.reset();
   }
 
   /// Changes the landmark acceptance threshold without rebuilding the models.
@@ -477,6 +505,8 @@ class HandDetectorCore {
 
   /// Disposes all model resources.
   Future<void> dispose() async {
+    _faceGuard?.dispose();
+    _faceGuard = null;
     await _palm?.dispose();
     await _lm?.dispose();
     if (_gestureRecognizer != null) {

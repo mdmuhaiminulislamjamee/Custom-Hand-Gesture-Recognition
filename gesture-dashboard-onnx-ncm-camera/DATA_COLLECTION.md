@@ -11,7 +11,7 @@ Open **05 Data Collection** at http://127.0.0.1:3200.
 
 1. Choose **Webcam** or **NCM camera**. Authorize the browser webcam when prompted, or connect the board for NCM. Create an ID such as `person-001`; reuse that ID for the same person on later visits.
 2. Follow **Collect now**, or click **Go to no-gesture collection**. Use **Jump to a section** for resting Dorsal, resting Fist, incidental pointing, near-command or unrelated hand shapes, occlusion, two hands, or no-hand scenes.
-3. For single-hand prompts, choose the indicated hand and camera angle. Collect Fist across the upper arc from horizontal left through up to horizontal right, with both hands and a 30-degree pitch toward the camera. Collect lower angles as `no_gesture`. Collect the opposite-facing closed hand under the reverse-facing `no_gesture` prompt. Each hand needs six varied images for these one-orientation prompts; other single-hand prompts need three per hand and orientation. Two-hand and no-hand prompts set the hand condition automatically. Set lighting and distance. Press **Capture image** or **Space**; a three-second timer gives you time to pose. The live camera and detected hand landmarks are shown side by side.
+3. For single-hand prompts, choose the indicated hand and camera angle. Collect Fist across the upper arc from horizontal left through up to horizontal right, with both hands and a 30-degree pitch toward the camera. Collect lower angles as `no_gesture`. Collect the opposite-facing closed hand under the reverse-facing `no_gesture` prompt. Each hand needs six varied images for these one-orientation prompts; other single-hand prompts need three per hand and orientation. Two-hand and no-hand prompts set the hand condition automatically. Set lighting and distance. Press **Capture image** or **Space** to capture immediately, without a countdown. The live camera and detected hand landmarks are shown side by side.
 4. Review the frozen photo and its matching landmark view, then select **Confirm label & save image** or press **Space** again. Choose Retake if needed. The prompt is the human label; a wrong model prediction does not prevent saving.
 5. Collect three images in each hand/angle group (12 per prompt). The collector then advances to the next unfinished prompt. You can skip or jump to any prompt. Counts survive server restarts.
 6. Saved images for the current prompt appear as thumbnails. Select one or more and use **Delete selected**, or use **Delete last image** in Recent saves. Both ask for confirmation and remove the matching JPEG and JSON label together.
@@ -148,12 +148,12 @@ Candidate training from Model Training writes to `artifacts/model_lab`, never pr
 
 ## Recognition changes
 
-- Live inference runs only hand models. Body position, face overlap and clothing do not veto commands.
+- Live classification uses hand landmarks with a cached face detector to reject compact face/ear candidates. Body position and clothing do not define gesture intent. Large foreground hands and fingertip-only face overlap remain allowed; move small hands away from the face if the guard rejects them.
 - Directions require the index itself to be extended and prominent, including a model-supported side-view path.
 - Recovery uses enhanced full-frame and recent-hand crops, alternating with global search. Fresh observations must pass normal selection and gesture holds; missing landmarks cannot execute actions. Brief tracking gaps do not immediately re-arm a held command.
 - Strong model-agreed index/palm geometry can handle moderate vocabulary uncertainty after a longer hold. Very low vocabulary mass and reviewed-negative vetoes remain rejected.
 - Rejected candidates are not drawn as accepted skeletons; raw diagnostics remain available. Class scores are marked as candidates when no command is accepted.
 
-The live detector uses MediaPipe Hand Landmarker only. Historical face/body helpers and assets are retained for reference; Pose is no longer a required runtime asset or setup download.
+The live detector uses MediaPipe Hand Landmarker plus the bundled BlazeFace asset. Face checks refresh at most every 200 ms, and recovery now uses the normal 0.55 detection/presence floors. Implausibly collapsed, incomplete or undersized candidates are excluded before tracking and overlays. Inspect `quality.detector.rejected_candidates` when reviewing a failure. These are runtime filters; collecting detector-only images still does not retrain MediaPipe. Pose is not a required runtime asset or setup download.
 
 These are runtime improvements, not a retrained model or a promise to recognize every customer pose. Low-resolution/occluded fingers can still be ambiguous. Collect remaining failures and test on unseen participants after retraining.

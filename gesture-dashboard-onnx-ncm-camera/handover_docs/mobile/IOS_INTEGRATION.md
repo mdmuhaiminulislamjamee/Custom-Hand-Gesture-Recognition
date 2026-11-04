@@ -4,7 +4,7 @@ The only image source is the USB-NCM board camera. This is an integration delive
 
 ## 1. Resources and dependencies
 
-Copy `ios/models/` resources into the app bundle and confirm target membership. The ONNX model, metadata, runtime configuration and hand landmarker are required. The face asset is retained for compatibility with older bundles and is unused by the current hand-only policy.
+Copy `ios/models/` resources into the app bundle and confirm target membership. The ONNX model, metadata, runtime configuration, hand landmarker and face model are required. The 31 October update uses the face model for compact face/ear rejection before inference. Add `GestureFalseHandPolicy.swift` and `ios/GestureFaceGuard.swift` to the app target. See `FALSE_HAND_UPDATE.md` for the filtered result API.
 
 Merge `ios/swift/ios/Podfile.example`, the ONNX bridging header and `Info.plist.fragment` into the existing app. The template declares iOS 15 and the `MediaPipeTasksVision` and `onnxruntime-objc` CocoaPods dependencies. Resolve on the integration Mac and retain tested versions in `Podfile.lock`; no Apple dependency lock or SDK build was qualified on Windows. Open the CocoaPods workspace. The plist template requests local-network access, not built-in camera access.
 
@@ -31,7 +31,7 @@ Follow [NCM_PROTOCOL.md](NCM_PROTOCOL.md). The board is `192.168.50.2:5000`; the
 
 Use the receiver's newest valid JPEG. Decode upright, apply the documented crop/enhancement without mirroring, create a MediaPipe `MPImage`, and invoke the supplied detector on one serial background queue. Keep a monotonically increasing local millisecond detector timestamp and use the same clock in seconds for temporal decisions. Preserve all candidate hands and their matching world landmarks/handedness. Recreate/reset detector and decision state on a new stream as required by MediaPipe's timestamp contract.
 
-Call `GestureDiagnosticEngine.observe(...)` for a candidate using normalized XY, matching world XYZ, confirmed handedness/confidence and **the actual prepared image width/height**. The returned probabilities and known mass are diagnostic values; they do not authorize an app action.
+Call `GestureDiagnosticEngine.observe(...)` for an accepted item in `GestureFilteredHandResult.hands`, using its normalized XY, matching world XYZ, handedness/confidence and **the actual prepared image width/height**. Use only those accepted items for overlays. Feed missing-hand evidence and clear the overlay when the array is empty. The returned probabilities and known mass are diagnostic values; they do not authorize an app action.
 
 ## 4. Finish and validate the action path
 

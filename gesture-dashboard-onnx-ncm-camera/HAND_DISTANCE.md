@@ -88,16 +88,16 @@ Recalibrate any saved range calibration that was made with the old central crop.
   fresh landmarks; missing hands cannot produce a gesture action.
 - Live selection requires at least **18 palm pixels**, **40 hand-span pixels**,
   and **12 pixels along the short side** of the hand. These checks use analysis-image pixels before recovery crop
-  magnification. Tiny observations can remain visible in gray without triggering
-  an action. The older 8/24/10 detector floors below still apply to collecting raw
-  observations; they are no longer sufficient for live action eligibility.
+  magnification. Live candidates below the 18/40/12 source-pixel floors are now
+  rejected before tracking and overlays. The older 8/24/10 detector values below
+  describe historical behavior.
 
 Defaults are in `backend/hand_selection.py` (`SelectionPolicy`). They are starting
 values for real camera trials, not a measured accuracy guarantee. Palm rotation,
 different hand anatomy, inaccurate world landmarks, occlusion, and lighting can
 still bias the comparison. A single RGB camera cannot resolve every near-equal
 or fully occluded two-hand arrangement.
-Live inference uses hand landmarks only. Body, arm and waist position, face overlap, and clothing are not gesture vetoes. Hand shape, source detail and stability still determine recognition.
+Gesture classification uses hand landmarks. A cached face detector rejects compact candidates mostly inside face/ear regions; large foreground hands and fingertip-only overlap remain allowed. Small real hands directly over a face can be rejected. Recovery uses 0.55 detection/presence thresholds, which can reduce sensitivity to distant or dim hands. Body, arm and waist position and clothing do not define gesture intent. Hand shape, source detail and stability still determine recognition.
 
 Both hand overlays use motion-adaptive smoothing local to their track. The
 selected hand's accepted landmark filter supplies its recognized overlay.

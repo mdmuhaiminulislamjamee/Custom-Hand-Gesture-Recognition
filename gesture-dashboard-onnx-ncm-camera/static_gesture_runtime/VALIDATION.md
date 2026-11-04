@@ -1,4 +1,15 @@
-# Candidate validation, 29 October 2026
+# Candidate validation, updated 31 October 2026
+
+The false-hand update passes 52 runtime tests and 2 tester tests, including the
+real face model's tensor/blank-image contract and 42 Python/Dart policy cases.
+The native Kotlin filter and detector wrapper compile against MediaPipe 1.1.1
+and pass the same 42 Python/Kotlin cases. Swift policy fixtures and a Mac runner
+are supplied; iOS compilation and physical-device tests remain pending.
+The Dart face decoder also matches the expected face regions on 12 saved
+face/ear images (box IoU above 0.5) and reports no face on 24 saved background
+images, using actual TFLite model outputs. This checks face preprocessing and
+decoding, rather than mobile hand-detection or action accuracy.
+The historical model-conversion evidence below remains unchanged.
 
 The original deployed ONNX SHA-256 is
 `11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331`.

@@ -196,6 +196,9 @@ def test_hand_detector_uses_video_mode_and_strict_monotonic_timestamps(
                 HandLandmarker=SimpleNamespace(
                     create_from_options=lambda _options: landmarker
                 ),
+                FaceDetectorOptions=lambda **kwargs: kwargs,
+                FaceDetector=SimpleNamespace(create_from_options=lambda options:
+                    SimpleNamespace(detect=lambda image: SimpleNamespace(detections=[]), close=lambda: None)),
             ),
         ),
         Image=lambda **kwargs: SimpleNamespace(**kwargs),
@@ -205,6 +208,7 @@ def test_hand_detector_uses_video_mode_and_strict_monotonic_timestamps(
     monkeypatch.setattr(model_runtime.time, "monotonic_ns", lambda: 1_000_000)
     model_path = tmp_path / "hand_landmarker.task"
     model_path.write_bytes(b"fake")
+    model_path.with_name("blaze_face_short_range.tflite").write_bytes(b"fake-face")
 
     detector = HandDetector(model_path)
     first = detector.detect(np.zeros((320, 320, 3), dtype=np.uint8))

@@ -34,6 +34,7 @@ flutter:
   assets:
     - assets/models/hand_detection.tflite
     - assets/models/hand_landmark_full.tflite
+    - assets/models/blaze_face_short_range.tflite
 
   plugin:
     platforms:

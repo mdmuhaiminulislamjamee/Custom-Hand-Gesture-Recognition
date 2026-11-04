@@ -1,7 +1,15 @@
 # Final delivery changes
 
 This archive contains the latest static runtime and the Android tester source
-used for GestureLab v2.0.1. It replaces the earlier candidate/overlay/final handovers.
+used for GestureLab v2.0.2. It replaces the earlier candidate/overlay/fix1 handovers.
+
+- Compact face/ear, undersized, incomplete and collapsed candidates are filtered
+  inside the shared detector worker before inference, overlays and ROI history.
+- The pinned BlazeFace model runs persistently on one CPU thread and refreshes
+  at most every 200 ms, retaining missed face boxes for at most 500 ms.
+- Native Android/iOS filter source patches and 42 shared policy cases are
+  included. Android source compilation and policy parity are host checks;
+  iOS compilation and physical-device acceptance remain pending.
 
 - Like/Thumb Down recovery now checks the thumb's camera-pixel direction and
   its position above/below folded fingertips, even when the model strongly

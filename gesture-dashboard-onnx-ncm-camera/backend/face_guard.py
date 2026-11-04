@@ -1,4 +1,4 @@
-"""Face boxes for collection diagnostics and a bounded live mesh fallback."""
+"""Cached face boxes for rejecting compact face/ear hand hallucinations."""
 from pathlib import Path
 import time
 
@@ -6,14 +6,24 @@ import numpy as np
 
 
 def overlaps_face_as_small_hand(points, image_shape, boxes):
-    """Diagnostic size comparison; callers must not treat it as a veto."""
+    """Compact candidates mostly inside a face/ear region are suspect.
+
+    A fingertip crossing a face, or a large foreground hand, is insufficient.
+    Small real hands directly over a face can still be ambiguous in RGB.
+    """
     pixels = np.asarray(points) * [image_shape[1], image_shape[0]]
     span = float(np.ptp(pixels, axis=0).max())
     palm = pixels[[0, 5, 9, 13, 17]].mean(axis=0)
     for x, y, width, height in boxes:
+        if width <= 0 or height <= 0:
+            continue
         inside = (x - .30 * width <= palm[0] <= x + 1.30 * width
-                  and y - .10 * height <= palm[1] <= y + 1.05 * height)
-        if inside and span < .95 * max(width, height):
+                  and y - .15 * height <= palm[1] <= y + 1.05 * height)
+        covered = ((pixels[:, 0] >= x - .30 * width)
+                   & (pixels[:, 0] <= x + 1.30 * width)
+                   & (pixels[:, 1] >= y - .15 * height)
+                   & (pixels[:, 1] <= y + 1.05 * height))
+        if inside and span < .70 * max(width, height) and covered.mean() >= .75:
             return True
     return False
 
@@ -50,13 +60,19 @@ def face_context_observation(points, image_shape, boxes):
 
 
 class FaceGuard:
+    refresh_seconds = .20
+    retention_seconds = .50
+
     def __init__(self, model_path: Path):
         self.detector = None
         self.error = None
         self.boxes = []
         self._recent_boxes = []
         self._image_shape = None
+        self._cache = {}
         try:
+            if not model_path.is_file():
+                raise ValueError("Missing face detector; run scripts/download_face_detector.py")
             import mediapipe as mp
             self.mp = mp
             self.detector = mp.tasks.vision.FaceDetector.create_from_options(
@@ -72,23 +88,34 @@ class FaceGuard:
             return []
         import cv2
         height, width = rgb.shape[:2]
-        now = time.monotonic()
-        if state is None and self._image_shape != (height, width):
-            self.boxes = []
-            self._recent_boxes = []
-            self._image_shape = (height, width)
+        # Replay must expire boxes on recorded time, independently per stream.
+        now = float(state["frame_time"]) if state is not None and "frame_time" in state else time.monotonic()
         if state is not None:
             cache = state.setdefault("face_boxes", {})
-            if cache.get("shape") != (height, width):
-                cache.clear()
-                cache["shape"] = (height, width)
-            recent = cache.get("recent", [])
         else:
-            recent = self._recent_boxes
+            cache = getattr(self, "_cache", {})
+            self._cache = cache
+        if cache.get("shape") != (height, width) or now < cache.get("attempted_at", -float("inf")):
+            cache.clear()
+            cache["shape"] = (height, width)
+        recent = [(box, seen) for box, seen in cache.get("recent", [])
+                  if 0 <= now - seen <= self.retention_seconds]
+        cache.update(recent=recent, refreshed=False, inference_ms=0.)
+        if now - cache.get("attempted_at", -float("inf")) < self.refresh_seconds:
+            return [box for box, _ in recent]
+        cache.update(attempted_at=now, refreshed=True)
+        started = time.perf_counter()
         scale = min(1., 320 / max(height, width))
         small = cv2.resize(rgb, (round(width * scale), round(height * scale)))
-        result = self.detector.detect(self.mp.Image(image_format=self.mp.ImageFormat.SRGB,
-                                                    data=np.ascontiguousarray(small)))
+        try:
+            result = self.detector.detect(self.mp.Image(image_format=self.mp.ImageFormat.SRGB,
+                                                        data=np.ascontiguousarray(small)))
+            cache["error"] = None
+        except Exception as error:
+            cache.update(error=str(error), recent=[])
+            return []
+        finally:
+            cache["inference_ms"] = round((time.perf_counter() - started) * 1000, 2)
         boxes = [(d.bounding_box.origin_x / scale, d.bounding_box.origin_y / scale,
                   d.bounding_box.width / scale, d.bounding_box.height / scale)
                  for d in result.detections]
@@ -104,11 +131,10 @@ class FaceGuard:
         # Retain each missed face separately: a visible background face must
         # not erase the foreground user's briefly occluded head region.
         retained = [(box, seen) for box, seen in recent
-                    if now - seen <= .5 and not refreshed(box)]
+                    if not refreshed(box)]
         recent = retained + [(box, now) for box in boxes]
-        if state is not None:
-            cache["recent"] = recent
-        else:
+        cache["recent"] = recent
+        if state is None:
             self._recent_boxes = recent
             self.boxes = [box for box, _ in recent]
         # Brief profile/hand occlusions must not turn a resting hand into a

@@ -7,6 +7,9 @@ from pathlib import Path
 
 import numpy as np
 
+from .face_guard import FaceGuard, overlaps_face_as_small_hand
+from .hand_validation import NON_HAND_REASONS, invalid_hand_geometry
+
 DETECTOR_SETTINGS = {
     "maximum_hands": 2,
     "live_hand_selection": "spatial track continuity; three-frame handedness consensus; filtered foreground hand switch",
@@ -16,16 +19,19 @@ DETECTOR_SETTINGS = {
     "minimum_detection_confidence": 0.55,
     "minimum_presence_confidence": 0.55,
     "minimum_tracking_confidence": 0.60,
-    "recovery_detection_confidence": 0.20,
-    "recovery_presence_confidence": 0.30,
-    "face_guard": "disabled; gestures may overlap the face",
+    "recovery_detection_confidence": 0.55,
+    "recovery_presence_confidence": 0.55,
+    "face_guard": "cached BlazeFace; reject compact candidates mostly inside face/ear regions",
+    "face_refresh_ms": 200,
+    "face_cache_retention_ms": 500,
+    "candidate_geometry": "reject collapsed finger chains; coherent world landmarks permit edge-on hands",
     "body_guard": "disabled; all gestures use hand landmarks only",
     "recovery_policy": "independent persistent VIDEO recovery views for both hands; bidirectional original/contrast crop search; full-frame scan every frame",
     "recovery_location_hold_ms": 650,
     "recovery_confirmation_frames": 2,
-    "minimum_palm_pixels": 8,
-    "minimum_hand_span_pixels": 24,
-    "minimum_hand_short_side_pixels": 10,
+    "minimum_palm_pixels": 18,
+    "minimum_hand_span_pixels": 40,
+    "minimum_hand_short_side_pixels": 12,
     "maximum_analysis_dimension": 960,
     "maximum_detection_passes_per_frame": 3,
     "recovery_start_budget_ms": 55,
@@ -124,8 +130,11 @@ class HandDetector:
                     running_mode=mp.tasks.vision.RunningMode.VIDEO))
             self._recovery = mp.tasks.vision.HandLandmarker.create_from_options(
                 mp.tasks.vision.HandLandmarkerOptions(
-                    **common, min_hand_detection_confidence=0.20, min_hand_presence_confidence=0.30,
+                    **common, min_hand_detection_confidence=0.55, min_hand_presence_confidence=0.55,
                     running_mode=mp.tasks.vision.RunningMode.IMAGE))
+            self._face_guard = FaceGuard(model_path.with_name("blaze_face_short_range.tflite"))
+            if self._face_guard.detector is None:
+                raise ValueError(f"Face guard initialization failed: {self._face_guard.error}")
             self.ready = True
         except Exception as error:
             self.error = f"MediaPipe initialization failed: {error}"
@@ -172,8 +181,8 @@ class HandDetector:
                     landmarker = self._mp.tasks.vision.HandLandmarker.create_from_options(
                         self._mp.tasks.vision.HandLandmarkerOptions(
                             base_options=self._mp.tasks.BaseOptions(model_asset_path=str(self._model_path)),
-                            num_hands=2, min_hand_detection_confidence=.20,
-                            min_hand_presence_confidence=.30, min_tracking_confidence=.60,
+                            num_hands=2, min_hand_detection_confidence=.55,
+                            min_hand_presence_confidence=.55, min_tracking_confidence=.60,
                             running_mode=self._mp.tasks.vision.RunningMode.VIDEO))
                 streams[key] = landmarker
                 self._recovery_videos = streams
@@ -238,14 +247,20 @@ class HandDetector:
         self._last_diagnostics = dict(running_mode="VIDEO" if same_context else "IMAGE",
                                       candidate_count=0, analysis_width=width, analysis_height=height,
                                       recovery_attempted=False, rejection_reason=None)
-        # Face position/contact is not a live gesture veto. Keep explicit
-        # disabled diagnostics for existing viewers without loading a model.
+        face_guard = getattr(self, "_face_guard", None)
+        boxes = face_guard.detect(rgb_image, state=state) if face_guard else []
+        face_cache = state.get("face_boxes", {})
+        face_error = getattr(face_guard, "error", None) or face_cache.get("error")
+        face_ready = bool(face_guard and face_guard.detector is not None and not face_error)
         self._last_diagnostics.update(
             face_contact=dict(enabled=False, ready=False, face_count=0, error=None),
-            face_guard_ready=False, face_guard_error=None, face_count=0,
+            face_guard_ready=face_ready, face_guard_error=face_error, face_count=len(boxes),
+            face_guard_ms=face_cache.get("inference_ms", 0.),
+            face_guard_refreshed=face_cache.get("refreshed", False),
             face_contact_rejected_count=0, near_face_candidate_count=0)
         self._last_diagnostics["body_guard"] = dict(
             enabled=False, ready=False, checked=False, body_count=0, error=None)
+        rejected = []
 
         def observations(view, video):
             rows = []
@@ -257,14 +272,22 @@ class HandDetector:
             for area, points, category, world in candidates:
                 metrics = hand_pixel_metrics(points, rgb_image.shape)
                 reason = None
-                if (metrics["palm_scale_px"] < 8 or metrics["hand_span_px"] < 24
-                        or metrics["hand_short_side_px"] < 10):
+                if (metrics["palm_scale_px"] < 18 or metrics["hand_span_px"] < 40
+                        or metrics["hand_short_side_px"] < 12):
                     reason = reason or "insufficient_hand_pixels"
                 inside = np.mean(np.all((points >= -.05) & (points <= 1.05), axis=1))
                 if inside < .90:
                     reason = reason or "incomplete_hand"
-                face_context = dict(enabled=False, near_face=False,
-                                    contact_confirmed=False, suppressed=False)
+                if not reason and invalid_hand_geometry(points, rgb_image.shape, world):
+                    reason = "invalid_hand_geometry"
+                face_overlap = overlaps_face_as_small_hand(points, rgb_image.shape, boxes)
+                if face_guard is not None and not face_ready:
+                    reason = "face_context_unavailable"
+                elif face_overlap:
+                    reason = "face_detected_as_hand"
+                face_context = dict(enabled=face_guard is not None, near_face=face_overlap,
+                                    contact_confirmed=False, suppressed=face_overlap,
+                                    reason="face_detected_as_hand" if face_overlap else None)
                 row = dict(points=points, world_landmarks=world, metrics=metrics, area=area, view=view,
                            handedness=getattr(category, "category_name", None),
                            handedness_confidence=float(getattr(category, "score", 0) or 0),
@@ -278,6 +301,12 @@ class HandDetector:
                     row["recovery_score"] = -1.0
                 if reason:
                     self._last_diagnostics["rejection_reason"] = reason
+                if reason in NON_HAND_REASONS:
+                    # Keep raw observations inspectable, but never give false
+                    # hands identities, recovery hints, gesture holds or overlays.
+                    rejected.append(dict(landmarks=points.round(6).tolist(), reason=reason,
+                                         recovered=view != full, face_context=face_context))
+                    continue
                 rows.append(row)
             return rows
 
@@ -352,10 +381,16 @@ class HandDetector:
         state.pop("visited_views", None)
         self._remember_hands(state, rows)
         self._last_diagnostics["candidate_count"] = len(rows)
+        self._last_diagnostics["rejected_candidates"] = rejected
+        self._last_diagnostics["rejected_candidate_count"] = len(rejected)
+        self._last_diagnostics["near_face_candidate_count"] = sum(
+            row["reason"] == "face_detected_as_hand" for row in rejected)
         if any(not row["rejection_reason"] for row in rows):
             self._last_diagnostics["rejection_reason"] = None
         elif rows:
             self._last_diagnostics["rejection_reason"] = rows[0]["rejection_reason"]
+        elif rejected:
+            self._last_diagnostics["rejection_reason"] = rejected[0]["reason"]
         return rows
 
     @staticmethod
@@ -396,7 +431,7 @@ class HandDetector:
         recent = [item for item in state.get("recent_hands", [])
                   if 0 <= now - item["seen"] <= .65]
         for row in rows:
-            if row.get("rejection_reason") in {"insufficient_hand_pixels", "incomplete_hand"}:
+            if row.get("rejection_reason") in NON_HAND_REASONS:
                 continue
             # This history only chooses where to look in the next image. It is
             # never returned as a hand observation or used to execute commands.
@@ -412,7 +447,7 @@ class HandDetector:
         now = state.get("frame_time")
         now = time.monotonic() if now is None else float(now)
         current = [dict(points=row["points"], turns=row["view"][4]) for row in rows
-                   if row.get("rejection_reason") not in {"insufficient_hand_pixels", "incomplete_hand"}]
+                   if row.get("rejection_reason") not in NON_HAND_REASONS]
         hints = [item for item in state.get("recent_hands", [])
                  if 0 <= now - item["seen"] <= .65]
         visited = state.get("visited_views", set())
@@ -593,12 +628,32 @@ class HandDetector:
         self._last_diagnostics["face_guard_ready"] = bool(face_guard and face_guard.detector)
         self._last_diagnostics["face_guard_error"] = getattr(face_guard, "error", None)
         self._last_diagnostics["face_count"] = len(boxes)
+        face_error = getattr(face_guard, "error", None) or getattr(face_guard, "_cache", {}).get("error")
+        self._last_diagnostics["face_guard_error"] = face_error
+        self._last_diagnostics["face_guard_ready"] = bool(face_guard and face_guard.detector is not None and not face_error)
+
+        def rejection(row):
+            if row is None:
+                return None
+            points = row[1]
+            metrics = hand_pixel_metrics(points, rgb_image.shape)
+            if face_guard is not None and not self._last_diagnostics["face_guard_ready"]:
+                return "face_context_unavailable"
+            if overlaps_face_as_small_hand(points, rgb_image.shape, boxes):
+                return "face_detected_as_hand"
+            if metrics["palm_scale_px"] < 18 or metrics["hand_span_px"] < 40 or metrics["hand_short_side_px"] < 12:
+                return "insufficient_hand_pixels"
+            if np.mean(np.all((points >= -.05) & (points <= 1.05), axis=1)) < .90:
+                return "incomplete_hand"
+            if invalid_hand_geometry(points, rgb_image.shape, row[3] if len(row) > 3 else None):
+                return "invalid_hand_geometry"
+            return None
+
         selected = self._run_view(rgb_image, view, video=not self._recovery_tracking)
         def score(row):
             if row is None:
                 return -1.0
-            metrics = hand_pixel_metrics(row[1], rgb_image.shape)
-            if metrics["palm_scale_px"] < 8 or metrics["hand_span_px"] < 24 or metrics["hand_short_side_px"] < 10:
+            if rejection(row):
                 return -0.5
             return candidate_score(row[1]) if candidate_score else 1.0
         selected_score = score(selected)
@@ -641,8 +696,8 @@ class HandDetector:
         metrics = hand_pixel_metrics(points, rgb_image.shape)
         # Judge source pixels, not an arbitrary percentage of the camera frame.
         # Upscaling or zooming a crop must not bypass the information floor.
-        usable = (metrics["palm_scale_px"] >= 8 and metrics["hand_span_px"] >= 24
-                  and metrics["hand_short_side_px"] >= 10)
+        rejection_reason = rejection(selected)
+        usable = rejection_reason is None
         self._last_diagnostics.update(metrics)
         self._last_diagnostics.update(
             candidate_count=1, selected_bbox_area=area,
@@ -650,7 +705,7 @@ class HandDetector:
             selected_handedness_confidence=getattr(category, "score", None),
             detection_rotation_degrees=int(view[4] * 90), detection_view=list(view[:4]), recovery_contrast=bool(view[5]),
             small_hand=metrics["palm_scale_px"] < 20,
-            rejection_reason=None if usable else "insufficient_hand_pixels")
+            rejection_reason=rejection_reason)
         if not usable:
             self._misses += 1
             if self._misses >= 3:

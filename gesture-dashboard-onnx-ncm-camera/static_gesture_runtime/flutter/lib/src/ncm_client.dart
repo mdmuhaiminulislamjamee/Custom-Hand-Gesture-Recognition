@@ -2,6 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+/// A platform may supply a socket bound to a particular accessory network.
+typedef NcmSocketConnector = Future<Socket> Function(
+    String host, int port, Duration timeout);
+
 /// The board clock is retained for diagnostics. [receivedTimestampMs] uses the
 /// client's monotonic clock and is the gesture-runtime timestamp.
 class NcmJpegFrame {
@@ -186,6 +190,8 @@ class NcmCameraClient {
       this.host = '192.168.50.2',
       this.port = 5000,
       this.sourceAddress,
+      this.socketConnector,
+      this.closeTransport,
       this.connectTimeout = const Duration(seconds: 3),
       this.reconnectDelay = const Duration(seconds: 1),
       this.idleTimeout = const Duration(seconds: 5)});
@@ -196,6 +202,8 @@ class NcmCameraClient {
   final String host;
   final int port;
   final String? sourceAddress;
+  final NcmSocketConnector? socketConnector;
+  final Future<void> Function()? closeTransport;
   final Duration connectTimeout, reconnectDelay, idleTimeout;
   final Stopwatch _clock = Stopwatch()..start();
   Socket? _socket;
@@ -217,8 +225,10 @@ class NcmCameraClient {
     if (!_running || epoch != _generation) return;
     onState?.call('connecting');
     try {
-      final socket = await Socket.connect(host, port,
-          timeout: connectTimeout, sourceAddress: sourceAddress);
+      final socket = await (socketConnector != null
+          ? socketConnector!(host, port, connectTimeout)
+          : Socket.connect(host, port,
+              timeout: connectTimeout, sourceAddress: sourceAddress));
       if (!_running || epoch != _generation) {
         socket.destroy();
         return;
@@ -294,6 +304,7 @@ class NcmCameraClient {
     _socket = null;
     await _subscription?.cancel();
     _subscription = null;
+    await closeTransport?.call();
     onState?.call('stopped');
   }
 }

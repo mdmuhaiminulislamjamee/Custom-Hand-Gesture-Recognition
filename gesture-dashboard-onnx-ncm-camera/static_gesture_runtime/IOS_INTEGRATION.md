@@ -53,8 +53,9 @@ final engine = NcmStaticGestureRuntime(
 // if (preview != null) StaticNcmPreview(frame: preview!)
 ```
 
-`onPreview` provides the source JPEG, its dimensions, up to two raw detector
-`Hand` results and the matching gesture result. The widget reuses the dynamic
+`onPreview` provides the source JPEG, its dimensions, up to two accepted detector
+`Hand` results and the matching gesture result. Face/background candidates
+rejected by the updated worker never reach this callback. The widget reuses the dynamic
 package's original `MultiOverlayPainter` for boxes, 21 points and skeletons.
 It waits for that JPEG to decode before drawing, preserving unmirrored image
 alignment. Clear the saved preview on disconnect/errors and when stopping,
@@ -65,13 +66,18 @@ When the dynamic pipeline already returns the bundled detector's `List<Hand>`,
 reuse one persistent adapter rather than manually normalizing or swapping
 handedness:
 
+Use the updated bundled detector, including `blaze_face_short_range.tflite`,
+for a shared static/dynamic pipeline. An older external detector must add the
+same pixel/face filtering before this adapter; landmark-only inputs do not
+contain the pixels needed for a face check.
+
 ```dart
 final adapter = StaticDetectorAdapter(); // exported by the public runtime API
 final frame = adapter.frame(
   timestampMs: monotonicTimestampMs,
   width: uprightWidth,
   height: uprightHeight,
-  detections: rawDetectorHands,
+  detections: acceptedDetectorHands,
   modelInputMirrored: false, // upright, unmirrored NCM JPEG
 );
 await runtime.processFrame(frame);
@@ -80,8 +86,9 @@ await runtime.processFrame(frame);
 Call `adapter.reset()` with `runtime.reset()` after reconnect or a coordinate
 system change. The adapter converts pixel landmarks and crop-space metric
 world landmarks together. `modelInputMirrored` controls handedness mapping and
-unmirrors image/world X into the runtime's canonical coordinates. Raw detections
-remain available for the original preview. Keep NCM JPEG input upright and
+unmirrors image/world X into the runtime's canonical coordinates. Accepted
+hand candidates remain available for preview even when their gesture is rejected.
+Keep NCM JPEG input upright and
 unmirrored with the default `false`. BGRA is a pixel format, not a mirror or
 rotation convention.
 

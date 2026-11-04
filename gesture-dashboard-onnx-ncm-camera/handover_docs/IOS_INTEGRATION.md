@@ -96,17 +96,11 @@ let detector = try GestureHandLandmarker(
 // correct, unmirrored orientation.
 func classify(image: MPImage, timestampMS: Int) throws -> GesturePipelineResult {
     let result = try detector.detect(image: image, timestampMS: timestampMS)
-    let points = result.landmarks.first?.map {
-        SIMD2<Float>(Float($0.x), Float($0.y))
-    }
-    let world = result.worldLandmarks.first?.map {
-        SIMD3<Float>(Float($0.x), Float($0.y), Float($0.z))
-    }
-    let hand = result.handedness.first?.first
+    let hand = result.hands.first // Already filtered; also use these for preview.
     return try engine.process(
-        landmarks: points, worldLandmarks: world,
-        handedness: hand?.categoryName,
-        handednessConfidence: hand.map { Float($0.score) },
+        landmarks: hand?.landmarks, worldLandmarks: hand?.worldLandmarks,
+        handedness: hand?.handedness,
+        handednessConfidence: hand?.handednessConfidence,
         timestamp: Double(timestampMS) / 1000.0
     )
 }

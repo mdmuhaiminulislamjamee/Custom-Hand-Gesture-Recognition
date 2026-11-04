@@ -1,5 +1,13 @@
 # Android NCM gesture handover
 
+31 October 2026 source update: `GestureFalseHandGuard.kt` and the updated
+`GestureHandLandmarker.kt` reject compact face/ear, incomplete, undersized and
+collapsed candidates before `GestureFrameAnalyzer` invokes ONNX. The face asset
+is now required. `GestureFilteredHandResult` exposes accepted candidates only;
+use those same candidates for previews. See `handover_docs/FALSE_HAND_UPDATE.md`
+in the source checkout or the new Boss bundle's `native_false_hand_update/`.
+The older release identity and qualification notes below describe that delivery.
+
 Release: **v2026.10.08_android_ncm_03**, prepared 8 October 2026 (Asia/Dhaka).
 
 Send this entire bundle to the Android app team. It uses the same current 12-command ONNX model and NCM board-camera protocol as the iOS `v2026.10.08_ios_ncm_final_03` handover. The Android app's image path is `USB-NCM -> TCP/JLIP -> validated JPEG -> MediaPipe hand landmarks -> 76 features -> ONNX scores -> gesture decision -> app action`. The package supplies source through ONNX scores and the exact references and fixtures needed to finish the decision path. It is not a ready-to-install APK.

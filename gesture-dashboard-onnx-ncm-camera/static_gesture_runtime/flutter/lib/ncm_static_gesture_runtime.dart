@@ -10,7 +10,13 @@ import 'src/runtime_api.dart';
 import 'src/telemetry.dart';
 
 export 'src/ncm_client.dart'
-    show NcmCameraClient, NcmJpegFrame, JlipParser, JlipPacket, jpegDimensions;
+    show
+        NcmCameraClient,
+        NcmJpegFrame,
+        JlipParser,
+        JlipPacket,
+        jpegDimensions,
+        NcmSocketConnector;
 export 'src/telemetry.dart';
 
 /// Injectable for deterministic integration tests or an already-owned detector.
@@ -51,7 +57,7 @@ class _BundledDetector implements NcmStaticDetector {
     _session ??= await MobileHandDetectorFactory.create(
         requestedBackend: requestedBackend,
         requestedLandmarkModel: MobileLandmarkModelVariant.full,
-        detectionConfidence: .50,
+        detectionConfidence: .55,
         landmarkConfidence: .60);
   }
 
@@ -81,6 +87,8 @@ class NcmStaticGestureRuntime {
       this.host = '192.168.50.2',
       this.port = 5000,
       this.sourceAddress,
+      this.socketConnector,
+      this.closeTransport,
       this.backend = MobileInferenceBackend.gpu,
       NcmStaticDetector? detector})
       : _detector = detector;
@@ -93,6 +101,8 @@ class NcmStaticGestureRuntime {
   final String host;
   final int port;
   final String? sourceAddress;
+  final NcmSocketConnector? socketConnector;
+  final Future<void> Function()? closeTransport;
   final MobileInferenceBackend backend;
   final telemetry = NcmRuntimeTelemetry();
   final _adapter = StaticDetectorAdapter();
@@ -139,6 +149,8 @@ class NcmStaticGestureRuntime {
         host: host,
         port: port,
         sourceAddress: sourceAddress,
+        socketConnector: socketConnector,
+        closeTransport: closeTransport,
         onState: (state) {
           if (_running) onState?.call(state);
         },

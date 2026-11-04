@@ -203,7 +203,6 @@ export default function DataCollection({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [handedness, setHandedness] = useState<Handedness>('right');
   const [fingerOrientation, setFingerOrientation] = useState<FingerOrientation>('toward_camera');
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -225,7 +224,7 @@ export default function DataCollection({
   const guide = step ? (step.label === 'no_gesture'
     ? negativeGuides[step.view] ?? { symbol: negativeGroupSymbols[step.group] ?? '○', alt: step.instruction }
     : gestureGuides[step.label]) : undefined;
-  const showGuide = !!guide && countdown === null && snapshot === null;
+  const showGuide = !!guide && !busy && snapshot === null;
   const displayedLandmarks = snapshot ? snapshot.landmarks : connected && active ? liveLandmarks : undefined;
   const displayedAngles = snapshot && validPlaneAngles(snapshot.plane_angles) ? snapshot.plane_angles : connected && active ? livePlaneAngles : null;
 
@@ -279,12 +278,6 @@ export default function DataCollection({
     setBusy(true); setError(''); setMessage('');
     const generation = ++captureGeneration.current;
     try {
-      for (const seconds of [3, 2, 1]) {
-        setCountdown(seconds);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (generation !== captureGeneration.current) return;
-      }
-      setCountdown(null);
       let result: Snapshot;
       if (cameraSource === 'webcam') {
         const image = await captureWebcamFrame();
@@ -299,7 +292,7 @@ export default function DataCollection({
       }
       if (generation === captureGeneration.current) setSnapshot(result);
     } catch (e) { setError(e instanceof Error ? e.message : 'Capture failed.'); }
-    finally { setBusy(false); setCountdown(null); }
+    finally { setBusy(false); }
   }, [api, cameraSource, captureWebcamFrame, request]);
 
   async function uploadPhoto(file?: File) {
@@ -375,14 +368,14 @@ export default function DataCollection({
       if (snapshot && step) {
         event.preventDefault();
         void save();
-      } else if (countdown === null && participant && connected && step) {
+      } else if (participant && connected && step) {
         event.preventDefault();
         void capture();
       }
     };
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, [active, busy, capture, connected, countdown, deleteArmed, deleteSelectionArmed, participant, save, snapshot, step]);
+  }, [active, busy, capture, connected, deleteArmed, deleteSelectionArmed, participant, save, snapshot, step]);
 
   async function deleteLast() {
     if (!participant || !lastSave) return;
@@ -500,10 +493,9 @@ export default function DataCollection({
               {snapshot ? <img src={snapshot.image_url} alt={`Captured ${step?.title} image for review`} /> : connected && active ? cameraSource === 'webcam' ? <WebcamPreview stream={webcamStream} /> : <img src={`${api}/api/ncm/stream.mjpg?collection=${streamRevision}`} alt="Live NCM board camera for data collection" /> : <div className="collection-empty"><span aria-hidden="true">◎</span><strong>Connect a camera or upload a photo</strong><p>Select a participant, follow the prompt, and capture or upload an image. Uploaded photos enter the same label review before saving.</p></div>}
             </div>
             <HandLandmarkPreview landmarks={displayedLandmarks} angles={displayedAngles} expectHand={requiresHands} />
-            {countdown !== null && <div className="collection-countdown" role="status">{countdown}</div>}
           </div>
           <div className="collection-review">
-            {snapshot ? <><p>Does this image match <strong>{step?.title} / {viewLabel(step?.view ?? '')}</strong>? Press <kbd>Space</kbd> to confirm the label and save it, even if the current model is wrong.</p><small>Model: {pretty(snapshot.prediction)} · {snapshot.has_features ? 'matching landmarks shown beside the image' : 'raw image saved for later extraction'}{snapshot.reason ? ` · ${snapshot.reason}` : ''}</small><div className="heading-actions"><button className="secondary-button" disabled={busy} onClick={() => setSnapshot(null)}>Retake</button><button className="primary-button" aria-keyshortcuts="Space" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Confirm label & save image · Space'}</button></div></> : <><p>Move slightly between photos. {step?.label === 'no_gesture' ? 'Follow the ordinary non-command activity in the prompt and review the frozen frame before saving.' : 'Keep the intended gesture recognizable and the whole hand in view.'} Press <kbd>Space</kbd> to capture.</p><button className="primary-button" aria-keyshortcuts="Space" disabled={busy || !participant || !connected || !step} onClick={() => void capture()}>{countdown ? 'Get ready…' : 'Capture image · Space · 3 second timer'}</button></>}
+            {snapshot ? <><p>Does this image match <strong>{step?.title} / {viewLabel(step?.view ?? '')}</strong>? Press <kbd>Space</kbd> to confirm the label and save it, even if the current model is wrong.</p><small>Model: {pretty(snapshot.prediction)} · {snapshot.has_features ? 'matching landmarks shown beside the image' : 'raw image saved for later extraction'}{snapshot.reason ? ` · ${snapshot.reason}` : ''}</small><div className="heading-actions"><button className="secondary-button" disabled={busy} onClick={() => setSnapshot(null)}>Retake</button><button className="primary-button" aria-keyshortcuts="Space" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Confirm label & save image · Space'}</button></div></> : <><p>Move slightly between photos. {step?.label === 'no_gesture' ? 'Follow the ordinary non-command activity in the prompt and review the frozen frame before saving.' : 'Keep the intended gesture recognizable and the whole hand in view.'} Press <kbd>Space</kbd> to capture immediately.</p><button className="primary-button" aria-keyshortcuts="Space" disabled={busy || !participant || !connected || !step} onClick={() => void capture()}>{busy ? 'Capturing…' : 'Capture image · Space'}</button></>}
           </div>
         </article>
         {error && <p className="collection-error" role="alert">{error}</p>}

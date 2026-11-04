@@ -29,7 +29,8 @@ data class GestureObservation(
 /**
  * Diagnostic NCM-to-model path. It emits raw scores only. The production action
  * path must add hand selection, recovery, geometry, temporal and latch rules.
- * Face and body vetoes are disabled in the current reference.
+ * Compact face/ear and invalid background candidates are rejected by the
+ * detector before this analyzer invokes ONNX. Body posture is not a veto.
  */
 class GestureFrameAnalyzer(
     context: Context,
@@ -89,6 +90,7 @@ class GestureFrameAnalyzer(
                     first.knownGestureMass, timestamp, frame.boardSequence,
                     prepared.width, prepared.height, candidates))
             } catch (error: Exception) {
+                onMissingHand() // Invalid face/hand inference cannot retain an old hold/overlay.
                 onError(error)
             }
         }

@@ -1,8 +1,14 @@
 # How to use the static gesture handover
 
-Use `Boss_Static_Gesture_Handover_20261029_fix1.zip` as a complete Flutter
+Use `Boss_Static_Gesture_Handover_20261031_false_hands.zip` as a complete Flutter
 integration package. Extract it and start from the folder
-`Boss_Static_Gesture_Handover_20261029/`.
+`Boss_Static_Gesture_Handover_20261031/`.
+
+This revision adds cached face/ear rejection, source-pixel and collapsed-joint
+checks in the shared phone/NCM detector worker. Rejected candidates never reach
+classification, hand overlays or subsequent tracking. `native_false_hand_update/`
+supplies the matching native Android/iOS source patches and face model. Small
+real hands directly over a face can also be rejected; keep them separated.
 
 **The `.tflite` model alone is insufficient to reproduce this handover's
 recognition and command behavior.** Integrate the supplied runtime code with
@@ -74,11 +80,12 @@ qualification and target-device acceptance with matching manifests before it
 can replace FP32; changing its qualification flag is not validation.
 
 Keep the classifier's matching manifest beside its model. Keep both detector
-assets with the bundled detector package. The `fix1` handover includes the
-thumb/surface corrections in runtime code, so retain that code with the model.
+assets and the required BlazeFace asset with the bundled detector package.
+The `false_hands` handover includes the candidate filters plus the earlier
+thumb/surface corrections in runtime code, so retain that code with the models.
 
 The inference dependency version is **`flutter_litert` 3.9.4**, as recorded in
-the supplied pubspec/lockfiles. **GestureLab 2.0.1** identifies the Android
+the supplied pubspec/lockfiles. **GestureLab 2.0.2** identifies the Android
 tester release; **FP32/FP16/INT8** identify model precision and are separate
 from the dependency/app version numbers.
 
@@ -93,7 +100,7 @@ from the dependency/app version numbers.
 | `static_gesture_runtime/flutter/assets/models/gesture_static_int8*` | Unqualified quantization experiment | Retained for inspection; the runtime blocks it from loading |
 | `static_gesture_runtime/flutter/example/` | NCM integration example with a two-hand preview | Use as a reference or create its iOS host on a Mac |
 | `flutter_gesture_tester/` | Android diagnostic app source using the same static runtime | Use to inspect phone-camera/NCM recognition |
-| `flutter_gesture_tester/releases/GestureLab-v2.0.1-litert-ncm-arm64-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
+| `flutter_gesture_tester/releases/GestureLab-v2.0.2-litert-ncm-arm64-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
 | `static_gesture_runtime/IOS_INTEGRATION.md` | Detailed app integration and coordinate contract | Read when connecting the runtime to the existing iOS app |
 | `static_gesture_runtime/validation/` and `flutter/test/` within the runtime | Model/geometry fixtures, reports and automated tests | Use to check a port or a later change |
 | `contracts/detector_provenance.json` within the runtime | Provenance and hashes of the supplied detector | Identifies the exact detector delivery |

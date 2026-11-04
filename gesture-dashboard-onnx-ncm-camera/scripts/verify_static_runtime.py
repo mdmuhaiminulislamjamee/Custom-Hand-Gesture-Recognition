@@ -26,9 +26,10 @@ def verify(root):
     models = root / "flutter/assets/models"
     baseline = json.loads((root / "validation/model_parity.json").read_text(encoding="utf-8"))
     provenance = json.loads((root / "contracts/detector_provenance.json").read_text(encoding="utf-8"))
-    for relative, expected in provenance["files"].items():
+    detector_files = {**provenance["files"], **provenance.get("local_patches", {})}
+    for relative, expected in detector_files.items():
         if digest(root / relative) != expected:
-            raise ValueError(f"Detector source differs from dynamic delivery: {relative}")
+            raise ValueError(f"Detector source differs from recorded upstream/local revision: {relative}")
     results = {}
     for name in ("float32", "int8"):
         manifest = json.loads((models / f"gesture_static_{name}_manifest.json").read_text(encoding="utf-8"))
@@ -64,7 +65,7 @@ def verify(root):
         for relative, expected in json.loads(sums_path.read_text(encoding="utf-8")).items():
             if digest(root / relative) != expected:
                 raise ValueError(f"Package file differs from checksum: {relative}")
-    return {"passed": True, "detector_files_verified": len(provenance["files"]), "models": results, "physical_ios_tested": False}
+    return {"passed": True, "detector_files_verified": len(detector_files), "models": results, "physical_ios_tested": False}
 
 
 if __name__ == "__main__":

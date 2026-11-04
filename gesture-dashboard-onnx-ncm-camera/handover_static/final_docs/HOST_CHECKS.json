@@ -1,79 +1,141 @@
 {
   "status": "passed",
-  "date": "2026-10-29",
-  "scope": "Current fix1 source in isolated host test copies; current rebuilt ARM64 Android APK",
+  "date": "2026-10-31",
+  "release_revision": "false_hand_filters_20261031",
+  "scope": "Isolated Flutter host checks, real LiteRT face/gesture tensor checks, native Kotlin filter compile and 42 policy cases, rebuilt Android APK",
   "toolchain": {
     "flutter": "3.47.8",
     "dart": "3.13.7",
-    "python": "3.12.10",
-    "native_python_litert": "2.1.5"
+    "android_build_jdk": "17",
+    "mediapipe_native_android": "1.1.1"
   },
-  "locked_dependency_resolution": {
-    "command": "flutter pub get --offline --enforce-lockfile",
-    "runtime_and_example": "passed",
-    "android_tester": "passed"
+  "flutter_tests": {
+    "runtime_passed": 52,
+    "tester_passed": 2,
+    "policy_cases": 42,
+    "opencv_host_hook": "Skipped only in isolated tests; normal native builds in APK and delivery"
   },
   "dart_analysis": {
-    "command": "flutter analyze --no-pub",
     "runtime_and_example": "No issues found",
     "android_tester": "No issues found"
   },
-  "flutter_tests": {
-    "command": "flutter test --no-pub --concurrency=1 --reporter=expanded <each test file>",
-    "runtime_passed": 48,
-    "tester_passed": 2,
-    "native_classifier_reference_rows": 26,
-    "native_classifier_maximum_probability_error": 9.7000659127211e-07,
-    "ncm_tests": "Real local TCP/JLIP server, heartbeat replies, reconnect, latest-frame replacement and stale-epoch cancellation; injected hand detector",
-    "opencv_host_hook": "Skipped only in isolated host copies; the real APK and delivered source use normal native builds",
-    "surface_adapter_cases": 8
+  "native_android_filter": {
+    "android_filter_compile_passed": true,
+    "native_source_files_compiled": 9,
+    "mediapipe_version": "1.1.1",
+    "onnxruntime_artifact": "onnxruntime-android-1.31.0.aar",
+    "policy_cases": 42,
+    "policy_test_passed": true,
+    "source_sha256": {
+      "android_handover_src/kotlin/GestureFalseHandGuard.kt": "ffc0c4e76e0de46f3c85558146e763a1e341de1cf69fa4546ea2c346c783f07e",
+      "android_handover_src/kotlin/GestureFeatureExtractor.kt": "8ea2a3314d9254e8d198621771251f71f49161837eec1f6db21bc9b1dab4d9a9",
+      "android_handover_src/kotlin/GestureFrameAnalyzer.kt": "465a479e366ecd48423f821259afd2c996366f34f5244cfe70353df7b8f5a0ee",
+      "android_handover_src/kotlin/GestureHandLandmarker.kt": "78376012454f4c1c2ca9cc9a4693b9bfcae27b1cc9f7525af7610de557a74c1f",
+      "android_handover_src/kotlin/GestureNcmClient.kt": "7fddfdfe397bfaa8edc8c9bf2879d20523bdb2df3e4503f1268e5d485f107e5e",
+      "android_handover_src/kotlin/GestureOnnxClassifier.kt": "61f79bc98ff960a5ad4dddad90c24483d73606f07b2c5086ae3627212d47c13d",
+      "android_handover_src/kotlin/GestureParity.kt": "4e4a38bf09ded914a33b6837f11330334c754501e5af700766ebe972eb03f0bd",
+      "android_handover_src/kotlin/GestureRuntimePolicy.kt": "c6fdb5cf57607753622897fe03ba5264573d638b9d93c473c2241bb2da31e6ff",
+      "android_handover_src/kotlin/NcmNetworkSelector.kt": "f11d8d353c9984435adb01a0d63b70ee6d2377e6359e3442c8eaeb1a81c056b1"
+    },
+    "android_device_tested": false,
+    "ios_compile_tested": false
   },
   "python_native_model_verification": {
     "passed": true,
-    "dynamic_detector_files_verified": 40,
-    "fp32_reference_rows": 26,
-    "fp32_top1_agreement": 1.0,
-    "fp32_maximum_probability_error": 3.0481924706560193e-07,
-    "fp32_maximum_known_mass_error": 1.1920928955078125e-07,
-    "int8_qualified_for_loading": false
+    "detector_files_verified": 43,
+    "models": {
+      "float32": {
+        "qualified_for_loading": true,
+        "fixture_rows": 26,
+        "top1_agreement": 1.0,
+        "maximum_probability_error": 3.0481924706560193e-07,
+        "maximum_mass_error": 1.1920928955078125e-07
+      },
+      "int8": {
+        "qualified_for_loading": false,
+        "fixture_rows": 26,
+        "top1_agreement": 1.0,
+        "maximum_probability_error": 0.07626514816393548,
+        "maximum_mass_error": 0.004196286201477051
+      }
+    },
+    "physical_ios_tested": false
+  },
+  "face_decoder_saved_images": {
+    "passed": true,
+    "images": 36,
+    "images_with_faces": 12,
+    "images_without_faces": 24,
+    "minimum_expected_face_iou": 0.5
   },
   "android_artifact": {
-    "version_name": "2.0.1",
-    "version_code": 3,
-    "build_command": "Flutter assemble android_aot_bundle_release_android-arm64 without icon trimming, then Gradle assembleRelease -x :app:compileFlutterBuildRelease using those completed compile outputs",
-    "build": "passed",
-    "bytes": 25607763,
-    "sha256": "44764b30409748e28529d9fa8993947d1063af228a6ec10207d9594241f8c8da",
-    "apksigner_verify": "passed, APK Signature Scheme v2",
-    "certificate": "Android Debug",
-    "minimum_android_api": 24,
-    "abi": "arm64-v8a only",
-    "model_assets_matching_runtime": 4,
-    "retired_onnx_or_mediapipe_task_assets": 0,
-    "audio_or_storage_permissions": 0,
+    "passed": true,
+    "sha256": "ba29d166342c2ef05487f6534b447b3a6f679e776d7077d2d4e50e0096fc5a40",
+    "bytes": 27545398,
+    "version_name": "2.0.2",
+    "version_code": 4,
+    "mode": "release",
+    "abi": "arm64-v8a",
+    "minimum_api": 24,
+    "signing": "Android Debug certificate (test distribution)",
     "physical_device_tested": false,
-    "libapp_changed_from_v2_0_0": true,
-    "native_opencv_present": true
+    "model_assets_matching_runtime": 5,
+    "apksigner_verify": "passed"
+  },
+  "source_sha256": {
+    "static_gesture_runtime/flutter/lib/detector/camera_frame_adapter.dart": "c55ff8b2038b17c4b6ebae8fff4511985ca511e49133b464a2b0a8a197ce9e56",
+    "static_gesture_runtime/flutter/lib/detector/hand_detector_factory.dart": "ed388f2cc1a506e389dae5c982746845484776e1de80eeec344e7f3a6ec0252a",
+    "static_gesture_runtime/flutter/lib/ncm_static_gesture_runtime.dart": "231532962adc623bafd3b5ddb3f2739ab2eb2e66926587b3d99d4ce0fe73b315",
+    "static_gesture_runtime/flutter/lib/src/command_controller.dart": "831cf9f34149baceab3420456f13e74e1fb46f8ae0d620f5b323575b519262b2",
+    "static_gesture_runtime/flutter/lib/src/detector_adapter.dart": "e02f0ec47e106077d3a45e5f0129732ec7d3a90a41d2abbfc22807ecae7ae6df",
+    "static_gesture_runtime/flutter/lib/src/feature_extractor.dart": "8ea9e4d54484c575a37dac3d5b60c30300e4b37ebbdb7fae07d1bb1d789fa52c",
+    "static_gesture_runtime/flutter/lib/src/frame_scheduler.dart": "991725c1f1fbff91fb8b0d57d240723676f106a5b187fa097de3ae9710ddcdae",
+    "static_gesture_runtime/flutter/lib/src/geometry_policy.dart": "d6b92a88222c106b2843f27285a21b5940e47719f2966533a0b58c722a73a9d3",
+    "static_gesture_runtime/flutter/lib/src/model_manifest.dart": "580e86a3e785d477df93a148eb15aecf6286e995fbe6881d0aead55baec47b4b",
+    "static_gesture_runtime/flutter/lib/src/ncm_client.dart": "2d4317e9e3d2935ef5047f1f32ecfc68838cb308bffbf8c37dfa0e9f25423695",
+    "static_gesture_runtime/flutter/lib/src/runtime_api.dart": "f34f2205f74dd49daeed4b44604f9d1a112f102880665a51b4fb8a079d0423b8",
+    "static_gesture_runtime/flutter/lib/src/telemetry.dart": "6b7758452fe9eb76a14601bb3723368dccb4174a31c64853e51d313f2cc541ae",
+    "static_gesture_runtime/flutter/lib/src/tflite_classifier.dart": "926a9b9db274c8ff5c5f6a7067631b041af3c7a0f4600ef702beec25790b2910",
+    "static_gesture_runtime/flutter/lib/static_gesture_preview.dart": "5efd51159c1594e12284032592898c1306563dd7d9a57d15c0b36811ed5b5523",
+    "static_gesture_runtime/flutter/lib/static_gesture_runtime_api.dart": "67430f3c64931148a9090caa7bfee9d0f0b8dd38920f239eb66d26b9fcb0c27c",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/hand_detection.dart": "ecd288f91b3cc39fbc8d2749e5bbfa05d2dc3341959a7b53c8eb0f383d9426a5",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/hand_detection_native.dart": "860fd24f4ace68df5e1c233744a9c2e41438e30f15ecf81b922777347af65240",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/hand_detection_web.dart": "9daa1d38698838f7b54435399244a2698b610ca7b9e42ed316723952ba8e5ba4",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/dart_registration.dart": "cc4d310fb529fb2817f9a5b129bf4dde20f641d419c6f38cda25a26c064c7c63",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/exports/opencv_exports.dart": "48c491b55d0abe2f8683526e5fb7165650e3a11efaa1d66fc169d3b3dad34d6b",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/exports/opencv_exports_native.dart": "69d884cf4cb904eaa0ca730deb7648e7139cb9521835082f164fea6361319ecd",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/exports/opencv_exports_unsupported.dart": "98bb1de0dff145d2dcda576a7cc203a81c609fe0b81b889eaf8231a96084ee4e",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/exports/opencv_exports_web.dart": "9643d069700786f721f9e189a7781a8a362af4d11679fe68aae4a247495ec733",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/hand_detector.dart": "782dedabbb78e0accf840b9bb58441a05e205db9e767079a540ec0f8061257ef",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/isolate/hand_detector_core.dart": "977887b26cc777df8c0dd99712456db36721a1989165e809345f7b930790b58d",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/isolate/hand_detector_isolate.dart": "fe450ad03f75eb6de982a6ed42ef120a95e4f9fc3404f8464482ef1663970a27",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/models/face_guard.dart": "f0f6975b5a497c1801e2d093b23c039aff245fbfa5fa88edb5b165a61eeba050",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/models/gesture_recognizer.dart": "bc4b5f0455d26caf5b06a60e1e1a17f90c11b9fa9603320ed174fab57aad8dcf",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/models/hand_landmark_model.dart": "540bfa6d2a7771dbfbd163c7c1602c048032ff6fcffb9d27879b7488f279501c",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/models/palm_detector.dart": "cfa685b28a2570bc08395501d8512b9d6817793fb0da1257329fa8f03e0511dd",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/native/hand_native_lib.dart": "486a506e2cade3eed3fe7f8c94e1e6ca2349470bb4e6189f0d72a15ee2b89a6f",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/native/nnapi_interpreter_options.dart": "b01192ce874c236d56b9f804e6036b243af205a4f024ab57dc3a0ca9a7d55b72",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/shared/false_hand_policy.dart": "c1fe342be2cf1d952e5141c5f55e22dd3d207c919ef874b3cf80d9ed5c5e678e",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/shared/hand_geometry.dart": "5935ddcea9ea8b5948a44112ab8bc77ce8f67aa7f48105993f52cdad124e558a",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/shared/hand_types.dart": "3dc079205867c25246420165dce6b25a56205a348f0a4023cfdfed9a0eff808d",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/shared/handedness_utils.dart": "9ee9d0b1db6fda666d11dea9704d7a8087886024d22a0043400734f33697a8c3",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/types.dart": "298617e63c867f175c6deed7d05d7aea2cd11abe97fd3d793b75cf26b310aa22",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/ui/hand_overlay.dart": "854e99ab8f639c92e3923bb78c1ec994f8fb0b394a31f2e7ce0989f017d85668",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/util/image_utils.dart": "571434d1e4864eafe932ab79a41c8a26ea8e1b85b4eb76624fcb8bb9a5ddf607",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/web/hand_detector_web.dart": "2f5c475df082cabde95c0be9014e734cfc282e9bff8b023b8f9c211aafce0e1b",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/web/hand_web_lib.dart": "b10ab7b5ff02bc9a3b66c58457aa89bd21833e67f5573e9d01b5aa66d03f0576",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/web/models/gesture_recognizer_web.dart": "abb8e97364fc71abe01fb8ef93f46a9cbec0c7e1de8b07f3367a35e022a36686",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/web/models/hand_landmark_model_web.dart": "13e6f7b0f9efc85819bfe3688e111e881ac2b381c5f11bcf39af2bf902f65fd5",
+    "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/web/models/palm_detector_web.dart": "d1f6ec61c5767baa6227e464d6a764bab774de025ce0160701a5da58e43186e5",
+    "flutter_gesture_tester/lib/main.dart": "c20608021dea4be42dc71312e287d5fe38bb82454accb69790c4235134bddec1",
+    "flutter_gesture_tester/lib/models/gesture_result.dart": "80fb7670f740beb95f986b47c5f5c26313e1f618c9c33c416dee6197b80772eb",
+    "flutter_gesture_tester/lib/services/phone_static_gesture_engine.dart": "bc277d53cb03f325807f82a6f0d399be1d9c39248fdae545b61a6961a2582262",
+    "flutter_gesture_tester/pubspec.yaml": "858983e7d8f077ee283f9f8bd72ae0d32f424bfa857599f94941b73b8691d10e",
+    "static_gesture_runtime/flutter/pubspec.yaml": "f1606bdbd9a4fecf586e284ad8f97dfbbdffcdd710c4a9f398179c99e21f1114",
+    "static_gesture_runtime/flutter/third_party/hand_detection/pubspec.yaml": "7c7a6e241491a15245210ad21f030987b92c68fa60b9a971896b6fbbf29ef7fc"
   },
   "physical_ios_tested": false,
   "physical_ncm_tested": false,
   "ios_compile_tested": false,
-  "remaining_acceptance": "DEVICE_ACCEPTANCE.md",
-  "release_revision": "thumb_surface_fix1",
-  "source_sha256": {
-    "static_gesture_runtime/flutter/lib/src/geometry_policy.dart": "d6b92a88222c106b2843f27285a21b5940e47719f2966533a0b58c722a73a9d3",
-    "static_gesture_runtime/flutter/lib/src/detector_adapter.dart": "e02f0ec47e106077d3a45e5f0129732ec7d3a90a41d2abbfc22807ecae7ae6df",
-    "static_gesture_runtime/flutter/lib/src/runtime_api.dart": "f34f2205f74dd49daeed4b44604f9d1a112f102880665a51b4fb8a079d0423b8",
-    "static_gesture_runtime/flutter/lib/src/command_controller.dart": "831cf9f34149baceab3420456f13e74e1fb46f8ae0d620f5b323575b519262b2",
-    "static_gesture_runtime/flutter/tool/check_geometry_parity.dart": "d0a5b097de3ad5337296903392e135af15b70c0b7f5e94f70f5249d343582397",
-    "static_gesture_runtime/flutter/test/open_hand_surface_test.dart": "59d8f3ab4586ab4a036b988cdbc995adfc334071c1a3b83a8d0f2e7ca2a18daa",
-    "static_gesture_runtime/flutter/test/detector_adapter_test.dart": "61aa91a566be4b505dab19fb4411878c9300f5607a2575d9517cd1b98e55e68e",
-    "flutter_gesture_tester/lib/services/phone_static_gesture_engine.dart": "8c7343e12f897c1be5d8e833f23b4e375b7056108ee01e4db525488217072441",
-    "flutter_gesture_tester/lib/models/gesture_result.dart": "80fb7670f740beb95f986b47c5f5c26313e1f618c9c33c416dee6197b80772eb"
-  },
-  "geometry_parity": {
-    "canonical_geometry_cases": 1142,
-    "known_mass_cases": 5710,
-    "cache_geometry_cases": 400
-  }
+  "remaining_acceptance": "DEVICE_ACCEPTANCE.md; native_false_hand_update/README.md"
 }

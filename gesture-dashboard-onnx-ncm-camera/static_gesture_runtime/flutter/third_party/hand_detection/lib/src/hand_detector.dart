@@ -33,6 +33,7 @@ class _DetectionIsolateStartupData {
   final SendPort sendPort;
   final TransferableTypedData palmDetectionBytes;
   final TransferableTypedData handLandmarkBytes;
+  final TransferableTypedData faceDetectionBytes;
   final TransferableTypedData? gestureEmbedderBytes;
   final TransferableTypedData? gestureClassifierBytes;
   final String modeName;
@@ -58,6 +59,7 @@ class _DetectionIsolateStartupData {
     required this.sendPort,
     required this.palmDetectionBytes,
     required this.handLandmarkBytes,
+    required this.faceDetectionBytes,
     this.gestureEmbedderBytes,
     this.gestureClassifierBytes,
     required this.modeName,
@@ -277,6 +279,8 @@ class HandDetector {
     final assetFutures = <Future<ByteData>>[
       rootBundle.load(palmPath),
       rootBundle.load(landmarkPath),
+      rootBundle.load(
+          'packages/hand_detection/assets/models/blaze_face_short_range.tflite'),
     ];
 
     if (enableGestures) {
@@ -296,8 +300,8 @@ class HandDetector {
     Uint8List? gestureEmbedderBytes;
     Uint8List? gestureClassifierBytes;
     if (enableGestures && results.length > 2) {
-      gestureEmbedderBytes = results[2].buffer.asUint8List();
-      gestureClassifierBytes = results[3].buffer.asUint8List();
+      gestureEmbedderBytes = results[3].buffer.asUint8List();
+      gestureClassifierBytes = results[4].buffer.asUint8List();
     }
 
     final effectivePoolSize = performanceConfig.mode == PerformanceMode.disabled
@@ -307,6 +311,7 @@ class HandDetector {
     await initializeFromBuffers(
       palmDetectionBytes: palmBytes,
       handLandmarkBytes: landmarkBytes,
+      faceDetectionBytes: results[2].buffer.asUint8List(),
       gestureEmbedderBytes: gestureEmbedderBytes,
       gestureClassifierBytes: gestureClassifierBytes,
       mode: mode,
@@ -356,6 +361,7 @@ class HandDetector {
   Future<void> initializeFromBuffers({
     required Uint8List palmDetectionBytes,
     required Uint8List handLandmarkBytes,
+    required Uint8List faceDetectionBytes,
     Uint8List? gestureEmbedderBytes,
     Uint8List? gestureClassifierBytes,
     HandMode mode = HandMode.boxesAndLandmarks,
@@ -390,6 +396,7 @@ class HandDetector {
       await worker.initialize(
         palmDetectionBytes: palmDetectionBytes,
         handLandmarkBytes: handLandmarkBytes,
+        faceDetectionBytes: faceDetectionBytes,
         gestureEmbedderBytes: gestureEmbedderBytes,
         gestureClassifierBytes: gestureClassifierBytes,
         mode: mode,
@@ -744,6 +751,7 @@ class HandDetector {
       await core.initializeFromBuffers(
         palmDetectionBytes: palmBytes,
         handLandmarkBytes: landmarkBytes,
+        faceDetectionBytes: data.faceDetectionBytes.materialize().asUint8List(),
         gestureEmbedderBytes: embedderBytes,
         gestureClassifierBytes: classifierBytes,
         mode: mode,
@@ -884,6 +892,7 @@ class _HandDetectorWorker extends IsolateWorkerBase {
   Future<void> initialize({
     required Uint8List palmDetectionBytes,
     required Uint8List handLandmarkBytes,
+    required Uint8List faceDetectionBytes,
     Uint8List? gestureEmbedderBytes,
     Uint8List? gestureClassifierBytes,
     required HandMode mode,
@@ -924,6 +933,8 @@ class _HandDetectorWorker extends IsolateWorkerBase {
               TransferableTypedData.fromList([palmDetectionBytes]),
           handLandmarkBytes:
               TransferableTypedData.fromList([handLandmarkBytes]),
+          faceDetectionBytes:
+              TransferableTypedData.fromList([faceDetectionBytes]),
           gestureEmbedderBytes: gestureEmbedderData,
           gestureClassifierBytes: gestureClassifierData,
           modeName: mode.name,

@@ -78,12 +78,12 @@ def test_one_fingertip_on_face_counts_without_palm_overlap():
 
 @pytest.mark.parametrize("gesture", [label for label in RuntimeConfig().class_names if label != "dorsal"])
 @pytest.mark.parametrize("blocked", [True, False])
-def test_legacy_face_box_alone_never_blocks_a_gesture(monkeypatch, gesture, blocked):
+def test_fingers_near_face_without_compact_palm_overlap_remain_eligible(monkeypatch, gesture, blocked):
     import backend.hand_detection as detection_module
     monkeypatch.setattr(detection_module.time, "perf_counter", lambda: 10.)
     points, box = reported_resting_hand(3)
     detector = simulated_detector()
-    detector._face_guard = SimpleNamespace(detector=True, detect=lambda rgb: [box] if blocked else [])
+    detector._face_guard = SimpleNamespace(detector=True, detect=lambda rgb, **kwargs: [box] if blocked else [])
     detector._run_candidates = lambda rgb, view, *, video: [(.1, points / [960,750], None, None)]
     config = RuntimeConfig()
     session = RuntimeSession(config)
@@ -116,6 +116,7 @@ def test_legacy_face_box_alone_never_blocks_a_gesture(monkeypatch, gesture, bloc
 def test_face_occlusion_hold_expires_and_resets_on_resolution_change(monkeypatch):
     import backend.face_guard as module
     guard = FaceGuard.__new__(FaceGuard)
+    guard.refresh_seconds = 0.  # This test isolates retention from refresh cadence.
     guard.boxes = []
     guard._recent_boxes = []
     guard._image_shape = None

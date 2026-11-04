@@ -7,11 +7,23 @@
   "model_precision": "float16",
   "target_inference_fps": 10,
   "maximum_hands": 2,
-  "detection_confidence": 0.5,
+  "detection_confidence": 0.55,
   "landmark_confidence": 0.6,
   "tracking_enabled": true,
   "mediapipe_gesture_classifier_enabled": false,
   "frame_queue_policy": "latest_frame_only",
   "preferred_backend": "LiteRT GPU",
-  "fallback_backend": "XNNPACK CPU"
+  "fallback_backend": "XNNPACK CPU",
+  "face_model": "blaze_face_short_range.tflite",
+  "face_refresh_ms": 200,
+  "face_retention_ms": 500,
+  "candidate_filter": "face_ear_size_overlap_and_source_pixels_and_collapsed_chains",
+  "minimum_palm_pixels": 18,
+  "minimum_hand_span_pixels": 40,
+  "minimum_short_side_pixels": 12,
+  "filtered_before": [
+    "gesture_inference",
+    "hand_overlay",
+    "continued_roi_tracking"
+  ]
 }

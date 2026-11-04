@@ -6,10 +6,18 @@ The production ONNX model and Windows application remain available unchanged.
 No training or Boss-app data is required to integrate this runtime.
 
 The complete Boss handover is generated as
-`handover_static/Boss_Static_Gesture_Handover_20261029_fix1.zip`. Start with
+`handover_static/Boss_Static_Gesture_Handover_20261031_false_hands.zip`. Start with
 its `START_HERE.md`. It includes this latest runtime, the iOS example, current
 Flutter tester source, the verified Android test APK and integrity checks.
-Earlier `candidate` and `overlay` archives are superseded by that bundle.
+Earlier `candidate`, `overlay`, and `fix1` archives are superseded by that bundle.
+
+The 31 October detector revision adds cached BlazeFace rejection before hand
+tracking, classification and preview. Acquisition uses .55 detection confidence;
+source-pixel size, incomplete-hand and collapsed-chain checks match the Python
+policy across 42 synthetic cases. Large foreground hands and fingertip-only
+face overlap remain eligible. Compact real hands directly over the face may be
+rejected, and stricter acquisition can reduce range. The bundle also includes a
+native Android/iOS filter source update in `native_false_hand_update/`.
 
 The FP32 TFLite conversion preserves the current learned model: all 18,073
 validation/test rows keep the same top label and scalar accept/reject result.
@@ -49,7 +57,7 @@ code, including the thumb-direction and hand-surface fixes.
 INT8 can replace FP32 only in a future release that passes qualification and
 target-device acceptance with updated matching manifests. The supplied
 inference plugin is `flutter_litert` 3.9.4. That dependency version, model
-precision and the Android tester's 2.0.1 release number describe different things.
+precision and the Android tester's 2.0.2 release number describe different things.
 
 ## Package contents
 

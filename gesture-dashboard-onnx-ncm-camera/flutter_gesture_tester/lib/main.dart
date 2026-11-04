@@ -13,6 +13,7 @@ import 'package:static_gesture_runtime/static_gesture_runtime_api.dart';
 
 import 'models/gesture_result.dart';
 import 'services/phone_static_gesture_engine.dart';
+import 'services/android_ncm_transport.dart';
 
 enum _VideoSource { phone, ncm }
 
@@ -83,6 +84,7 @@ class _GestureLabScreenState extends State<GestureLabScreen>
   String? _error;
   String _phase = 'Loading model';
   String _ncmState = 'stopped';
+  String _ncmRoute = 'Looking for USB-Ethernet route';
   String _detectorBackend = 'initializing';
   Map<String, Object> _ncmTelemetry = const {};
   bool _initializing = true;
@@ -208,7 +210,15 @@ class _GestureLabScreenState extends State<GestureLabScreen>
       );
     } catch (error) {
       if (!mounted || generation != _generation) return;
-      setState(() => _error = error.toString());
+      setState(() {
+        _error = error.toString();
+        _result = null;
+      });
+      try {
+        await _phoneEngine?.invalidateFrame();
+      } catch (_) {
+        // The original error is already shown; evidence/preview are cleared.
+      }
     } finally {
       _processing = false;
     }
@@ -302,14 +312,33 @@ class _GestureLabScreenState extends State<GestureLabScreen>
       _ncmPreview = null;
       _result = null;
     });
+    if (Platform.isAndroid) {
+      final usbRows = await AndroidNcmTransport.describeUsb();
+      for (final row in usbRows) {
+        // Keep the descriptor available in logcat without exposing raw USB
+        // details in the normal product UI.
+        debugPrint('USB_DESCRIPTOR $row');
+      }
+    }
     var engine = _ncmEngine;
     if (engine == null) {
       late final NcmStaticGestureRuntime created;
       final runtime = StaticGestureRuntimeApi(
         classifier: StaticTfliteClassifier(model: StaticTfliteModel.float32),
       );
+      final transport = Platform.isAndroid
+          ? AndroidNcmTransport(
+              onRoute: (route) {
+                if (mounted && _ncmEngine == created) {
+                  setState(() => _ncmRoute = route);
+                }
+              },
+            )
+          : null;
       created = NcmStaticGestureRuntime(
         runtime: runtime,
+        socketConnector: transport?.connect,
+        closeTransport: transport?.close,
         backend: MobileInferenceBackend.gpu,
         onState: (state) {
           if (!mounted || _ncmEngine != created) return;
@@ -379,7 +408,38 @@ class _GestureLabScreenState extends State<GestureLabScreen>
     if (mounted && _source == _VideoSource.ncm) await _startNcm();
   }
 
+  Future<void> _showUsbDiagnostics() async {
+    String description;
+    try {
+      description = (await AndroidNcmTransport.describeUsb()).join('\n');
+    } catch (error) {
+      description = 'USB inspection failed: $error';
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('USB diagnostics'),
+        content: SingleChildScrollView(child: SelectableText(description)),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: description));
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: const Text('Copy report'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _friendlyNcmError(Object error) {
+    if (error is PlatformException) return error.message ?? error.code;
     final message = error.toString().replaceFirst('SocketException: ', '');
     final lower = message.toLowerCase();
     if (lower.contains('network is unreachable') ||
@@ -868,7 +928,13 @@ class _GestureLabScreenState extends State<GestureLabScreen>
                   left: 22,
                   right: 22,
                   top: 112,
-                  child: _NcmError(message: _error!, onRetry: _restartNcm),
+                  child: _NcmError(
+                    message: _error!,
+                    onRetry: _restartNcm,
+                    onDiagnostics: Platform.isAndroid
+                        ? _showUsbDiagnostics
+                        : null,
+                  ),
                 ),
             ],
           ),
@@ -909,7 +975,7 @@ class _GestureLabScreenState extends State<GestureLabScreen>
             ),
             const SizedBox(height: 7),
             Text(
-              'Automatic Android route · $_detectorBackend',
+              '$_ncmRoute · $_detectorBackend',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white30, fontSize: 11),
             ),
@@ -1192,10 +1258,15 @@ class _SourceButton extends StatelessWidget {
 }
 
 class _NcmError extends StatelessWidget {
-  const _NcmError({required this.message, required this.onRetry});
+  const _NcmError({
+    required this.message,
+    required this.onRetry,
+    this.onDiagnostics,
+  });
 
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback? onDiagnostics;
 
   @override
   Widget build(BuildContext context) {
@@ -1228,6 +1299,12 @@ class _NcmError extends StatelessWidget {
             icon: const Icon(Icons.refresh_rounded, size: 16),
             label: const Text('Reconnect'),
           ),
+          if (onDiagnostics != null)
+            TextButton.icon(
+              onPressed: onDiagnostics,
+              icon: const Icon(Icons.usb_rounded, size: 16),
+              label: const Text('USB diagnostics'),
+            ),
         ],
       ),
     );

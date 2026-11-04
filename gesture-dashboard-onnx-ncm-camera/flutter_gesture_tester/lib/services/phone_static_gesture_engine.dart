@@ -61,7 +61,7 @@ class PhoneStaticGestureEngine {
       detector = await MobileHandDetectorFactory.create(
         requestedBackend: backend,
         requestedLandmarkModel: MobileLandmarkModelVariant.full,
-        detectionConfidence: .50,
+        detectionConfidence: .55,
         landmarkConfidence: .60,
       );
     } catch (_) {
@@ -124,6 +124,12 @@ class PhoneStaticGestureEngine {
       detectorMs: detectorMs,
       totalMs: watch.elapsedMicroseconds / 1000,
     );
+  }
+
+  Future<void> invalidateFrame() async {
+    _runtime?.invalidateEvidence();
+    _adapter.reset();
+    await _detector?.detector.resetTracking();
   }
 
   Future<void> reset() async {

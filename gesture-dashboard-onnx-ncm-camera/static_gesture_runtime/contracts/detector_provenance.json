@@ -46,5 +46,16 @@
     "flutter/third_party/hand_detection/lib/src/web/models/palm_detector_web.dart": "d1f6ec61c5767baa6227e464d6a764bab774de025ce0160701a5da58e43186e5",
     "flutter/third_party/hand_detection/pubspec.yaml": "8e253bfff390af6e6cdee38d39901b480f0426e3ff7065034a95ba6f3a9f396a"
   },
-  "provenance": "Unmodified source and detector assets from the user-supplied dynamic runtime archive."
+  "provenance": "Unmodified source and detector assets from the user-supplied dynamic runtime archive.",
+  "local_revision": "false_hand_filters_20261031",
+  "local_patches": {
+    "contracts/mediapipe_detector.json": "49597657b267d68f8f4e07c582c47245df2c1fe359119c1df1476470365a25ef",
+    "flutter/third_party/hand_detection/pubspec.yaml": "7c7a6e241491a15245210ad21f030987b92c68fa60b9a971896b6fbbf29ef7fc",
+    "flutter/third_party/hand_detection/lib/src/hand_detector.dart": "782dedabbb78e0accf840b9bb58441a05e205db9e767079a540ec0f8061257ef",
+    "flutter/third_party/hand_detection/lib/src/isolate/hand_detector_core.dart": "977887b26cc777df8c0dd99712456db36721a1989165e809345f7b930790b58d",
+    "flutter/third_party/hand_detection/lib/src/models/face_guard.dart": "f0f6975b5a497c1801e2d093b23c039aff245fbfa5fa88edb5b165a61eeba050",
+    "flutter/third_party/hand_detection/lib/src/shared/false_hand_policy.dart": "c1fe342be2cf1d952e5141c5f55e22dd3d207c919ef874b3cf80d9ed5c5e678e",
+    "flutter/third_party/hand_detection/assets/models/blaze_face_short_range.tflite": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+  },
+  "local_patch_note": "Upstream files/hashes are retained as provenance; local_patches records intentional additions/overrides and is verified by release tools."
 }
