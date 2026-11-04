@@ -249,7 +249,11 @@ class RuntimeSession:
             self.reset_landmark_tracking()
             base_diagnostics["filter_reset"] = True
 
-        if self._smoothed_landmarks is None or self._last_raw_landmarks is None:
+        if (
+            self._smoothed_landmarks is None
+            or self._last_raw_landmarks is None
+            or self._last_landmark_at is None
+        ):
             self._smoothed_landmarks = points.copy()
             self._last_raw_landmarks = points.copy()
             self._last_landmark_at = now
@@ -327,11 +331,14 @@ class RuntimeSession:
             )
         )
         # Keep the same smoothing duration when the incoming frame rate varies.
-        elapsed = max(0.001, min(0.5, now - self._last_landmark_at))
+        previous_landmarks = self._smoothed_landmarks
+        previous_landmark_at = self._last_landmark_at
+        elapsed = max(0.001, min(0.5, now - previous_landmark_at))
         alpha = 1.0 - (1.0 - alpha) ** (elapsed * self.config.target_fps)
-        self._smoothed_landmarks = (
-            alpha * points + (1.0 - alpha) * self._smoothed_landmarks
+        smoothed_landmarks = (
+            alpha * points + (1.0 - alpha) * previous_landmarks
         ).astype(np.float32)
+        self._smoothed_landmarks = smoothed_landmarks
         self._last_raw_landmarks = points.copy()
         self._last_landmark_at = now
         self._missing_landmark_frames = 0
@@ -341,7 +348,7 @@ class RuntimeSession:
             "filter_initialized": True,
             "smoothing_alpha": alpha,
         })
-        return self._smoothed_landmarks.copy(), base_diagnostics
+        return smoothed_landmarks.copy(), base_diagnostics
 
 
 _DLL_DIRECTORY_HANDLES: list[Any] = []
@@ -991,7 +998,7 @@ class InferenceEngine:
                 if session.selected_track_id is not None
                 and now - session.last_screen_direction_at <= 1.0 else None
             )
-            def candidate_score(row):
+            def candidate_score(row: dict[str, Any]) -> float:
                 # Score each candidate with its OWN handedness and world points.
                 # Only a geometry contradiction requests an extra detector view;
                 # low classifier mass alone does not chase background detections.
@@ -1008,9 +1015,11 @@ class InferenceEngine:
                     row["probabilities"] = resolved
                     row["gate_args"] = gate_arguments(details, quality)
                     row["resolved_label"] = self.config.class_names[int(np.argmax(resolved))]
-                    return 1.0 if details["pose_validation"]["valid"] else 0.0
+                    pose_validation = details.get("pose_validation") or {}
+                    return 1.0 if pose_validation.get("valid", False) else 0.0
                 except ValueError:
                     return -0.5
+            detector_quality: dict[str, Any]
             if isinstance(self.detector, HandDetector):
                 recent_tracks = sum(
                     now - track.last_seen < session.hand_selector.policy.track_expiry_seconds
