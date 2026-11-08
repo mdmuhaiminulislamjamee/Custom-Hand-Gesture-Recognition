@@ -285,6 +285,8 @@ class HandDetector:
                     reason = "face_context_unavailable"
                 elif face_overlap:
                     reason = "face_detected_as_hand"
+                elif category is not None and getattr(category, "score", None) is not None and float(category.score or 0) < 0.65:
+                    reason = "ambiguous_handedness"
                 face_context = dict(enabled=face_guard is not None, near_face=face_overlap,
                                     contact_confirmed=False, suppressed=face_overlap,
                                     reason="face_detected_as_hand" if face_overlap else None)

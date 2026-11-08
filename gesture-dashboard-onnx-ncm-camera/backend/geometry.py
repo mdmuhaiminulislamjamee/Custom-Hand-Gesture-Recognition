@@ -1603,8 +1603,17 @@ class GeometryResolver:
             and thumb_lead >= .25
             and palm_up_alignment >= -.35
         )
+        side_view_like_supported = bool(
+            (raw == "like" or model_raw == "like" or extensions[0] >= .60)
+            and compact_like_fingers
+            and (thumb_up_score >= .55 or screen_thumb_up_score >= .50)
+            and (thumb_lead >= .18 or screen_thumb_lead >= .12)
+            and float(foreshortened_fist["thumb_radius_ratio"]) >= 0.90
+            and palm_up_alignment >= -.55
+            and raised_non_thumb_count == 0
+        )
         like_geometry_supported = (
-            like_geometry_supported or rotated_thumb_up_support)
+            like_geometry_supported or rotated_thumb_up_support or side_view_like_supported)
         like_valid = like_valid or like_geometry_supported
         thumb_down_score = float(thumb_vector[1] / thumb_norm)
         thumb_down_lead = float(

@@ -5,16 +5,16 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 12245,
-      "sha256": "37c6422fd626421aabc1539acc4dc30a08ff5ded2744e16022da68cdd9b504e7"
+      "bytes": 12246,
+      "sha256": "45e12dd226e4b285d463f3512ce95ec9dde715ae68dc852e4992102385dff58d"
     },
     "gesture_mlp_production.onnx": {
       "bytes": 77797,
       "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 9365,
-      "sha256": "f81be1f771870f0cfaff762cb628a979e6f558ca4fdda5b0fd064c4a422a45f8"
+      "bytes": 9536,
+      "sha256": "c5ebf96f19ab28f39664bc3b096c6180fb36a74eb0ead501a6052411978679b8"
     },
     "gesture_online_replay_cache.npz": {
       "bytes": 863867,
@@ -48,8 +48,8 @@
     "rock",
     "stop_inverted"
   ],
-  "created_utc": "2026-10-27T07:56:46.648289+00:00",
+  "created_utc": "2026-11-08T07:47:46.250207+00:00",
   "feature_count": 76,
-  "release_fingerprint": "2bb97873bda89fff23629bbb8a12e427d658eb7eaa82a0d56da7f9fe9ae0e412",
+  "release_fingerprint": "8dd33f4374d3e465f0da31fb8072c467c8453fe87428224ba79d0aabcbcfbf27",
   "schema_version": 1
 }

@@ -22,8 +22,8 @@ def test_default_runtime_contract_is_backend_safe_ten_fps():
     assert config.target_fps == 10.0
     assert config.frame_interval_ms == 100
     assert config.frame_budget_ms == 100.0
-    assert config.confidence_floor == 0.70
-    assert config.probability_margin_floor == 0.08
+    assert config.confidence_floor == 0.75
+    assert config.probability_margin_floor == 0.10
     assert config.known_mass_floor == 0.70
     assert config.stable_frames_required == 3
     assert config.minimum_hold_seconds == 0.18
@@ -151,8 +151,8 @@ def test_responsive_gate_uses_two_matching_votes_from_three():
     def row(primary: str) -> np.ndarray:
         values = np.zeros(len(config.class_names), dtype=np.float64)
         secondary = "right" if primary == "left" else "left"
-        values[config.class_to_idx[primary]] = 0.80
-        values[config.class_to_idx[secondary]] = 0.20
+        values[config.class_to_idx[primary]] = 0.88
+        values[config.class_to_idx[secondary]] = 0.12
         return values
 
     first = gate.update(row("left"), now=1.0)
@@ -425,4 +425,58 @@ def test_estimate_hand_distance_m():
 
     assert estimate_hand_distance_m(None) is None
     assert estimate_hand_distance_m({"palm_scale_px": 4}) is None
+
+
+def test_custom_responsive_hold_times_per_gesture():
+    config = RuntimeConfig(
+        responsive_confirmation=True,
+        minimum_hold_seconds=0.0,
+        confirmation_window_frames=3,
+        confirmation_votes_required=2,
+        directional_fallback_hold_seconds=0.25,
+        supported_hand_hold_seconds=0.30,
+        stop_fallback_hold_seconds=0.30,
+        peace_fallback_hold_seconds=0.35,
+    )
+
+    # Pointing direction (left): 0.25s
+    gate = TemporalGate(config)
+    left_row = np.eye(len(config.class_names))[config.class_to_idx["left"]]
+    for now in (1.0, 1.1, 1.2):
+        d = gate.update(left_row, now=now, known_gesture_mass=0.20, geometry_supported=True, directional_recovery=True)
+        assert d.execute is False
+    d = gate.update(left_row, now=1.26, known_gesture_mass=0.20, geometry_supported=True, directional_recovery=True)
+    assert d.execute is True
+    assert d.predicted_gesture == "left"
+
+    # Supported hand (like): 0.30s
+    gate = TemporalGate(config)
+    like_row = np.eye(len(config.class_names))[config.class_to_idx["like"]]
+    for now in (1.0, 1.1, 1.2):
+        d = gate.update(like_row, now=now, known_gesture_mass=0.20, geometry_supported=True)
+        assert d.execute is False
+    d = gate.update(like_row, now=1.31, known_gesture_mass=0.20, geometry_supported=True)
+    assert d.execute is True
+    assert d.predicted_gesture == "like"
+
+    # Peace sign: 0.35s
+    gate = TemporalGate(config)
+    peace_row = np.eye(len(config.class_names))[config.class_to_idx["peace"]]
+    for now in (1.0, 1.1, 1.2, 1.3):
+        d = gate.update(peace_row, now=now, known_gesture_mass=0.20, geometry_supported=True, peace_pair_recovery=True)
+        assert d.execute is False
+    d = gate.update(peace_row, now=1.36, known_gesture_mass=0.20, geometry_supported=True, peace_pair_recovery=True)
+    assert d.execute is True
+    assert d.predicted_gesture == "peace"
+
+    # Stop inverted: 0.30s
+    gate = TemporalGate(config)
+    stop_row = np.eye(len(config.class_names))[config.class_to_idx["stop_inverted"]]
+    for now in (1.0, 1.1, 1.2):
+        d = gate.update(stop_row, now=now, known_gesture_mass=0.20, geometry_supported=True, stop_inverted_recovery=True)
+        assert d.execute is False
+    d = gate.update(stop_row, now=1.31, known_gesture_mass=0.20, geometry_supported=True, stop_inverted_recovery=True)
+    assert d.execute is True
+    assert d.predicted_gesture == "stop_inverted"
+
 

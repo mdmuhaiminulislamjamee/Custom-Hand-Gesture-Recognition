@@ -172,14 +172,18 @@ class RuntimeConfig:
     reject_label: str = REJECT_LABEL
     target_fps: float = 10.0
     ema_alpha: float = 0.45
-    confidence_floor: float = 0.70
-    probability_margin_floor: float = 0.08
+    confidence_floor: float = 0.75
+    probability_margin_floor: float = 0.10
     known_mass_floor: float = 0.70
     geometry_recovery_mass_floor: float = 0.15
     stable_frames_required: int = 3
     release_frames_required: int = 3
     minimum_hold_seconds: float = 0.18
     action_cooldown_seconds: float = 0.80
+    directional_fallback_hold_seconds: float = 0.25
+    supported_hand_hold_seconds: float = 0.30
+    stop_fallback_hold_seconds: float = 0.30
+    peace_fallback_hold_seconds: float = 0.35
     responsive_confirmation: bool = False
     strong_confirmation_confidence: float = 0.92
     strong_confirmation_margin: float = 0.25
@@ -230,6 +234,10 @@ class RuntimeConfig:
             "release_frames_required": self.release_frames_required,
             "minimum_hold_seconds": self.minimum_hold_seconds,
             "action_cooldown_seconds": self.action_cooldown_seconds,
+            "directional_fallback_hold_seconds": self.directional_fallback_hold_seconds,
+            "supported_hand_hold_seconds": self.supported_hand_hold_seconds,
+            "stop_fallback_hold_seconds": self.stop_fallback_hold_seconds,
+            "peace_fallback_hold_seconds": self.peace_fallback_hold_seconds,
             "responsive_confirmation": self.responsive_confirmation,
             "strong_confirmation_confidence": self.strong_confirmation_confidence,
             "strong_confirmation_margin": self.strong_confirmation_margin,
@@ -290,9 +298,9 @@ def load_runtime_config(models_directory: Path = MODELS_DIRECTORY) -> RuntimeCon
         reject_label=reject_label,
         target_fps=float(data.get("target_fps", 10.0)),
         ema_alpha=float(smoothing.get("alpha", 0.45)),
-        confidence_floor=float(smoothing.get("confidence_floor", 0.70)),
+        confidence_floor=float(smoothing.get("confidence_floor", 0.75)),
         probability_margin_floor=float(
-            smoothing.get("probability_margin_floor", 0.08)
+            smoothing.get("probability_margin_floor", 0.10)
         ),
         known_mass_floor=float(smoothing.get("known_mass_floor", 0.70)),
         geometry_recovery_mass_floor=float(
@@ -302,6 +310,18 @@ def load_runtime_config(models_directory: Path = MODELS_DIRECTORY) -> RuntimeCon
         release_frames_required=int(smoothing.get("release_frames_required", 3)),
         minimum_hold_seconds=float(smoothing.get("minimum_hold_seconds", 0.18)),
         action_cooldown_seconds=float(data.get("action_cooldown_seconds", 0.80)),
+        directional_fallback_hold_seconds=float(
+            smoothing.get("directional_fallback_hold_seconds", 0.25)
+        ),
+        supported_hand_hold_seconds=float(
+            smoothing.get("supported_hand_hold_seconds", 0.30)
+        ),
+        stop_fallback_hold_seconds=float(
+            smoothing.get("stop_fallback_hold_seconds", 0.30)
+        ),
+        peace_fallback_hold_seconds=float(
+            smoothing.get("peace_fallback_hold_seconds", 0.35)
+        ),
         follow_timeout_seconds=float(
             data.get("follow_object_step_timeout_seconds", 20.0)
         ),

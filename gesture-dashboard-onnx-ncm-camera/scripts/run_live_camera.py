@@ -45,6 +45,10 @@ def _apply_runtime_profile(config, profile: str) -> None:
     config.action_cooldown_seconds = 0.0
     config.confirmation_window_frames = 3
     config.confirmation_votes_required = 2
+    config.directional_fallback_hold_seconds = 0.25
+    config.supported_hand_hold_seconds = 0.30
+    config.stop_fallback_hold_seconds = 0.30
+    config.peace_fallback_hold_seconds = 0.35
 
 
 class LatestWebcamFrame:

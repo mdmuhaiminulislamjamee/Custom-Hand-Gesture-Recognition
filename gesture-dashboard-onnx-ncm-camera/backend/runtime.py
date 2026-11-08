@@ -335,14 +335,24 @@ class TemporalGate:
         )
         held_seconds = max(0.0, now - label_started_at)
         required_hold = self.config.minimum_hold_seconds
-        if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.50 if expanded_thumb_fallback or horizontal_fallback else 0.40)
-        if supported_hand and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.45)
-        if peace_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.50)
-        if stop_fallback and known_gesture_mass < self.config.known_mass_floor:
-            required_hold = max(required_hold, 0.45)
+        if self.config.responsive_confirmation:
+            if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, self.config.directional_fallback_hold_seconds)
+            if supported_hand and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, self.config.supported_hand_hold_seconds)
+            if peace_fallback and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, self.config.peace_fallback_hold_seconds)
+            if stop_fallback and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, self.config.stop_fallback_hold_seconds)
+        else:
+            if directional_fallback and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, 0.50 if expanded_thumb_fallback or horizontal_fallback else 0.40)
+            if supported_hand and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, 0.45)
+            if peace_fallback and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, 0.50)
+            if stop_fallback and known_gesture_mass < self.config.known_mass_floor:
+                required_hold = max(required_hold, 0.45)
         strong_confirmation = bool(
             self.config.responsive_confirmation
             and known_gesture_mass >= self.config.known_mass_floor

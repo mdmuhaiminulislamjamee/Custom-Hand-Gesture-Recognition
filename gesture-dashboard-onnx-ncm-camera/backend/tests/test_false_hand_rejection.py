@@ -148,3 +148,17 @@ def test_face_refresh_uses_recorded_time_and_session_cache(monkeypatch):
     assert guard.detect(frame, state=state)
     result.detections = []
     assert guard.detect(np.zeros((480, 640, 3), np.uint8), state=state) == []
+
+
+def test_squashed_knuckle_span_rejected_by_invalid_hand_geometry():
+    # Ear cartilage ridges mimic curled knuckles but place all MCP knuckles
+    # collinearly along a narrow line. Even with valid 2-D finger lengths,
+    # the 3-D knuckle span is squashed (< 0.28x palm length).
+    real_world = np.column_stack((representative_hand(), np.zeros(21)))
+    assert not invalid_hand_geometry(representative_hand(), SHAPE, real_world)
+
+    # Squashed 3-D knuckles (index 5 to pinky 17 < 0.28x palm 0 to 9)
+    squashed_world = real_world.copy()
+    squashed_world[17] = squashed_world[5] + [0.01, 0.0, 0.0]
+    assert invalid_hand_geometry(representative_hand(), SHAPE, squashed_world)
+

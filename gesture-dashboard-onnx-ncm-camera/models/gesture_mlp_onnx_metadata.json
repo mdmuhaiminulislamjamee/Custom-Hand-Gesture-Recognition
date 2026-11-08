@@ -424,9 +424,9 @@
     },
     "selection": {
       "model_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
-      "known_mass_floor": 0.7,
-      "confidence_floor": 0.7,
-      "probability_margin_floor": 0.08
+      "known_mass_floor": 0.8,
+      "confidence_floor": 0.85,
+      "probability_margin_floor": 0.22
     }
   },
   "runtime_note": "Stop inverted plus feedback training; live camera validation pending.",

@@ -18,12 +18,12 @@ def overlaps_face_as_small_hand(points, image_shape, boxes):
         if width <= 0 or height <= 0:
             continue
         inside = (x - .30 * width <= palm[0] <= x + 1.30 * width
-                  and y - .15 * height <= palm[1] <= y + 1.05 * height)
+                  and y - .15 * height <= palm[1] <= y + 1.10 * height)
         covered = ((pixels[:, 0] >= x - .30 * width)
                    & (pixels[:, 0] <= x + 1.30 * width)
                    & (pixels[:, 1] >= y - .15 * height)
-                   & (pixels[:, 1] <= y + 1.05 * height))
-        if inside and span < .70 * max(width, height) and covered.mean() >= .75:
+                   & (pixels[:, 1] <= y + 1.10 * height))
+        if inside and span < .80 * max(width, height) and covered.mean() >= .65:
             return True
     return False
 
@@ -78,7 +78,7 @@ class FaceGuard:
             self.detector = mp.tasks.vision.FaceDetector.create_from_options(
                 mp.tasks.vision.FaceDetectorOptions(
                     base_options=mp.tasks.BaseOptions(model_asset_path=str(model_path)),
-                    min_detection_confidence=.65,
+                    min_detection_confidence=.45,
                 ))
         except Exception as error:
             self.error = str(error)

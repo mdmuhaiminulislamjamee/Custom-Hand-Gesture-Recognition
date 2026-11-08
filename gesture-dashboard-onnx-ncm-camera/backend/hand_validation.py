@@ -23,12 +23,32 @@ def collapsed_finger_chains(points):
     return np.count_nonzero(np.asarray(lengths) < .12 * palm) >= 3
 
 
+def squashed_knuckle_span(points):
+    """Reject collapsed metacarpal span in 3D (e.g. ear ridges, neck creases).
+
+    In real human hands, the 3D metric distance between index knuckle (5) and
+    pinky knuckle (17) is rigidly bounded by the metacarpal bones: >= 0.35x palm length.
+    When a hand detector hallucinates on an ear or skin fold, all knuckles are
+    regressed along a narrow vertical curve (< 0.28x palm length).
+    """
+    points = np.asarray(points, dtype=float)
+    if points.shape[0] < 21:
+        return False
+    palm = float(np.linalg.norm(points[9] - points[0]))
+    knuckles = float(np.linalg.norm(points[5] - points[17]))
+    if not np.isfinite(palm) or palm < 1e-6:
+        return True
+    return (knuckles / palm) < 0.28
+
+
 def invalid_hand_geometry(points, image_shape, world=None):
     pixels = np.asarray(points) * [image_shape[1], image_shape[0]]
-    if not collapsed_finger_chains(pixels):
-        return False
     if world is not None:
-        world = np.asarray(world)
+        world = np.asarray(world, dtype=float)
         if world.shape == (21, 3) and np.isfinite(world).all():
-            return collapsed_finger_chains(world)
-    return True
+            if squashed_knuckle_span(world):
+                return True
+            if collapsed_finger_chains(pixels):
+                return collapsed_finger_chains(world)
+            return False
+    return collapsed_finger_chains(pixels)
