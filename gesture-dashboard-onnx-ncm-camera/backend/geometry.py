@@ -624,6 +624,7 @@ def foreshortened_fist_geometry(
     points = np.asarray(landmarks_xy, dtype=np.float32).reshape(21, 2)
     wrist = points[0]
     mcps = points[[5, 9, 13, 17]]
+    pips = points[[6, 10, 14, 18]]
     tips = points[[8, 12, 16, 20]]
     palm_center = mcps.mean(axis=0)
     palm_axis = palm_center - wrist
@@ -635,11 +636,15 @@ def foreshortened_fist_geometry(
             "mean_curlback_ratio": 0.0,
             "maximum_tip_radius_ratio": float("inf"),
             "thumb_radius_ratio": float("inf"),
+            "maximum_pip_overshoot_ratio": float("inf"),
         }
     palm_unit = palm_axis / palm_scale
     mcp_projection = (mcps - wrist) @ palm_unit
+    pip_projection = (pips - wrist) @ palm_unit
     tip_projection = (tips - wrist) @ palm_unit
     curlback = (mcp_projection - tip_projection) / palm_scale
+    pip_overshoot = (pip_projection - mcp_projection) / palm_scale
+    maximum_pip_overshoot = float(pip_overshoot.max())
     tip_radii = np.linalg.norm(tips - palm_center, axis=1) / palm_scale
     thumb_radius = float(np.linalg.norm(points[4] - palm_center) / palm_scale)
     retracted_count = int((curlback >= 0.05).sum())
@@ -650,6 +655,7 @@ def foreshortened_fist_geometry(
         and mean_curlback >= 0.16
         and maximum_tip_radius <= 0.85
         and thumb_radius <= 0.85
+        and maximum_pip_overshoot <= 0.65
     )
     return {
         "strong_geometry": strong,
@@ -657,6 +663,7 @@ def foreshortened_fist_geometry(
         "mean_curlback_ratio": mean_curlback,
         "maximum_tip_radius_ratio": maximum_tip_radius,
         "thumb_radius_ratio": thumb_radius,
+        "maximum_pip_overshoot_ratio": maximum_pip_overshoot,
     }
 
 
@@ -1656,6 +1663,8 @@ class GeometryResolver:
             float(non_thumb.max()) <= .55
             and float(non_thumb.mean()) <= .38
             and extensions[0] <= .85
+            and float(foreshortened_fist["thumb_radius_ratio"]) <= .85
+            and float(foreshortened_fist["maximum_pip_overshoot_ratio"]) <= .65
         )
         # A compact, tucked-thumb fist corroborated by 3-D joint bends does
         # not need a special screen-angle cone or a minimum Fist model score.
@@ -1782,6 +1791,10 @@ class GeometryResolver:
             and world_folded_fingers
             and float(foreshortened_fist["thumb_radius_ratio"]) <= .85
         )
+        palmar_closed_fist = bool(
+            surface.get("palm_visible", False)
+            and (fist_compact or foreshortened_fist["strong_geometry"])
+        )
 
         fist_valid = bool(
             fist_allowed_direction
@@ -1794,6 +1807,8 @@ class GeometryResolver:
                  or foreshortened_fist["strong_geometry"]
                  or (
                      fist_valid
+                     and float(foreshortened_fist["thumb_radius_ratio"]) <= .85
+                     and float(foreshortened_fist["maximum_pip_overshoot_ratio"]) <= .65
                      and float(non_thumb.max()) <= .42
                      and float(non_thumb.mean()) <= .28
                  ))
@@ -1890,6 +1905,12 @@ class GeometryResolver:
             reason = "fist fingers face away from the camera"
         elif raw == "fist" and not fist_screen_direction_allowed:
             reason = "fist points below the horizontal"
+        elif raw == "fist" and palmar_closed_fist:
+            reason = "fist shows palmar surface; back of hand required"
+        elif raw == "fist" and float(foreshortened_fist["maximum_pip_overshoot_ratio"]) > .65:
+            reason = "fist fingers extended above knuckles"
+        elif raw == "fist" and float(foreshortened_fist["thumb_radius_ratio"]) > .85:
+            reason = "fist thumb not tucked"
         elif raw == "like" and not like_finger_shape:
             reason = "like requires the thumb to lead and other fingers to stay folded"
         elif raw == "dorsal" and not deliberate_dorsal:
@@ -1994,6 +2015,7 @@ class GeometryResolver:
             ),
             "reverse_closed_fist": reverse_closed_fist,
             "downward_closed_fist": downward_closed_fist,
+            "palmar_closed_fist": palmar_closed_fist,
             "fist_foreshortened_relabel": fist_foreshortened_relabel,
             "fist_retracted_finger_count": int(
                 foreshortened_fist["retracted_finger_count"]
@@ -2006,6 +2028,9 @@ class GeometryResolver:
             ),
             "fist_thumb_radius_ratio": float(
                 foreshortened_fist["thumb_radius_ratio"]
+            ),
+            "fist_maximum_pip_overshoot_ratio": float(
+                foreshortened_fist["maximum_pip_overshoot_ratio"]
             ),
             "thumb_down_geometry_supported": thumb_down_geometry_supported,
             "hand_surface": surface["surface"],

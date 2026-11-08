@@ -129,3 +129,77 @@ def test_fist_rejects_diagonal_down_angles_for_both_hands(handedness, angle_deg,
     assert pose["valid"] is False
     assert pose["gesture"] == "fist"
 
+
+def test_cupped_hand_with_untucked_thumb_rejected_as_no_gesture():
+    """Verify Image 1 (cupped hand, untucked thumb) is rejected to no_gesture."""
+    from backend.hand_selection import gate_arguments
+    from backend.runtime import TemporalGate
+
+    config = RuntimeConfig()
+    resolver = GeometryResolver(config)
+
+    # Synthetic landmark trace matching Image 1: cupped fingers with untucked thumb
+    points, world = fist_at_xy_angle(-72, -0.375)
+    palm_center = points[[5, 9, 13, 17]].mean(axis=0)
+    palm_scale = float(np.linalg.norm(palm_center - points[0]))
+    points[4] = palm_center + np.array([-1.05 * palm_scale, 0.0], dtype=np.float32)
+    world[4, :2] = points[4]
+
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx["fist"]] = 0.988
+
+    resolved, details = resolver.resolve(
+        row, points, world_landmarks=world, require_fist_depth=True
+    )
+    pose = details["pose_validation"]
+    assert pose["valid"] is False
+    assert pose["reason"] == "fist thumb not tucked"
+
+    gate = TemporalGate(config)
+    decision = gate.update(
+        resolved, now=1.0, **gate_arguments(details, dict(known_gesture_mass=0.48))
+    )
+    assert decision.predicted_gesture == "no_gesture"
+    assert decision.reason == "fist thumb not tucked"
+
+
+def test_claw_cupped_hand_with_extended_pips_rejected_as_no_gesture():
+    """Verify latest user screenshot (cupped claw hand with tucked thumb) is rejected to no_gesture."""
+    from backend.hand_selection import gate_arguments
+    from backend.runtime import TemporalGate
+
+    config = RuntimeConfig()
+    resolver = GeometryResolver(config)
+
+    points, world = fist_at_xy_angle(-77, -0.30)
+    palm_center = points[[5, 9, 13, 17]].mean(axis=0)
+    palm_axis = palm_center - points[0]
+    palm_scale = float(np.linalg.norm(palm_axis))
+    palm_unit = palm_axis / palm_scale
+
+    # Extend PIPs upward by 0.90 palm scale beyond MCPs (claw / cup pose)
+    for mcp, pip, dip, tip in [(5, 6, 7, 8), (9, 10, 11, 12), (13, 14, 15, 16), (17, 18, 19, 20)]:
+        points[pip] = points[mcp] + palm_unit * (0.90 * palm_scale)
+        points[dip] = points[pip] - palm_unit * (0.45 * palm_scale)
+        points[tip] = points[dip] - palm_unit * (0.40 * palm_scale)
+        world[pip, :2] = points[pip]
+        world[dip, :2] = points[dip]
+        world[tip, :2] = points[tip]
+
+    row = np.zeros(len(config.class_names))
+    row[config.class_to_idx["fist"]] = 0.997
+
+    resolved, details = resolver.resolve(
+        row, points, world_landmarks=world, require_fist_depth=True
+    )
+    pose = details["pose_validation"]
+    assert pose["valid"] is False
+    assert pose["reason"] == "fist fingers extended above knuckles"
+
+    gate = TemporalGate(config)
+    decision = gate.update(
+        resolved, now=1.0, **gate_arguments(details, dict(known_gesture_mass=0.82))
+    )
+    assert decision.predicted_gesture == "no_gesture"
+    assert decision.reason == "fist fingers extended above knuckles"
+

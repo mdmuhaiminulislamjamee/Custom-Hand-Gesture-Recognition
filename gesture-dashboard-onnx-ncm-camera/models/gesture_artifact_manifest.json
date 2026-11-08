@@ -5,8 +5,8 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 12246,
-      "sha256": "45e12dd226e4b285d463f3512ce95ec9dde715ae68dc852e4992102385dff58d"
+      "bytes": 12245,
+      "sha256": "54f167cb1853508b9af77dec4f90efd09640a049cdca353d5bb05caa9f05bde8"
     },
     "gesture_mlp_production.onnx": {
       "bytes": 77797,
@@ -48,8 +48,8 @@
     "rock",
     "stop_inverted"
   ],
-  "created_utc": "2026-11-08T07:47:46.250207+00:00",
+  "created_utc": "2026-11-08T08:46:42.538786+00:00",
   "feature_count": 76,
-  "release_fingerprint": "8dd33f4374d3e465f0da31fb8072c467c8453fe87428224ba79d0aabcbcfbf27",
+  "release_fingerprint": "c68cc5e5fd012d2d058169fd40a0db911aa14ffc1754dec8317e7fe4bd7ee650",
   "schema_version": 1
 }

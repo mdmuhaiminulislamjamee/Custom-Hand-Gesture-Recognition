@@ -11,11 +11,16 @@ import csv
 import hashlib
 import json
 from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 from PIL import Image
 
-from backend.config import PROJECT_ROOT, load_runtime_config
+from backend.config import load_runtime_config
 from backend.geometry import GeometryResolver, landmarks_to_feature
 from backend.hand_selection import gate_arguments
 from backend.runtime import TemporalGate
@@ -26,8 +31,17 @@ def audit(model_path, feedback_path=None):
     config = load_runtime_config()
     feedback_path = feedback_path or PROJECT_ROOT / "feedback/misclassification_log.csv"
     with Path(feedback_path).open(encoding="utf-8-sig", newline="") as stream:
-        records = list(csv.DictReader(stream))
-    points = [np.asarray(json.loads(r["landmarks_json"]), np.float32) for r in records]
+        raw_records = list(csv.DictReader(stream))
+    records, points = [], []
+    for r in raw_records:
+        try:
+            pts = np.asarray(json.loads(r["landmarks_json"]), np.float32)
+            if pts.shape == (21, 2) and np.isfinite(pts).all():
+                landmarks_to_feature(pts)
+                records.append(r)
+                points.append(pts)
+        except Exception:
+            continue
     probabilities, masses = predict_onnx(Path(model_path), np.asarray([landmarks_to_feature(p) for p in points]))
     resolver = GeometryResolver(config)
     rows = []

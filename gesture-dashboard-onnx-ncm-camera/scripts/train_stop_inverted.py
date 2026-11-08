@@ -14,6 +14,11 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
@@ -21,6 +26,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from threadpoolctl import threadpool_limits
 
+from backend.artifact_integrity import ArtifactRegistry
 from backend.config import (CLASS_NAMES, FEATURE_NAMES, FEEDBACK_LABELS, GESTURE_TO_ACTION,
                             OPEN_PALM_MAX_TILT_FROM_UP_DEGREES,
                             OPEN_PALM_XY_MINIMUM_DEGREES, OPEN_PALM_XY_MAXIMUM_DEGREES,
@@ -33,7 +39,6 @@ from backend.config import RuntimeConfig
 from research.v18_20 import feature_keys, load_npz, predict_onnx
 from scripts.train_twelve_gesture_candidate import prepare as prepare_legacy, export_onnx, _partition
 
-ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts" / "stop_inverted"
 STOP = CLASS_NAMES.index("stop_inverted")
 REJECT = len(CLASS_NAMES)

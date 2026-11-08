@@ -11,11 +11,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import os
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 # Ensure thread limit for OpenBLAS on Windows
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
@@ -30,6 +32,7 @@ import numpy as np
 from backend.config import load_runtime_config
 from backend.model_runtime import InferenceEngine, RuntimeSession
 from backend.ncm_camera import NcmCameraClient, NcmCameraConfig
+from backend.storage import FeedbackRecord, FeedbackStore
 
 
 def _apply_runtime_profile(config, profile: str) -> None:
@@ -191,7 +194,8 @@ def main() -> None:
         client = NcmCameraClient(ncm_config)
         client.start()
         
-        window_title = f"{profile_title} ONNX Gesture Recognition - USB-NCM (q: exit, r: reset)"
+        recorder = LiveFeedbackRecorder(config)
+        window_title = f"{profile_title} ONNX Gesture Recognition - USB-NCM (q: exit, r: reset, c: log neg, b: burst 30, f: log fist)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
@@ -204,7 +208,7 @@ def main() -> None:
                 remaining = next_inference_at - time.monotonic()
                 if remaining > 0.0:
                     wait_ms = max(1, min(30, round(remaining * 1000)))
-                    if _handle_key(cv2.waitKey(wait_ms), session):
+                    if _handle_key(cv2.waitKey(wait_ms), session, recorder):
                         break
                     continue
                 frame_id, jpeg_bytes = client.wait_for_frame(
@@ -225,7 +229,7 @@ def main() -> None:
                             2,
                         )
                         cv2.imshow(window_title, display)
-                        if _handle_key(cv2.waitKey(30), session):
+                        if _handle_key(cv2.waitKey(30), session, recorder):
                             break
                     continue
 
@@ -234,6 +238,7 @@ def main() -> None:
                 last_frame_id = frame_id
                 frame = cv2.imdecode(np.frombuffer(jpeg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
                 if frame is not None:
+                    raw_frame = frame.copy()
                     admitted_at = time.monotonic()
                     next_inference_at = admitted_at + interval_seconds
                     # Decode once: the same BGR frame goes to inference and display.
@@ -243,10 +248,19 @@ def main() -> None:
                         source_frame_id=frame_id,
                         replaced_frames=replaced_frames,
                     )
+                    if recorder.is_burst_active:
+                        recorder.step_burst(result, raw_frame)
                     _draw_overlay(frame, result)
+                    recorder.draw_hud(frame)
                     cv2.imshow(window_title, frame)
 
-                if _handle_key(cv2.waitKey(1), session):
+                if _handle_key(
+                    cv2.waitKey(1),
+                    session,
+                    recorder,
+                    result if frame is not None else None,
+                    raw_frame if frame is not None else None,
+                ):
                     break
         finally:
             client.stop()
@@ -267,7 +281,8 @@ def main() -> None:
         print(f"Webcam capture: {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))} x "
               f"{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
 
-        window_title = f"{profile_title} ONNX Gesture Recognition - PC Webcam (q: exit, r: reset)"
+        recorder = LiveFeedbackRecorder(config)
+        window_title = f"{profile_title} ONNX Gesture Recognition - PC Webcam (q: exit, r: reset, c: log neg, b: burst 30, f: log fist)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
@@ -282,19 +297,20 @@ def main() -> None:
                 remaining = next_inference_at - time.monotonic()
                 if remaining > 0.0:
                     wait_ms = max(1, min(30, round(remaining * 1000)))
-                    if _handle_key(cv2.waitKey(wait_ms), session):
+                    if _handle_key(cv2.waitKey(wait_ms), session, recorder):
                         break
                     continue
                 frame_id, frame, captured_at = source.wait_for_frame(
                     last_frame_id, timeout_seconds=0.05
                 )
                 if frame is None or frame_id == last_frame_id:
-                    if _handle_key(cv2.waitKey(10), session):
+                    if _handle_key(cv2.waitKey(10), session, recorder):
                         break
                     continue
                 if last_frame_id >= 0:
                     replaced_frames += max(0, frame_id - last_frame_id - 1)
                 last_frame_id = frame_id
+                raw_frame = frame.copy()
                 admitted_at = time.monotonic()
                 next_inference_at = admitted_at + interval_seconds
                 # Pass BGR directly; avoid an unnecessary JPEG encode/decode pair.
@@ -304,10 +320,13 @@ def main() -> None:
                     source_frame_id=frame_id,
                     replaced_frames=replaced_frames,
                 )
+                if recorder.is_burst_active:
+                    recorder.step_burst(result, raw_frame)
                 _draw_overlay(frame, result)
+                recorder.draw_hud(frame)
                 cv2.imshow(window_title, frame)
 
-                if _handle_key(cv2.waitKey(1), session):
+                if _handle_key(cv2.waitKey(1), session, recorder, result, raw_frame):
                     break
         finally:
             source.stop()
@@ -315,11 +334,135 @@ def main() -> None:
             engine.close()
 
 
-def _handle_key(key: int, session: RuntimeSession) -> bool:
+class LiveFeedbackRecorder:
+    def __init__(self, config):
+        self.store = FeedbackStore(config)
+        self.status_message: str = ""
+        self.status_until: float = 0.0
+        self.status_color: tuple[int, int, int] = (0, 255, 255)
+        self.burst_target: int = 0
+        self.burst_count: int = 0
+        self.burst_label: str = "no_gesture"
+        self._last_saved_time: float = 0.0
+
+    @property
+    def is_burst_active(self) -> bool:
+        return self.burst_count < self.burst_target
+
+    def record_single(
+        self,
+        result: dict[str, Any] | None,
+        clean_frame: np.ndarray | None,
+        actual_label: str = "no_gesture",
+        note: str = "cupped_hand_negative",
+    ) -> bool:
+        if result is None or clean_frame is None:
+            self.set_message("No frame available to record", duration=2.0, color=(0, 0, 255))
+            return False
+        landmarks = result.get("landmarks")
+        if not landmarks or len(landmarks) != 21:
+            self.set_message("No hand detected! Position hand in frame.", duration=2.0, color=(0, 0, 255))
+            print("\n[FEEDBACK] Cannot record: No hand landmarks detected in this frame.")
+            return False
+
+        success, buffer = cv2.imencode(".jpg", clean_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+        if not success:
+            return False
+        data_url = "data:image/jpeg;base64," + base64.b64encode(buffer).decode("ascii")
+
+        raw_pred = result.get("raw_prediction") or result.get("runtime_prediction") or "fist"
+        record_note = note or f"hard_negative_suppressing_{raw_pred}"
+        record = FeedbackRecord(
+            actual_label=actual_label,
+            predicted_label=raw_pred,
+            runtime_action=result.get("runtime_action", "Wait / No Action"),
+            confidence=float(result.get("confidence", 0.0)),
+            model_name="ONNX",
+            probabilities=result.get("probabilities", {}),
+            feature_vector=result.get("feature_vector"),
+            landmarks=landmarks,
+            note=record_note,
+            snapshot_data_url=data_url,
+        )
+        saved = self.store.save(record)
+        fid = saved.get("feedback_id", "")[:8]
+        msg = f"SAVED #{fid}: Recorded as '{actual_label}' (suppressing '{raw_pred}')"
+        self.set_message(msg, duration=2.5, color=(0, 255, 120) if actual_label == "no_gesture" else (255, 200, 0))
+        print(f"\n[FEEDBACK] Logged sample ({actual_label}): ID={fid}, Predicted={raw_pred}, Conf={record.confidence:.2f}")
+        return True
+
+    def start_burst(self, target: int = 30, actual_label: str = "no_gesture"):
+        self.burst_target = target
+        self.burst_count = 0
+        self.burst_label = actual_label
+        self.set_message(f"BURST STARTED: Hold pose (target: {target})...", duration=2.0, color=(0, 255, 255))
+        print(f"\n[FEEDBACK] Burst recording started ({target} frames as '{actual_label}').")
+        print("[FEEDBACK] Slowly tilt and rotate your hand in view of the camera...")
+
+    def step_burst(self, result: dict[str, Any] | None, clean_frame: np.ndarray | None):
+        if not self.is_burst_active or result is None or clean_frame is None:
+            return
+        now = time.monotonic()
+        if now - self._last_saved_time < 0.10:
+            return
+        landmarks = result.get("landmarks")
+        if not landmarks or len(landmarks) != 21:
+            return
+        raw_pred = result.get("raw_prediction") or result.get("runtime_prediction") or "gesture"
+        if self.record_single(result, clean_frame, actual_label=self.burst_label, note=f"burst_hard_negative_suppressing_{raw_pred}"):
+            self.burst_count += 1
+            self._last_saved_time = now
+            if self.burst_count >= self.burst_target:
+                msg = f"BURST COMPLETE: {self.burst_count} samples saved to feedback log!"
+                self.set_message(msg, duration=5.0, color=(0, 255, 0))
+                print(f"\n[FEEDBACK] *** Burst complete: {self.burst_count} samples logged successfully! ***")
+                print("[FEEDBACK] Run 'python scripts/retrain_with_feedback.py' to update the ONNX model.")
+            else:
+                pct = int(self.burst_count / self.burst_target * 100)
+                msg = f"BURST: {self.burst_count}/{self.burst_target} ({pct}%) - Tilt/turn hand gently"
+                self.set_message(msg, duration=1.0, color=(0, 255, 255))
+
+    def set_message(self, message: str, duration: float = 2.5, color: tuple[int, int, int] = (0, 255, 255)):
+        self.status_message = message
+        self.status_until = time.monotonic() + duration
+        self.status_color = color
+
+    def draw_hud(self, frame: np.ndarray):
+        if time.monotonic() < self.status_until and self.status_message:
+            h, w = frame.shape[:2]
+            box_h = 36
+            box_y = h - 65
+            cv2.rectangle(frame, (10, box_y), (w - 10, box_y + box_h), (20, 20, 20), -1)
+            cv2.rectangle(frame, (10, box_y), (w - 10, box_y + box_h), self.status_color, 2)
+            cv2.putText(
+                frame,
+                self.status_message,
+                (20, box_y + 24),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                self.status_color,
+                2,
+                cv2.LINE_AA,
+            )
+
+
+def _handle_key(
+    key: int,
+    session: RuntimeSession,
+    recorder: LiveFeedbackRecorder | None = None,
+    result: dict[str, Any] | None = None,
+    clean_frame: np.ndarray | None = None,
+) -> bool:
     key &= 0xFF
     if key == ord("r"):
         session.reset()
         print("Hand selection reset; hold a clear gesture to select the visible hand.")
+    elif key in (ord("c"), ord("n")) and recorder is not None:
+        recorder.record_single(result, clean_frame, actual_label="no_gesture", note="cupped_hand_negative")
+    elif key == ord("b") and recorder is not None:
+        recorder.start_burst(target=30, actual_label="no_gesture")
+    elif key == ord("f") and recorder is not None:
+        recorder.record_single(result, clean_frame, actual_label="fist", note="user_fist_positive")
     return key in (ord("q"), 27)
 
 
