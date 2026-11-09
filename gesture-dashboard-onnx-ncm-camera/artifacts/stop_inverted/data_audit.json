@@ -146,8 +146,8 @@
     "test": 1019
   },
   "feedback": {
-    "sha256": "9ac61c485f2a2db7131626f218282234ede2fcf1cd3f6dfb227a4c7fd145b7b3",
-    "rows": 286,
+    "sha256": "0c43af585e2722a19bb7b30e34b45a16ebecf33191336dcf9a4f52d462fba7dc",
+    "rows": 1315,
     "class_counts": {
       "left": 30,
       "right": 48,
@@ -157,12 +157,12 @@
       "like": 0,
       "dorsal": 0,
       "ok": 0,
-      "fist": 151,
+      "fist": 159,
       "thumb_down": 0,
       "peace": 12,
       "rock": 0,
       "stop_inverted": 0,
-      "no_gesture": 45
+      "no_gesture": 1066
     },
     "skipped": [
       {
@@ -237,12 +237,12 @@
       "like": 8192,
       "dorsal": 4096,
       "ok": 4096,
-      "fist": 23424,
+      "fist": 24448,
       "thumb_down": 8192,
       "peace": 5632,
       "rock": 4096,
       "stop_inverted": 10271,
-      "no_gesture": 22146
+      "no_gesture": 152834
     },
     "val": {
       "left": 710,

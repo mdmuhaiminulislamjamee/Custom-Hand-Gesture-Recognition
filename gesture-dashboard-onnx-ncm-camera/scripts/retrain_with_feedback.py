@@ -89,9 +89,10 @@ def main():
         "Running qualification test suite",
         [
             python_bin,
-            "-m", "unittest",
+            "-m", "pytest",
             "backend/tests/test_onnx_runtime.py",
             "backend/tests/test_dorsal_and_fist_stability.py",
+            "backend/tests/test_false_hand_rejection.py",
         ],
     )
 

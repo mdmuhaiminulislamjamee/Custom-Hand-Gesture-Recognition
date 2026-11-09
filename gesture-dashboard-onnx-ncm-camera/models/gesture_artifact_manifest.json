@@ -5,28 +5,28 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 12245,
-      "sha256": "54f167cb1853508b9af77dec4f90efd09640a049cdca353d5bb05caa9f05bde8"
+      "bytes": 13760,
+      "sha256": "c3bbc2970be7bf337d37b1198fc969a5264a8701f3703b5e9297d8bc6f66dfed"
     },
     "gesture_mlp_production.onnx": {
       "bytes": 77797,
-      "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
+      "sha256": "b635aba897e16b2d19188b0354b79aa075090273596c603e5b2b449d2fa8cda8"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 9536,
-      "sha256": "c5ebf96f19ab28f39664bc3b096c6180fb36a74eb0ead501a6052411978679b8"
+      "bytes": 9520,
+      "sha256": "d09acbe36cedb84cf7ecdb9e92ad27eb31a79b273633d5da845e7f8496a67378"
     },
     "gesture_online_replay_cache.npz": {
-      "bytes": 863867,
-      "sha256": "351a59f4d64e0db69b3575fc21da59a3e68179d6054814c1cd141c0b461b8245"
+      "bytes": 856571,
+      "sha256": "00d6968883231808408f0c96f6ddf67e574b4c0767cc7cb1fd1b68a40e1c8b51"
     },
     "gesture_online_untouched_test_cache.npz": {
-      "bytes": 3731833,
-      "sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008"
+      "bytes": 3731693,
+      "sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd"
     },
     "gesture_online_validation_cache.npz": {
-      "bytes": 3700920,
-      "sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648"
+      "bytes": 3700818,
+      "sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a"
     },
     "hand_landmarker.task": {
       "bytes": 7819105,
@@ -48,8 +48,8 @@
     "rock",
     "stop_inverted"
   ],
-  "created_utc": "2026-11-08T08:46:42.538786+00:00",
+  "created_utc": "2026-11-08T11:03:12.085448+00:00",
   "feature_count": 76,
-  "release_fingerprint": "c68cc5e5fd012d2d058169fd40a0db911aa14ffc1754dec8317e7fe4bd7ee650",
+  "release_fingerprint": "67232f1b53d7c41de67ec8503c1242bf41eaad83d8cf1dc3c223f1345c00008d",
   "schema_version": 1
 }

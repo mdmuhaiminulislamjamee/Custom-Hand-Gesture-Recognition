@@ -1,11 +1,11 @@
 {
   "schema_version": 4,
-  "created_utc": "2026-10-27T04:16:50.193943+00:00",
+  "created_utc": "2026-11-08T11:03:10.251961+00:00",
   "format": "ONNX",
   "model_name": "StopInvertedDirectionalFeedbackMLP",
   "onnx_file": "gesture_mlp_production.onnx",
   "onnx_bytes": 77797,
-  "onnx_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
+  "onnx_sha256": "b635aba897e16b2d19188b0354b79aa075090273596c603e5b2b449d2fa8cda8",
   "input": {
     "name": "landmark_features",
     "dtype": "float32",
@@ -149,16 +149,16 @@
   "parity": {
     "passed": true,
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 1.5795230865478516e-06,
-    "maximum_absolute_mass_error": 2.7418136596679688e-06
+    "maximum_absolute_probability_error": 1.817941665649414e-06,
+    "maximum_absolute_mass_error": 1.7881393432617188e-06
   },
   "quality": {
-    "macro_f1": 0.9908890016597183,
-    "accepted_precision": 0.9949488727362326,
-    "unknown_false_acceptance_rate": 0.011123470522803115,
-    "old_command_correct_accept_rate": 0.9907368421052631,
+    "macro_f1": 0.9898906355558826,
+    "accepted_precision": 0.9949238578680203,
+    "unknown_false_acceptance_rate": 0.014234875444839857,
+    "old_command_correct_accept_rate": 0.9889855072463768,
     "new_command_recall": {
-      "stop_inverted": 0.9990176817288802
+      "stop_inverted": 0.9980353634577603
     }
   },
   "qualification": {
@@ -292,21 +292,27 @@
         ]
       },
       "open_hand_rotation": {
-        "xy_minimum": -180.0,
-        "xy_maximum": 0.0,
+        "xy_minimum": -160.0,
+        "xy_maximum": -20.0,
         "endpoints_inclusive": true,
-        "maximum_tilt_from_up": 90.0,
+        "maximum_tilt_from_up": 70.0,
         "classifier_synthetic_guard_band_degrees": 10.0,
         "normalized_xy_aspect_augmentation": [
           0.5,
           2.0
         ],
-        "runtime_still_rejects_entire_lower_half": true
+        "runtime_rejects_outside_band": true
       },
-      "legacy_palm_rows_relabelled_for_upper_arc": {
-        "train": 988,
-        "val": 185,
-        "test": 226
+      "stop_inverted_rotation": {
+        "xy_minimum": -145.0,
+        "xy_maximum": -35.0,
+        "maximum_tilt_from_up": 55.0,
+        "endpoints_inclusive": true
+      },
+      "legacy_palm_rows_relabelled_for_angle_band": {
+        "train": 3,
+        "val": 4,
+        "test": 1
       },
       "expanded_thumb_direction_training_rows": 8192,
       "reviewed_horizontal_augmentation": {
@@ -328,8 +334,8 @@
         "test": 1019
       },
       "feedback": {
-        "sha256": "197f49dfb4db1e5f05c4a601e51ad637e63d54d81b4052eb365132a4dd038589",
-        "rows": 103,
+        "sha256": "0c43af585e2722a19bb7b30e34b45a16ebecf33191336dcf9a4f52d462fba7dc",
+        "rows": 1315,
         "class_counts": {
           "left": 30,
           "right": 48,
@@ -339,14 +345,59 @@
           "like": 0,
           "dorsal": 0,
           "ok": 0,
-          "fist": 0,
+          "fist": 159,
           "thumb_down": 0,
           "peace": 12,
           "rock": 0,
           "stop_inverted": 0,
-          "no_gesture": 13
+          "no_gesture": 1066
         },
-        "skipped": [],
+        "skipped": [
+          {
+            "id": "58c362f301230701",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "51aa131af707c6fa",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "ae75493852f79aa3",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "891ee2d11c534a35",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "53fa27b269752c97",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "01a1b5ae2adf4a1e",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "aa694d66c3b9abd8",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "2df21c4976cef30a",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "97c06b019b756991",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "7c97aaa4ae245b26",
+            "reason": "missing finite 21x2 landmarks"
+          },
+          {
+            "id": "9108a6605f5f4721",
+            "reason": "missing finite 21x2 landmarks"
+          }
+        ],
         "evaluation_use": "training only; participant/session metadata is absent"
       },
       "ambiguous_legacy_dorsal_excluded": {
@@ -370,23 +421,23 @@
           "right": 16384,
           "up": 6144,
           "down": 6144,
-          "open_palm": 9180,
+          "open_palm": 8195,
           "like": 8192,
           "dorsal": 4096,
           "ok": 4096,
-          "fist": 4096,
+          "fist": 24448,
           "thumb_down": 8192,
           "peace": 5632,
           "rock": 4096,
-          "stop_inverted": 10273,
-          "no_gesture": 17063
+          "stop_inverted": 10271,
+          "no_gesture": 152834
         },
         "val": {
           "left": 710,
           "right": 710,
           "up": 710,
           "down": 710,
-          "open_palm": 860,
+          "open_palm": 679,
           "like": 698,
           "dorsal": 263,
           "ok": 668,
@@ -395,14 +446,14 @@
           "peace": 314,
           "rock": 303,
           "stop_inverted": 1095,
-          "no_gesture": 600
+          "no_gesture": 781
         },
         "test": {
           "left": 677,
           "right": 677,
           "up": 677,
           "down": 677,
-          "open_palm": 963,
+          "open_palm": 738,
           "like": 706,
           "dorsal": 331,
           "ok": 714,
@@ -411,7 +462,7 @@
           "peace": 299,
           "rock": 310,
           "stop_inverted": 1018,
-          "no_gesture": 568
+          "no_gesture": 793
         }
       },
       "limitations": [
@@ -423,7 +474,7 @@
       ]
     },
     "selection": {
-      "model_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
+      "model_sha256": "b635aba897e16b2d19188b0354b79aa075090273596c603e5b2b449d2fa8cda8",
       "known_mass_floor": 0.7,
       "confidence_floor": 0.75,
       "probability_margin_floor": 0.1
@@ -439,11 +490,11 @@
     "like": 0,
     "dorsal": 0,
     "ok": 0,
-    "fist": 0,
+    "fist": 64,
     "thumb_down": 0,
     "peace": 12,
     "rock": 0,
     "stop_inverted": 0,
-    "no_gesture": 13
+    "no_gesture": 64
   }
 }

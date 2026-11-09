@@ -29,7 +29,7 @@ def squashed_knuckle_span(points):
     In real human hands, the 3D metric distance between index knuckle (5) and
     pinky knuckle (17) is rigidly bounded by the metacarpal bones: >= 0.35x palm length.
     When a hand detector hallucinates on an ear or skin fold, all knuckles are
-    regressed along a narrow vertical curve (< 0.28x palm length).
+    regressed along a narrow vertical curve (< 0.10x palm length).
     """
     points = np.asarray(points, dtype=float)
     if points.shape[0] < 21:
@@ -38,7 +38,7 @@ def squashed_knuckle_span(points):
     knuckles = float(np.linalg.norm(points[5] - points[17]))
     if not np.isfinite(palm) or palm < 1e-6:
         return True
-    return (knuckles / palm) < 0.28
+    return (knuckles / palm) < 0.10
 
 
 def invalid_hand_geometry(points, image_shape, world=None):

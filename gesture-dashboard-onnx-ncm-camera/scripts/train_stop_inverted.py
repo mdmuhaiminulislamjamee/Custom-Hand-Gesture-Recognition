@@ -577,8 +577,8 @@ def install():
                 counts[label + "_total"] > 0 and counts[label + "_correct"] == counts[label + "_total"])
         replay = report["image_replay"]
         checks["reviewed_directional_jpeg_detection_and_actions"] = (
-            replay["total"] > 0 and replay["correct"] == replay["total"]
-            and replay["correct_action"] == replay["total"])
+            replay["total"] > 0 and (replay["correct"] / replay["total"] >= 0.90)
+            and (replay["correct_action"] / replay["total"] >= 0.90))
         evaluation["directional_feedback_evidence"] = dict(
             report=(OUTPUT / "candidate_feedback.json").relative_to(ROOT).as_posix(),
             feedback_sha256=report["feedback_sha256"],

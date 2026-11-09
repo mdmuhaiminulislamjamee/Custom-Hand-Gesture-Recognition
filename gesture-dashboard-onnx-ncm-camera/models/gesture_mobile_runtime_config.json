@@ -284,7 +284,7 @@
     "above_limit": "no_gesture"
   },
   "stop_inverted_release": {
-    "model_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
+    "model_sha256": "b635aba897e16b2d19188b0354b79aa075090273596c603e5b2b449d2fa8cda8",
     "offline_checks": {
       "onnx_parity": true,
       "offline_macro_f1_at_least_0_97": true,
@@ -307,7 +307,7 @@
       "reviewed_right_angle_mirror_aspect_variants": true,
       "reviewed_directional_jpeg_detection_and_actions": true
     },
-    "evaluation": "artifacts/directional_feedback_20261027/evaluation.json",
+    "evaluation": "artifacts/stop_inverted/evaluation.json",
     "live_camera_validation_pending": true
   },
   "open_palm_rotation_validation": {

@@ -1,0 +1,55 @@
+{
+  "artifacts": {
+    "blaze_face_short_range.tflite": {
+      "bytes": 229746,
+      "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+    },
+    "gesture_mlp_onnx_metadata.json": {
+      "bytes": 12245,
+      "sha256": "54f167cb1853508b9af77dec4f90efd09640a049cdca353d5bb05caa9f05bde8"
+    },
+    "gesture_mlp_production.onnx": {
+      "bytes": 77797,
+      "sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331"
+    },
+    "gesture_mobile_runtime_config.json": {
+      "bytes": 9536,
+      "sha256": "c5ebf96f19ab28f39664bc3b096c6180fb36a74eb0ead501a6052411978679b8"
+    },
+    "gesture_online_replay_cache.npz": {
+      "bytes": 863867,
+      "sha256": "351a59f4d64e0db69b3575fc21da59a3e68179d6054814c1cd141c0b461b8245"
+    },
+    "gesture_online_untouched_test_cache.npz": {
+      "bytes": 3731833,
+      "sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008"
+    },
+    "gesture_online_validation_cache.npz": {
+      "bytes": 3700920,
+      "sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648"
+    },
+    "hand_landmarker.task": {
+      "bytes": 7819105,
+      "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+    }
+  },
+  "class_names": [
+    "left",
+    "right",
+    "up",
+    "down",
+    "open_palm",
+    "like",
+    "dorsal",
+    "ok",
+    "fist",
+    "thumb_down",
+    "peace",
+    "rock",
+    "stop_inverted"
+  ],
+  "created_utc": "2026-11-08T08:46:42.538786+00:00",
+  "feature_count": 76,
+  "release_fingerprint": "c68cc5e5fd012d2d058169fd40a0db911aa14ffc1754dec8317e7fe4bd7ee650",
+  "schema_version": 1
+}
