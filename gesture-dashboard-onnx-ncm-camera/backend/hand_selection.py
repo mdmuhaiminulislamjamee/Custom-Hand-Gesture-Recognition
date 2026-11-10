@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
+from typing import Any
 
 import numpy as np
 
@@ -60,7 +61,7 @@ def palm_center(row):
     return np.asarray(row["points"])[[0, 5, 9, 13, 17]].mean(axis=0)
 
 
-def gate_arguments(details, quality):
+def gate_arguments(details, quality) -> dict[str, Any]:
     """Use the production geometry/open-set rules for every hand candidate."""
     pose = details.get("pose_validation") or {}
     direction = details.get("directional") or {}
@@ -316,7 +317,7 @@ class AutomaticHandSelector:
         self._image_shape = shape
         dimensions = np.array([shape[1], shape[0]])
         self._empty_since = None if rows else (now if self._empty_since is None else self._empty_since)
-        if self.active_id is not None and self._empty_since is not None and now - self._empty_since >= self.policy.track_expiry_seconds:
+        if self.active_id is not None and self._empty_since is not None and now - self._empty_since >= 0.30:
             self._release_ownership()
         self.tracks = {key: track for key, track in self.tracks.items()
                        if key == self.active_id or now - track.last_seen < self.policy.track_expiry_seconds}
@@ -427,7 +428,7 @@ class AutomaticHandSelector:
             previews[i].update(track_id=key, handedness=row.get("handedness"),
                                handedness_stable=track.handedness_locked,
                                raw_handedness=row["raw_handedness"],
-                               display_landmarks=track.display_points.round(6).tolist())
+                               display_landmarks=track.display_points.round(6).tolist() if track.display_points is not None else None)
             if i in usable and not row.get("rejection_reason"):
                 current[key] = i
             else:
@@ -453,8 +454,9 @@ class AutomaticHandSelector:
             if not np.all((row["points"] >= .01) & (row["points"] <= .99)):
                 reason = "dorsal_hand_cropped"
             preview["dorsal_hand_reason"] = reason
+        expiry_seconds = 0.32 if len(rows) == 1 else self.policy.track_expiry_seconds
         if (self.active_id is not None and self.active_id not in current
-                and now - self.tracks[self.active_id].last_seen >= self.policy.track_expiry_seconds):
+                and now - self.tracks[self.active_id].last_seen >= expiry_seconds):
             # A different visible hand must not inherit the owner's gesture
             # immediately. Once that owner has truly disappeared, release its
             # lock and build a fresh hold for the observed hand on later frames.

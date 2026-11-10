@@ -1,11 +1,11 @@
 {
   "schema_version": 4,
-  "created_utc": "2026-11-08T11:03:10.251961+00:00",
+  "created_utc": "2026-11-10T04:30:50.300840+00:00",
   "format": "ONNX",
   "model_name": "StopInvertedDirectionalFeedbackMLP",
   "onnx_file": "gesture_mlp_production.onnx",
   "onnx_bytes": 77797,
-  "onnx_sha256": "b635aba897e16b2d19188b0354b79aa075090273596c603e5b2b449d2fa8cda8",
+  "onnx_sha256": "bb1df78e02ec0aaf8d55fe9edb78503d2ca5b473245a15c0cc3f7c37c91de2b2",
   "input": {
     "name": "landmark_features",
     "dtype": "float32",
@@ -149,16 +149,16 @@
   "parity": {
     "passed": true,
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 1.817941665649414e-06,
-    "maximum_absolute_mass_error": 1.7881393432617188e-06
+    "maximum_absolute_probability_error": 1.7881393432617188e-06,
+    "maximum_absolute_mass_error": 1.6093254089355469e-06
   },
   "quality": {
-    "macro_f1": 0.9898906355558826,
-    "accepted_precision": 0.9949238578680203,
-    "unknown_false_acceptance_rate": 0.014234875444839857,
-    "old_command_correct_accept_rate": 0.9889855072463768,
+    "macro_f1": 0.9892387790166107,
+    "accepted_precision": 0.9942849885699772,
+    "unknown_false_acceptance_rate": 0.010676156583629894,
+    "old_command_correct_accept_rate": 0.9876811594202899,
     "new_command_recall": {
-      "stop_inverted": 0.9980353634577603
+      "stop_inverted": 0.9960707269155207
     }
   },
   "qualification": {
@@ -334,23 +334,23 @@
         "test": 1019
       },
       "feedback": {
-        "sha256": "0c43af585e2722a19bb7b30e34b45a16ebecf33191336dcf9a4f52d462fba7dc",
-        "rows": 1315,
+        "sha256": "98dd11b159a6322ec978a3ecd2b136c2f3cdbcc152dc109887daa12746461823",
+        "rows": 2335,
         "class_counts": {
-          "left": 30,
-          "right": 48,
+          "left": 180,
+          "right": 138,
           "up": 0,
-          "down": 0,
+          "down": 270,
           "open_palm": 0,
-          "like": 0,
+          "like": 90,
           "dorsal": 0,
           "ok": 0,
           "fist": 159,
           "thumb_down": 0,
-          "peace": 12,
+          "peace": 102,
           "rock": 0,
           "stop_inverted": 0,
-          "no_gesture": 1066
+          "no_gesture": 1396
         },
         "skipped": [
           {
@@ -398,7 +398,8 @@
             "reason": "missing finite 21x2 landmarks"
           }
         ],
-        "evaluation_use": "training only; participant/session metadata is absent"
+        "evaluation_use": "training only; participant/session metadata is absent",
+        "repeat_factor": 2
       },
       "ambiguous_legacy_dorsal_excluded": {
         "train": 0,
@@ -417,20 +418,20 @@
       },
       "counts": {
         "train": {
-          "left": 14080,
-          "right": 16384,
+          "left": 10600,
+          "right": 10516,
           "up": 6144,
-          "down": 6144,
+          "down": 6684,
           "open_palm": 8195,
-          "like": 8192,
+          "like": 8372,
           "dorsal": 4096,
           "ok": 4096,
-          "fist": 24448,
+          "fist": 4414,
           "thumb_down": 8192,
-          "peace": 5632,
+          "peace": 4300,
           "rock": 4096,
           "stop_inverted": 10271,
-          "no_gesture": 152834
+          "no_gesture": 19178
         },
         "val": {
           "left": 710,
@@ -474,7 +475,7 @@
       ]
     },
     "selection": {
-      "model_sha256": "b635aba897e16b2d19188b0354b79aa075090273596c603e5b2b449d2fa8cda8",
+      "model_sha256": "bb1df78e02ec0aaf8d55fe9edb78503d2ca5b473245a15c0cc3f7c37c91de2b2",
       "known_mass_floor": 0.7,
       "confidence_floor": 0.75,
       "probability_margin_floor": 0.1
@@ -482,17 +483,17 @@
   },
   "runtime_note": "Stop inverted plus feedback training; live camera validation pending.",
   "reviewed_feedback_replay_counts": {
-    "left": 29,
-    "right": 48,
+    "left": 64,
+    "right": 64,
     "up": 0,
-    "down": 0,
+    "down": 64,
     "open_palm": 0,
-    "like": 0,
+    "like": 64,
     "dorsal": 0,
     "ok": 0,
     "fist": 64,
     "thumb_down": 0,
-    "peace": 12,
+    "peace": 64,
     "rock": 0,
     "stop_inverted": 0,
     "no_gesture": 64

@@ -21,12 +21,28 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def get_python_interpreter() -> str:
+    venv_win = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
+    venv_unix = PROJECT_ROOT / ".venv" / "bin" / "python"
+    for venv_path in (venv_win, venv_unix):
+        if venv_path.is_file():
+            return str(venv_path)
+    return sys.executable
+
+
 def run_step(description: str, cmd: list[str]) -> None:
     print(f"\n>>> [STEP] {description}...")
     print(f"    Command: {' '.join(cmd)}")
     start = time.perf_counter()
     env = os.environ.copy()
     env["OPENBLAS_NUM_THREADS"] = "1"
+    env["PYTHONUNBUFFERED"] = "1"
+    venv_dir = PROJECT_ROOT / ".venv"
+    if venv_dir.is_dir():
+        env["VIRTUAL_ENV"] = str(venv_dir)
+        scripts_dir = venv_dir / ("Scripts" if os.name == "nt" else "bin")
+        if scripts_dir.is_dir():
+            env["PATH"] = str(scripts_dir) + os.pathsep + env.get("PATH", "")
     process = subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env)
     elapsed = time.perf_counter() - start
     if process.returncode != 0:
@@ -40,7 +56,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=100, help="Maximum training epochs (default: 100)")
     args = parser.parse_args()
 
-    python_bin = sys.executable
+    python_bin = get_python_interpreter()
 
     print("\n" + "=" * 65)
     print("      GESTURE RECOGNITION RETRAINING PIPELINE      ")

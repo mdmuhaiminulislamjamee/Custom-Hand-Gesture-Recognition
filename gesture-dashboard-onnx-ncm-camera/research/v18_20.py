@@ -331,12 +331,12 @@ def export_onnx(root, model, scaler, path):
     Path(path).with_suffix('.parity.json').write_text(json.dumps(parity, indent=2) + '\n')
 
 
-def predict_onnx(path, features):
+def predict_onnx(path, features) -> tuple[np.ndarray, np.ndarray]:
     import onnxruntime as ort
     options = ort.SessionOptions(); options.intra_op_num_threads = 1; options.inter_op_num_threads = 1
     session = ort.InferenceSession(str(path), sess_options=options, providers=['CPUExecutionProvider'])
     p, mass = session.run(['probabilities', 'known_gesture_mass'], {'landmark_features': np.asarray(features, np.float32)})
-    return p, mass.reshape(-1)
+    return np.asarray(p), np.asarray(mass).reshape(-1)
 
 
 def benchmark(path, features, repeats=300):

@@ -26,6 +26,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Auto-detect virtualenv if running outside .venv
+try:
+    import cv2
+except ModuleNotFoundError:
+    venv_py = (PROJECT_ROOT / ".venv" / "Scripts" / "python.exe") if os.name == "nt" else (PROJECT_ROOT / ".venv" / "bin" / "python")
+    if venv_py.is_file() and Path(sys.executable).resolve() != venv_py.resolve():
+        import subprocess
+        res = subprocess.run([str(venv_py)] + sys.argv, cwd=str(PROJECT_ROOT))
+        sys.exit(res.returncode)
+    raise
+
 import cv2
 import numpy as np
 
@@ -186,7 +197,20 @@ def main() -> None:
         return
 
     print("Models loaded successfully!")
-    print("Press 'q' or 'ESC' to exit; press 'r' to reset hand selection.\n")
+    print("----------------------------------------------------------------------")
+    print(" LIVE GESTURE TRAINING RECORDER CONTROLS:")
+    print("   [SPACE] / [c] : Save 1 sample of active recording gesture")
+    print("   [b]           : Start 30-frame BURST of active gesture (tilt/rotate hand)")
+    print("   [TAB] / [g]   : Cycle to the NEXT gesture in the taxonomy")
+    print("   [0] - [9]     : Quick-jump to target gesture:")
+    print("                   0: no_gesture    1: fist         2: open_palm")
+    print("                   3: peace         4: like         5: thumb_down")
+    print("                   6: ok            7: rock         8: stop_inverted")
+    print("                   9 / [: left      ] / o: right    - / u: up    = / d: down")
+    print("   [h]           : Toggle on-screen cheatsheet & gesture menu")
+    print("   [r]           : Reset hand selection")
+    print("   [q] / [ESC]   : Exit live camera")
+    print("----------------------------------------------------------------------\n")
 
     if args.source == "ncm":
         print("Connecting to USB-NCM camera at 192.168.50.2:5000...")
@@ -195,7 +219,7 @@ def main() -> None:
         client.start()
         
         recorder = LiveFeedbackRecorder(config)
-        window_title = f"{profile_title} ONNX Gesture Recognition - USB-NCM (q: exit, r: reset, c: log neg, b: burst 30, f: log fist)"
+        window_title = f"{profile_title} ONNX Gesture Recognition - USB-NCM (SPACE: 1x, b: burst 30, TAB: select, h: help, q: exit)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
@@ -203,12 +227,14 @@ def main() -> None:
         replaced_frames = 0
         next_inference_at = 0.0
         interval_seconds = config.frame_interval_ms / 1000.0
+        latest_result = None
+        latest_raw_frame = None
         try:
             while True:
                 remaining = next_inference_at - time.monotonic()
                 if remaining > 0.0:
                     wait_ms = max(1, min(30, round(remaining * 1000)))
-                    if _handle_key(cv2.waitKey(wait_ms), session, recorder):
+                    if _handle_key(cv2.waitKey(wait_ms), session, recorder, latest_result, latest_raw_frame):
                         break
                     continue
                 frame_id, jpeg_bytes = client.wait_for_frame(
@@ -229,7 +255,7 @@ def main() -> None:
                             2,
                         )
                         cv2.imshow(window_title, display)
-                        if _handle_key(cv2.waitKey(30), session, recorder):
+                        if _handle_key(cv2.waitKey(30), session, recorder, latest_result, latest_raw_frame):
                             break
                     continue
 
@@ -239,10 +265,12 @@ def main() -> None:
                 frame = cv2.imdecode(np.frombuffer(jpeg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
                 if frame is not None:
                     raw_frame = frame.copy()
+                    latest_raw_frame = raw_frame
                     admitted_at = time.monotonic()
                     next_inference_at = admitted_at + interval_seconds
                     # Decode once: the same BGR frame goes to inference and display.
                     result = engine.process_frame(frame, session, now=admitted_at)
+                    latest_result = result
                     _scheduler_result(
                         result,
                         source_frame_id=frame_id,
@@ -258,8 +286,8 @@ def main() -> None:
                     cv2.waitKey(1),
                     session,
                     recorder,
-                    result if frame is not None else None,
-                    raw_frame if frame is not None else None,
+                    latest_result,
+                    latest_raw_frame,
                 ):
                     break
         finally:
@@ -282,7 +310,7 @@ def main() -> None:
               f"{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
 
         recorder = LiveFeedbackRecorder(config)
-        window_title = f"{profile_title} ONNX Gesture Recognition - PC Webcam (q: exit, r: reset, c: log neg, b: burst 30, f: log fist)"
+        window_title = f"{profile_title} ONNX Gesture Recognition - PC Webcam (SPACE: 1x, b: burst 30, TAB: select, h: help, q: exit)"
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(window_title, 960, 720)
 
@@ -292,29 +320,33 @@ def main() -> None:
         replaced_frames = 0
         next_inference_at = 0.0
         interval_seconds = config.frame_interval_ms / 1000.0
+        latest_result = None
+        latest_raw_frame = None
         try:
             while True:
                 remaining = next_inference_at - time.monotonic()
                 if remaining > 0.0:
                     wait_ms = max(1, min(30, round(remaining * 1000)))
-                    if _handle_key(cv2.waitKey(wait_ms), session, recorder):
+                    if _handle_key(cv2.waitKey(wait_ms), session, recorder, latest_result, latest_raw_frame):
                         break
                     continue
                 frame_id, frame, captured_at = source.wait_for_frame(
                     last_frame_id, timeout_seconds=0.05
                 )
                 if frame is None or frame_id == last_frame_id:
-                    if _handle_key(cv2.waitKey(10), session, recorder):
+                    if _handle_key(cv2.waitKey(10), session, recorder, latest_result, latest_raw_frame):
                         break
                     continue
                 if last_frame_id >= 0:
                     replaced_frames += max(0, frame_id - last_frame_id - 1)
                 last_frame_id = frame_id
                 raw_frame = frame.copy()
+                latest_raw_frame = raw_frame
                 admitted_at = time.monotonic()
                 next_inference_at = admitted_at + interval_seconds
                 # Pass BGR directly; avoid an unnecessary JPEG encode/decode pair.
                 result = engine.process_frame(frame, session, now=captured_at)
+                latest_result = result
                 _scheduler_result(
                     result,
                     source_frame_id=frame_id,
@@ -326,7 +358,7 @@ def main() -> None:
                 recorder.draw_hud(frame)
                 cv2.imshow(window_title, frame)
 
-                if _handle_key(cv2.waitKey(1), session, recorder, result, raw_frame):
+                if _handle_key(cv2.waitKey(1), session, recorder, latest_result, latest_raw_frame):
                     break
         finally:
             source.stop()
@@ -334,8 +366,27 @@ def main() -> None:
             engine.close()
 
 
+RECORDABLE_GESTURES: list[tuple[tuple[int, ...], str, str, str, str]] = [
+    # (key_codes, label, display_name, action_name, key_hint)
+    ((ord("0"), ord("n")), "no_gesture", "NO GESTURE", "Hard Negative / Rejection", "0 / N"),
+    ((ord("1"), ord("f")), "fist", "FIST", "Mute", "1 / F"),
+    ((ord("2"), ord("p")), "open_palm", "OPEN PALM", "Play / Pause", "2 / P"),
+    ((ord("3"), ord("v")), "peace", "PEACE", "Volume Up", "3 / V"),
+    ((ord("4"), ord("l")), "like", "LIKE", "Thumbs Up", "4 / L"),
+    ((ord("5"), ord("t")), "thumb_down", "THUMB DOWN", "Thumbs Down", "5 / T"),
+    ((ord("6"), ord("k")), "ok", "OK SIGN", "OK / Confirm", "6 / K"),
+    ((ord("7"),), "rock", "ROCK", "Horns / Rock", "7"),
+    ((ord("8"), ord("s")), "stop_inverted", "STOP INVERTED", "Return to Main", "8 / S"),
+    ((ord("9"), ord("[")), "left", "LEFT", "Seek Backward", "9 / ["),
+    ((ord("]"), ord("o")), "right", "RIGHT", "Seek Forward", "] / O"),
+    ((ord("-"), ord("u")), "up", "UP", "Volume Up Alt", "- / U"),
+    ((ord("="), ord("d")), "down", "DOWN", "Volume Down Alt", "= / D"),
+]
+
+
 class LiveFeedbackRecorder:
     def __init__(self, config):
+        self.config = config
         self.store = FeedbackStore(config)
         self.status_message: str = ""
         self.status_until: float = 0.0
@@ -344,18 +395,60 @@ class LiveFeedbackRecorder:
         self.burst_count: int = 0
         self.burst_label: str = "no_gesture"
         self._last_saved_time: float = 0.0
+        self.target_idx: int = 0
+        self.show_help: bool = False
+
+    @property
+    def target_gesture(self) -> str:
+        return RECORDABLE_GESTURES[self.target_idx][1]
 
     @property
     def is_burst_active(self) -> bool:
         return self.burst_count < self.burst_target
 
+    def get_target_info(self) -> tuple[tuple[int, ...], str, str, str, str]:
+        return RECORDABLE_GESTURES[self.target_idx]
+
+    def get_gesture_display(self, label: str) -> str:
+        for item in RECORDABLE_GESTURES:
+            if item[1] == label:
+                return item[2]
+        return label.upper()
+
+    def set_target(self, label: str, announce: bool = True):
+        for idx, item in enumerate(RECORDABLE_GESTURES):
+            if item[1] == label:
+                self.target_idx = idx
+                info = RECORDABLE_GESTURES[idx]
+                if announce:
+                    self.set_message(
+                        f"TARGET SET: {info[2]} ({info[3]}) - [SPACE: Log 1x | B: Burst 30]",
+                        duration=2.5,
+                        color=(0, 255, 255),
+                    )
+                    print(f"\n[FEEDBACK TARGET] Active gesture set to: '{info[1]}' ({info[2]} - {info[3]})")
+                return
+
+    def next_target(self, step: int = 1):
+        self.target_idx = (self.target_idx + step) % len(RECORDABLE_GESTURES)
+        info = RECORDABLE_GESTURES[self.target_idx]
+        self.set_message(
+            f"TARGET SET: {info[2]} ({info[3]}) - [SPACE: Log 1x | B: Burst 30]",
+            duration=2.5,
+            color=(0, 255, 255),
+        )
+        print(f"\n[FEEDBACK TARGET] Active gesture set to: '{info[1]}' ({info[2]} - {info[3]})")
+
     def record_single(
         self,
         result: dict[str, Any] | None,
         clean_frame: np.ndarray | None,
-        actual_label: str = "no_gesture",
-        note: str = "cupped_hand_negative",
+        actual_label: str | None = None,
+        note: str | None = None,
     ) -> bool:
+        if actual_label is None:
+            actual_label = self.target_gesture
+
         if result is None or clean_frame is None:
             self.set_message("No frame available to record", duration=2.0, color=(0, 0, 255))
             return False
@@ -370,8 +463,15 @@ class LiveFeedbackRecorder:
             return False
         data_url = "data:image/jpeg;base64," + base64.b64encode(buffer).decode("ascii")
 
-        raw_pred = result.get("raw_prediction") or result.get("runtime_prediction") or "fist"
-        record_note = note or f"hard_negative_suppressing_{raw_pred}"
+        raw_pred = result.get("raw_prediction") or result.get("runtime_prediction") or "unknown"
+        if note is None:
+            if actual_label == "no_gesture":
+                record_note = f"hard_negative_suppressing_{raw_pred}"
+            else:
+                record_note = f"user_{actual_label}_positive"
+        else:
+            record_note = note
+
         record = FeedbackRecord(
             actual_label=actual_label,
             predicted_label=raw_pred,
@@ -386,16 +486,25 @@ class LiveFeedbackRecorder:
         )
         saved = self.store.save(record)
         fid = saved.get("feedback_id", "")[:8]
-        msg = f"SAVED #{fid}: Recorded as '{actual_label}' (suppressing '{raw_pred}')"
-        self.set_message(msg, duration=2.5, color=(0, 255, 120) if actual_label == "no_gesture" else (255, 200, 0))
+        display = self.get_gesture_display(actual_label)
+        if actual_label == "no_gesture":
+            msg = f"SAVED #{fid}: Recorded as NO_GESTURE (suppressing '{raw_pred}')"
+            color = (0, 255, 120)
+        else:
+            msg = f"SAVED #{fid}: Recorded positive sample as '{display}'"
+            color = (50, 240, 120)
+        self.set_message(msg, duration=2.5, color=color)
         print(f"\n[FEEDBACK] Logged sample ({actual_label}): ID={fid}, Predicted={raw_pred}, Conf={record.confidence:.2f}")
         return True
 
-    def start_burst(self, target: int = 30, actual_label: str = "no_gesture"):
+    def start_burst(self, target: int = 30, actual_label: str | None = None):
+        if actual_label is None:
+            actual_label = self.target_gesture
         self.burst_target = target
         self.burst_count = 0
         self.burst_label = actual_label
-        self.set_message(f"BURST STARTED: Hold pose (target: {target})...", duration=2.0, color=(0, 255, 255))
+        display = self.get_gesture_display(actual_label)
+        self.set_message(f"BURST STARTED: Hold '{display}' (target: {target})...", duration=2.5, color=(0, 255, 255))
         print(f"\n[FEEDBACK] Burst recording started ({target} frames as '{actual_label}').")
         print("[FEEDBACK] Slowly tilt and rotate your hand in view of the camera...")
 
@@ -408,18 +517,24 @@ class LiveFeedbackRecorder:
         landmarks = result.get("landmarks")
         if not landmarks or len(landmarks) != 21:
             return
-        raw_pred = result.get("raw_prediction") or result.get("runtime_prediction") or "gesture"
-        if self.record_single(result, clean_frame, actual_label=self.burst_label, note=f"burst_hard_negative_suppressing_{raw_pred}"):
+        raw_pred = result.get("raw_prediction") or result.get("runtime_prediction") or "unknown"
+        if self.burst_label == "no_gesture":
+            burst_note = f"burst_hard_negative_suppressing_{raw_pred}"
+        else:
+            burst_note = f"burst_user_{self.burst_label}_positive"
+
+        if self.record_single(result, clean_frame, actual_label=self.burst_label, note=burst_note):
             self.burst_count += 1
             self._last_saved_time = now
+            display = self.get_gesture_display(self.burst_label)
             if self.burst_count >= self.burst_target:
-                msg = f"BURST COMPLETE: {self.burst_count} samples saved to feedback log!"
+                msg = f"BURST COMPLETE: {self.burst_count} samples saved as '{display}'!"
                 self.set_message(msg, duration=5.0, color=(0, 255, 0))
-                print(f"\n[FEEDBACK] *** Burst complete: {self.burst_count} samples logged successfully! ***")
+                print(f"\n[FEEDBACK] *** Burst complete: {self.burst_count} samples logged successfully as '{display}'! ***")
                 print("[FEEDBACK] Run 'python scripts/retrain_with_feedback.py' to update the ONNX model.")
             else:
                 pct = int(self.burst_count / self.burst_target * 100)
-                msg = f"BURST: {self.burst_count}/{self.burst_target} ({pct}%) - Tilt/turn hand gently"
+                msg = f"BURST: {self.burst_count}/{self.burst_target} ({pct}%) [{display}] - Tilt hand gently"
                 self.set_message(msg, duration=1.0, color=(0, 255, 255))
 
     def set_message(self, message: str, duration: float = 2.5, color: tuple[int, int, int] = (0, 255, 255)):
@@ -428,11 +543,31 @@ class LiveFeedbackRecorder:
         self.status_color = color
 
     def draw_hud(self, frame: np.ndarray):
+        h, w = frame.shape[:2]
+
+        # 1. Target Gesture Ribbon (h - 94 to h - 60)
+        strip_y1 = h - 94
+        strip_y2 = h - 60
+        cv2.rectangle(frame, (0, strip_y1), (w, strip_y2), (20, 20, 20), -1)
+        cv2.line(frame, (0, strip_y1), (w, strip_y1), (50, 50, 50), 1)
+        cv2.line(frame, (0, strip_y2), (w, strip_y2), (50, 50, 50), 1)
+
+        info = self.get_target_info()
+        is_neg = (self.target_gesture == "no_gesture")
+        tag_color = (0, 165, 255) if is_neg else (50, 240, 120)
+
+        tag_text = f"REC TARGET: [{info[2]}] - {info[3]}"
+        cv2.putText(frame, tag_text, (15, strip_y1 + 23), cv2.FONT_HERSHEY_SIMPLEX, 0.50, tag_color, 2, cv2.LINE_AA)
+
+        controls_text = "SPACE: Log 1x | B: Burst 30 | TAB: Next | 0-9: Select | H: Help"
+        (cw, _), _ = cv2.getTextSize(controls_text, cv2.FONT_HERSHEY_SIMPLEX, 0.44, 1)
+        cv2.putText(frame, controls_text, (max(15, w - cw - 15), strip_y1 + 23), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (190, 190, 190), 1, cv2.LINE_AA)
+
+        # 2. Flash Status / Burst Message Notification Banner
         if time.monotonic() < self.status_until and self.status_message:
-            h, w = frame.shape[:2]
             box_h = 36
-            box_y = h - 65
-            cv2.rectangle(frame, (10, box_y), (w - 10, box_y + box_h), (20, 20, 20), -1)
+            box_y = strip_y1 - box_h - 6
+            cv2.rectangle(frame, (10, box_y), (w - 10, box_y + box_h), (15, 15, 15), -1)
             cv2.rectangle(frame, (10, box_y), (w - 10, box_y + box_h), self.status_color, 2)
             cv2.putText(
                 frame,
@@ -445,6 +580,55 @@ class LiveFeedbackRecorder:
                 cv2.LINE_AA,
             )
 
+        # 3. Help Cheatsheet Overlay
+        if self.show_help:
+            self._draw_help_overlay(frame)
+
+    def _draw_help_overlay(self, frame: np.ndarray):
+        h, w = frame.shape[:2]
+        overlay = frame.copy()
+        cw, ch = int(w * 0.84), int(h * 0.80)
+        cx1, cy1 = (w - cw) // 2, (h - ch) // 2
+        cx2, cy2 = cx1 + cw, cy1 + ch
+
+        cv2.rectangle(overlay, (cx1, cy1), (cx2, cy2), (18, 18, 18), -1)
+        cv2.rectangle(overlay, (cx1, cy1), (cx2, cy2), (0, 220, 220), 2)
+        cv2.addWeighted(overlay, 0.92, frame, 0.08, 0, frame)
+
+        # Header
+        title = "LIVE CAMERA GESTURE TRAINING CHEATSHEET"
+        (tw, _), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+        cv2.putText(frame, title, (cx1 + (cw - tw) // 2, cy1 + 32), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 240, 255), 2, cv2.LINE_AA)
+        cv2.line(frame, (cx1 + 20, cy1 + 45), (cx2 - 20, cy1 + 45), (60, 60, 60), 1)
+
+        # 2 Columns of Gestures
+        mid_x = cx1 + cw // 2
+        y_start = cy1 + 75
+        row_h = 28
+
+        for idx, (hotkeys, label, display, action, hint) in enumerate(RECORDABLE_GESTURES):
+            col_x = cx1 + 25 if idx < 7 else mid_x + 15
+            row_y = y_start + (idx % 7) * row_h
+
+            is_active = (label == self.target_gesture)
+            if is_active:
+                cv2.rectangle(frame, (col_x - 5, row_y - 18), (col_x + (cw // 2) - 30, row_y + 6), (40, 60, 40), -1)
+                cv2.rectangle(frame, (col_x - 5, row_y - 18), (col_x + (cw // 2) - 30, row_y + 6), (50, 240, 120), 1)
+
+            bullet_color = (50, 240, 120) if is_active else (200, 200, 200)
+            hint_str = f"[{hint}]"
+            cv2.putText(frame, f"{hint_str:<7}", (col_x, row_y), cv2.FONT_HERSHEY_SIMPLEX, 0.46, (0, 230, 230), 1, cv2.LINE_AA)
+            cv2.putText(frame, f"{display:<13}", (col_x + 65, row_y), cv2.FONT_HERSHEY_SIMPLEX, 0.48, bullet_color, 2 if is_active else 1, cv2.LINE_AA)
+            cv2.putText(frame, f"-> {action}", (col_x + 195, row_y), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (170, 170, 170), 1, cv2.LINE_AA)
+
+        # Bottom Instructions
+        footer_y = cy2 - 40
+        cv2.line(frame, (cx1 + 20, footer_y - 15), (cx2 - 20, footer_y - 15), (60, 60, 60), 1)
+        f_text1 = f"ACTIVE TARGET: [{self.target_gesture.upper()}] | SPACE: Save 1x | B: Burst 30 | TAB: Cycle"
+        f_text2 = "Press 'H' or 'ESC' to close this cheatsheet"
+        cv2.putText(frame, f_text1, (cx1 + 25, footer_y + 8), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (50, 240, 120), 1, cv2.LINE_AA)
+        cv2.putText(frame, f_text2, (cx1 + 25, footer_y + 28), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (150, 150, 150), 1, cv2.LINE_AA)
+
 
 def _handle_key(
     key: int,
@@ -453,17 +637,64 @@ def _handle_key(
     result: dict[str, Any] | None = None,
     clean_frame: np.ndarray | None = None,
 ) -> bool:
+    if key == -1:
+        return False
     key &= 0xFF
+
+    if key in (ord("q"), 27):
+        if recorder is not None and recorder.show_help:
+            recorder.show_help = False
+            return False
+        return True
+
     if key == ord("r"):
         session.reset()
         print("Hand selection reset; hold a clear gesture to select the visible hand.")
-    elif key in (ord("c"), ord("n")) and recorder is not None:
-        recorder.record_single(result, clean_frame, actual_label="no_gesture", note="cupped_hand_negative")
-    elif key == ord("b") and recorder is not None:
-        recorder.start_burst(target=30, actual_label="no_gesture")
-    elif key == ord("f") and recorder is not None:
-        recorder.record_single(result, clean_frame, actual_label="fist", note="user_fist_positive")
-    return key in (ord("q"), 27)
+        return False
+
+    if recorder is None:
+        return False
+
+    # Help cheatsheet toggle
+    if key == ord("h"):
+        recorder.show_help = not recorder.show_help
+        return False
+
+    # Target cycling with TAB or g/G
+    if key in (9, ord("g")):
+        recorder.next_target(step=1)
+        return False
+    if key in (ord("G"),):
+        recorder.next_target(step=-1)
+        return False
+
+    # Single sample capture for current active target: SPACE or c or ENTER
+    if key in (32, ord("c"), 13, 10):
+        recorder.record_single(result, clean_frame)
+        return False
+
+    # Burst capture for current active target: b
+    if key == ord("b"):
+        recorder.start_burst(target=30)
+        return False
+
+    # Direct shortcuts with instant single-sample capture (muscle memory):
+    if key == ord("n"):
+        recorder.set_target("no_gesture", announce=False)
+        recorder.record_single(result, clean_frame, actual_label="no_gesture")
+        return False
+    if key == ord("f"):
+        recorder.set_target("fist", announce=False)
+        recorder.record_single(result, clean_frame, actual_label="fist")
+        return False
+
+    # Direct key selection for any gesture in taxonomy:
+    for hotkeys, label, display, action, hint in RECORDABLE_GESTURES:
+        if key in hotkeys:
+            recorder.set_target(label)
+            return False
+
+    return False
 
 
 HAND_CONNECTIONS = [

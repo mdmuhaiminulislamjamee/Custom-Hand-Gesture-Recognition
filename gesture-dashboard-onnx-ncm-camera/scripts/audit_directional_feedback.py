@@ -10,12 +10,24 @@ from collections import Counter
 import csv
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+# Auto-detect virtualenv if running outside .venv
+try:
+    import onnxruntime
+except ModuleNotFoundError:
+    venv_py = (PROJECT_ROOT / ".venv" / "Scripts" / "python.exe") if os.name == "nt" else (PROJECT_ROOT / ".venv" / "bin" / "python")
+    if venv_py.is_file() and Path(sys.executable).resolve() != venv_py.resolve():
+        import subprocess
+        res = subprocess.run([str(venv_py)] + sys.argv, cwd=str(PROJECT_ROOT))
+        sys.exit(res.returncode)
+    raise
 
 import numpy as np
 from PIL import Image

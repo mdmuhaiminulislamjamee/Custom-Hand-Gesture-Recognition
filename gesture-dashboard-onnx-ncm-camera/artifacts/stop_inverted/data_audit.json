@@ -146,23 +146,23 @@
     "test": 1019
   },
   "feedback": {
-    "sha256": "0c43af585e2722a19bb7b30e34b45a16ebecf33191336dcf9a4f52d462fba7dc",
-    "rows": 1315,
+    "sha256": "98dd11b159a6322ec978a3ecd2b136c2f3cdbcc152dc109887daa12746461823",
+    "rows": 2335,
     "class_counts": {
-      "left": 30,
-      "right": 48,
+      "left": 180,
+      "right": 138,
       "up": 0,
-      "down": 0,
+      "down": 270,
       "open_palm": 0,
-      "like": 0,
+      "like": 90,
       "dorsal": 0,
       "ok": 0,
       "fist": 159,
       "thumb_down": 0,
-      "peace": 12,
+      "peace": 102,
       "rock": 0,
       "stop_inverted": 0,
-      "no_gesture": 1066
+      "no_gesture": 1396
     },
     "skipped": [
       {
@@ -210,7 +210,8 @@
         "reason": "missing finite 21x2 landmarks"
       }
     ],
-    "evaluation_use": "training only; participant/session metadata is absent"
+    "evaluation_use": "training only; participant/session metadata is absent",
+    "repeat_factor": 2
   },
   "ambiguous_legacy_dorsal_excluded": {
     "train": 0,
@@ -229,20 +230,20 @@
   },
   "counts": {
     "train": {
-      "left": 14080,
-      "right": 16384,
+      "left": 10600,
+      "right": 10516,
       "up": 6144,
-      "down": 6144,
+      "down": 6684,
       "open_palm": 8195,
-      "like": 8192,
+      "like": 8372,
       "dorsal": 4096,
       "ok": 4096,
-      "fist": 24448,
+      "fist": 4414,
       "thumb_down": 8192,
-      "peace": 5632,
+      "peace": 4300,
       "rock": 4096,
       "stop_inverted": 10271,
-      "no_gesture": 152834
+      "no_gesture": 19178
     },
     "val": {
       "left": 710,

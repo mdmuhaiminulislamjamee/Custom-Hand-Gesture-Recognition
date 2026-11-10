@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -252,8 +253,8 @@ def horizontal_pointing_geometry(landmarks_xy: np.ndarray, image_shape) -> dict:
     reaches = np.linalg.norm(spans, axis=1) / scale
     returns = (points[tips] - points[mcps + 1]) @ unit / scale
     lead = float(np.min((points[8] - points[tips]) @ unit) / scale)
-    folded = bool(reaches.max() <= .75 and extensions.max() <= .55
-                  and returns.max() <= -.04 and lead >= .55)
+    folded = bool(reaches.max() <= .80 and extensions.max() <= .65
+                  and returns.max() <= .05 and lead >= .35)
     base_sides = (points[mcps] - points[5]) @ normal / scale
     tip_sides = (points[tips] - points[5]) @ normal / scale
     convergence = np.abs(base_sides) - np.abs(tip_sides)
@@ -268,9 +269,9 @@ def horizontal_pointing_geometry(landmarks_xy: np.ndarray, image_shape) -> dict:
                      and reaches.max() * scale <= .90 * reach
                      and lead >= .20)
     valid = bool(
-        abs(float(unit[0])) >= .94 and reach / scale >= .70
-        and finger_extension_score(points, 5, 6, 7, 8) >= .90
-        and reach / max(path, 1e-8) >= .97
+        abs(float(unit[0])) >= .88 and reach / scale >= .65
+        and finger_extension_score(points, 5, 6, 7, 8) >= .82
+        and reach / max(path, 1e-8) >= .88
         and (folded or converging or collapsed)
     )
     # A separate thumb, long index, and three short returning chains provide
@@ -775,7 +776,7 @@ class GeometryResolver:
         world_landmarks: np.ndarray | None = None,
         preferred_direction: str | None = None,
         image_shape=None,
-    ) -> tuple[np.ndarray, dict | None]:
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         points = np.asarray(landmarks, dtype=np.float32).reshape(21, 2)
         raw = self.config.class_names[int(np.argmax(probabilities))]
         world_index_only = False
@@ -1265,7 +1266,7 @@ class GeometryResolver:
         require_fist_depth: bool = False,
         model_probabilities: np.ndarray | None = None,
         image_shape=None,
-    ) -> tuple[np.ndarray, dict[str, float | int | bool | str | None]]:
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         points = np.asarray(landmarks, dtype=np.float32).reshape(21, 2)
         adjusted = np.asarray(probabilities, dtype=np.float64).copy()
         raw = self.config.class_names[int(np.argmax(adjusted))]
@@ -2051,7 +2052,7 @@ class GeometryResolver:
         require_fist_depth: bool = False,
         preferred_direction: str | None = None,
         image_shape=None,
-    ) -> tuple[np.ndarray, dict[str, dict | None]]:
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         adjusted, directional = self._directional(
             probabilities, landmarks, world_landmarks, preferred_direction, image_shape)
         adjusted, shape = self._hand_shape(
