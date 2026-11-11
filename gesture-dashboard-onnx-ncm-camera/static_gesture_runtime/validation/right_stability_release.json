@@ -1,0 +1,4233 @@
+{
+  "schema_version": 1,
+  "qualified": true,
+  "model_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+  "previous_model_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+  "training": {
+    "sha256": "cac69f33646c9122b4704e553e8c8adbe655621b0f9aa701d7eb56770aa2df13",
+    "rows": 3837,
+    "class_counts": {
+      "left": 270,
+      "right": 469,
+      "up": 0,
+      "down": 959,
+      "open_palm": 0,
+      "like": 90,
+      "dorsal": 0,
+      "ok": 0,
+      "fist": 159,
+      "thumb_down": 0,
+      "peace": 102,
+      "rock": 0,
+      "stop_inverted": 0,
+      "no_gesture": 1788
+    },
+    "skipped": [
+      {
+        "id": "58c362f301230701",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "51aa131af707c6fa",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "ae75493852f79aa3",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "891ee2d11c534a35",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "53fa27b269752c97",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "01a1b5ae2adf4a1e",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "aa694d66c3b9abd8",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "2df21c4976cef30a",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "97c06b019b756991",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "7c97aaa4ae245b26",
+        "reason": "missing finite 21x2 landmarks"
+      },
+      {
+        "id": "9108a6605f5f4721",
+        "reason": "missing finite 21x2 landmarks"
+      }
+    ],
+    "evaluation_use": "training only; participant/session metadata is absent",
+    "new_right_records": 331,
+    "new_hard_negative_records": 90,
+    "fitted_parameters": 65,
+    "non_right_weights_bit_identical": true,
+    "source": "Reviewed 21x2 landmarks train the MLP; saved RGB images test the detector/runtime",
+    "feedback_is_independent_validation": false
+  },
+  "policy": {
+    "right_side_view_requires_metric_world": true,
+    "confidence": 0.95,
+    "known_mass": 0.7,
+    "index_straightness": 0.92,
+    "axis_dominance": 0.86,
+    "index_lead": 0.5,
+    "relative_index_reach": 0.75,
+    "maximum_other_projected_reach": 0.15,
+    "missing_depth_cannot_use_entry_exception": true,
+    "continuation_grace_ms": 200,
+    "invalid_frames_to_release": 2,
+    "grace_emits_command": false,
+    "target_fps": 10,
+    "fixed_action_cooldown_ms": 0,
+    "added_model_or_detector_passes": 0
+  },
+  "preservation": {
+    "previous_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+    "candidate_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+    "splits": {
+      "val": {
+        "scalar": {
+          "rows": 9031,
+          "non_right_rows": 8321,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 709,
+          "right_after_correct": 709,
+          "changes": []
+        },
+        "runtime": {
+          "rows": 9031,
+          "non_right_rows": 8321,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 702,
+          "right_after_correct": 702,
+          "changes": []
+        }
+      },
+      "test": {
+        "scalar": {
+          "rows": 9042,
+          "non_right_rows": 8365,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 671,
+          "right_after_correct": 671,
+          "changes": []
+        },
+        "runtime": {
+          "rows": 9042,
+          "non_right_rows": 8365,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 665,
+          "right_after_correct": 665,
+          "changes": []
+        }
+      },
+      "previous_feedback": {
+        "scalar": {
+          "rows": 3416,
+          "non_right_rows": 3278,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 138,
+          "right_after_correct": 138,
+          "changes": []
+        },
+        "runtime": {
+          "rows": 3416,
+          "non_right_rows": 3278,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 118,
+          "right_after_correct": 118,
+          "changes": []
+        }
+      },
+      "new_feedback": {
+        "scalar": {
+          "rows": 421,
+          "non_right_rows": 90,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 321,
+          "right_after_correct": 321,
+          "changes": []
+        },
+        "runtime": {
+          "rows": 421,
+          "non_right_rows": 90,
+          "non_right_label_changes": 0,
+          "non_right_correct_to_wrong": 0,
+          "right_before_correct": 185,
+          "right_after_correct": 185,
+          "changes": []
+        }
+      }
+    }
+  },
+  "heldout_metrics": {
+    "model_sha256": {
+      "previous": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+      "candidate": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992"
+    },
+    "baseline_geometry_sha256": "0964a683fa352c743a37037d3af32428dfe93a4bd2067cd9251e1d332ae944f8",
+    "splits": {
+      "val": {
+        "previous_model_previous_rules": {
+          "macro_f1": 0.9025515811146655,
+          "accepted_precision": 0.992818924246691,
+          "old_command_correct_accept_rate": 0.8649158444573418,
+          "unknown_false_accept_rate": 0.005747126436781609,
+          "stop_recall": 0.9954337899543378,
+          "stop_precision": 1.0,
+          "per_class": {
+            "left": {
+              "precision": 0.9971590909090909,
+              "recall": 0.9887323943661972,
+              "f1-score": 0.9929278642149929,
+              "support": 710.0
+            },
+            "right": {
+              "precision": 0.9971590909090909,
+              "recall": 0.9887323943661972,
+              "f1-score": 0.9929278642149929,
+              "support": 710.0
+            },
+            "up": {
+              "precision": 0.9943661971830986,
+              "recall": 0.9943661971830986,
+              "f1-score": 0.9943661971830986,
+              "support": 710.0
+            },
+            "down": {
+              "precision": 0.9943422913719944,
+              "recall": 0.9901408450704225,
+              "f1-score": 0.9922371206774877,
+              "support": 710.0
+            },
+            "open_palm": {
+              "precision": 0.9954545454545455,
+              "recall": 0.3225331369661267,
+              "f1-score": 0.4872080088987764,
+              "support": 679.0
+            },
+            "like": {
+              "precision": 0.9545454545454546,
+              "recall": 0.9627507163323782,
+              "f1-score": 0.9586305278174037,
+              "support": 698.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.6197604790419161,
+              "f1-score": 0.7652495378927912,
+              "support": 668.0
+            },
+            "fist": {
+              "precision": 0.9930915371329879,
+              "recall": 0.8345428156748912,
+              "f1-score": 0.9069400630914827,
+              "support": 689.0
+            },
+            "thumb_down": {
+              "precision": 1.0,
+              "recall": 0.9500713266761769,
+              "f1-score": 0.9743964886613021,
+              "support": 701.0
+            },
+            "peace": {
+              "precision": 0.9967105263157895,
+              "recall": 0.964968152866242,
+              "f1-score": 0.9805825242718447,
+              "support": 314.0
+            },
+            "rock": {
+              "precision": 0.9966666666666667,
+              "recall": 0.9867986798679867,
+              "f1-score": 0.9917081260364843,
+              "support": 303.0
+            },
+            "stop_inverted": {
+              "precision": 1.0,
+              "recall": 0.9954337899543378,
+              "f1-score": 0.9977116704805492,
+              "support": 1095.0
+            },
+            "no_gesture": {
+              "precision": 0.5381026438569206,
+              "recall": 0.9942528735632183,
+              "f1-score": 0.698284561049445,
+              "support": 1044.0
+            },
+            "accuracy": 0.8956926143284243,
+            "macro avg": {
+              "precision": 0.8898284317389742,
+              "recall": 0.8280774144235136,
+              "f1-score": 0.8380836110350466,
+              "support": 9031.0
+            },
+            "weighted avg": {
+              "precision": 0.9406612373088029,
+              "recall": 0.8956926143284243,
+              "f1-score": 0.8935221391187408,
+              "support": 9031.0
+            }
+          },
+          "confusion": [
+            [
+              702,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              702,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              706,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              703,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              219,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              460
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              672,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              24
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              414,
+              0,
+              0,
+              0,
+              0,
+              0,
+              254
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              30,
+              0,
+              0,
+              575,
+              0,
+              0,
+              0,
+              0,
+              81
+            ],
+            [
+              2,
+              2,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1,
+              666,
+              0,
+              0,
+              0,
+              28
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              303,
+              0,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              299,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1090,
+              5
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1038
+            ]
+          ]
+        },
+        "previous_model_current_rules": {
+          "macro_f1": 0.9025515811146655,
+          "accepted_precision": 0.992818924246691,
+          "old_command_correct_accept_rate": 0.8649158444573418,
+          "unknown_false_accept_rate": 0.005747126436781609,
+          "stop_recall": 0.9954337899543378,
+          "stop_precision": 1.0,
+          "per_class": {
+            "left": {
+              "precision": 0.9971590909090909,
+              "recall": 0.9887323943661972,
+              "f1-score": 0.9929278642149929,
+              "support": 710.0
+            },
+            "right": {
+              "precision": 0.9971590909090909,
+              "recall": 0.9887323943661972,
+              "f1-score": 0.9929278642149929,
+              "support": 710.0
+            },
+            "up": {
+              "precision": 0.9943661971830986,
+              "recall": 0.9943661971830986,
+              "f1-score": 0.9943661971830986,
+              "support": 710.0
+            },
+            "down": {
+              "precision": 0.9943422913719944,
+              "recall": 0.9901408450704225,
+              "f1-score": 0.9922371206774877,
+              "support": 710.0
+            },
+            "open_palm": {
+              "precision": 0.9954545454545455,
+              "recall": 0.3225331369661267,
+              "f1-score": 0.4872080088987764,
+              "support": 679.0
+            },
+            "like": {
+              "precision": 0.9545454545454546,
+              "recall": 0.9627507163323782,
+              "f1-score": 0.9586305278174037,
+              "support": 698.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.6197604790419161,
+              "f1-score": 0.7652495378927912,
+              "support": 668.0
+            },
+            "fist": {
+              "precision": 0.9930915371329879,
+              "recall": 0.8345428156748912,
+              "f1-score": 0.9069400630914827,
+              "support": 689.0
+            },
+            "thumb_down": {
+              "precision": 1.0,
+              "recall": 0.9500713266761769,
+              "f1-score": 0.9743964886613021,
+              "support": 701.0
+            },
+            "peace": {
+              "precision": 0.9967105263157895,
+              "recall": 0.964968152866242,
+              "f1-score": 0.9805825242718447,
+              "support": 314.0
+            },
+            "rock": {
+              "precision": 0.9966666666666667,
+              "recall": 0.9867986798679867,
+              "f1-score": 0.9917081260364843,
+              "support": 303.0
+            },
+            "stop_inverted": {
+              "precision": 1.0,
+              "recall": 0.9954337899543378,
+              "f1-score": 0.9977116704805492,
+              "support": 1095.0
+            },
+            "no_gesture": {
+              "precision": 0.5381026438569206,
+              "recall": 0.9942528735632183,
+              "f1-score": 0.698284561049445,
+              "support": 1044.0
+            },
+            "accuracy": 0.8956926143284243,
+            "macro avg": {
+              "precision": 0.8898284317389742,
+              "recall": 0.8280774144235136,
+              "f1-score": 0.8380836110350466,
+              "support": 9031.0
+            },
+            "weighted avg": {
+              "precision": 0.9406612373088029,
+              "recall": 0.8956926143284243,
+              "f1-score": 0.8935221391187408,
+              "support": 9031.0
+            }
+          },
+          "confusion": [
+            [
+              702,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              702,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              706,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              703,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              219,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              460
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              672,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              24
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              414,
+              0,
+              0,
+              0,
+              0,
+              0,
+              254
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              30,
+              0,
+              0,
+              575,
+              0,
+              0,
+              0,
+              0,
+              81
+            ],
+            [
+              2,
+              2,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1,
+              666,
+              0,
+              0,
+              0,
+              28
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              303,
+              0,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              299,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1090,
+              5
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1038
+            ]
+          ]
+        },
+        "candidate_model_current_rules": {
+          "macro_f1": 0.9025515811146655,
+          "accepted_precision": 0.992818924246691,
+          "old_command_correct_accept_rate": 0.8649158444573418,
+          "unknown_false_accept_rate": 0.005747126436781609,
+          "stop_recall": 0.9954337899543378,
+          "stop_precision": 1.0,
+          "per_class": {
+            "left": {
+              "precision": 0.9971590909090909,
+              "recall": 0.9887323943661972,
+              "f1-score": 0.9929278642149929,
+              "support": 710.0
+            },
+            "right": {
+              "precision": 0.9971590909090909,
+              "recall": 0.9887323943661972,
+              "f1-score": 0.9929278642149929,
+              "support": 710.0
+            },
+            "up": {
+              "precision": 0.9943661971830986,
+              "recall": 0.9943661971830986,
+              "f1-score": 0.9943661971830986,
+              "support": 710.0
+            },
+            "down": {
+              "precision": 0.9943422913719944,
+              "recall": 0.9901408450704225,
+              "f1-score": 0.9922371206774877,
+              "support": 710.0
+            },
+            "open_palm": {
+              "precision": 0.9954545454545455,
+              "recall": 0.3225331369661267,
+              "f1-score": 0.4872080088987764,
+              "support": 679.0
+            },
+            "like": {
+              "precision": 0.9545454545454546,
+              "recall": 0.9627507163323782,
+              "f1-score": 0.9586305278174037,
+              "support": 698.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.6197604790419161,
+              "f1-score": 0.7652495378927912,
+              "support": 668.0
+            },
+            "fist": {
+              "precision": 0.9930915371329879,
+              "recall": 0.8345428156748912,
+              "f1-score": 0.9069400630914827,
+              "support": 689.0
+            },
+            "thumb_down": {
+              "precision": 1.0,
+              "recall": 0.9500713266761769,
+              "f1-score": 0.9743964886613021,
+              "support": 701.0
+            },
+            "peace": {
+              "precision": 0.9967105263157895,
+              "recall": 0.964968152866242,
+              "f1-score": 0.9805825242718447,
+              "support": 314.0
+            },
+            "rock": {
+              "precision": 0.9966666666666667,
+              "recall": 0.9867986798679867,
+              "f1-score": 0.9917081260364843,
+              "support": 303.0
+            },
+            "stop_inverted": {
+              "precision": 1.0,
+              "recall": 0.9954337899543378,
+              "f1-score": 0.9977116704805492,
+              "support": 1095.0
+            },
+            "no_gesture": {
+              "precision": 0.5381026438569206,
+              "recall": 0.9942528735632183,
+              "f1-score": 0.698284561049445,
+              "support": 1044.0
+            },
+            "accuracy": 0.8956926143284243,
+            "macro avg": {
+              "precision": 0.8898284317389742,
+              "recall": 0.8280774144235136,
+              "f1-score": 0.8380836110350466,
+              "support": 9031.0
+            },
+            "weighted avg": {
+              "precision": 0.9406612373088029,
+              "recall": 0.8956926143284243,
+              "f1-score": 0.8935221391187408,
+              "support": 9031.0
+            }
+          },
+          "confusion": [
+            [
+              702,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              702,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              706,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              703,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              219,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              460
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              672,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              24
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              414,
+              0,
+              0,
+              0,
+              0,
+              0,
+              254
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              30,
+              0,
+              0,
+              575,
+              0,
+              0,
+              0,
+              0,
+              81
+            ],
+            [
+              2,
+              2,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1,
+              666,
+              0,
+              0,
+              0,
+              28
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              303,
+              0,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              299,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1090,
+              5
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1038
+            ]
+          ]
+        },
+        "previous_model_scalar": {
+          "macro_f1": 0.9916543696669239,
+          "accepted_precision": 0.9947282540479477,
+          "old_command_correct_accept_rate": 0.991874637260592,
+          "unknown_false_accept_rate": 0.018199233716475097,
+          "stop_recall": 0.9945205479452055,
+          "stop_precision": 0.9954296160877514,
+          "per_class": {
+            "left": {
+              "precision": 0.998589562764457,
+              "recall": 0.9971830985915493,
+              "f1-score": 0.9978858350951374,
+              "support": 710.0
+            },
+            "right": {
+              "precision": 0.9929971988795518,
+              "recall": 0.9985915492957746,
+              "f1-score": 0.9957865168539326,
+              "support": 710.0
+            },
+            "up": {
+              "precision": 0.9957865168539326,
+              "recall": 0.9985915492957746,
+              "f1-score": 0.9971870604781997,
+              "support": 710.0
+            },
+            "down": {
+              "precision": 0.9971830985915493,
+              "recall": 0.9971830985915493,
+              "f1-score": 0.9971830985915493,
+              "support": 710.0
+            },
+            "open_palm": {
+              "precision": 0.9941176470588236,
+              "recall": 0.9955817378497791,
+              "f1-score": 0.9948491537895512,
+              "support": 679.0
+            },
+            "like": {
+              "precision": 0.9913169319826338,
+              "recall": 0.9813753581661891,
+              "f1-score": 0.986321094312455,
+              "support": 698.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.9985029940119761,
+              "f1-score": 0.9992509363295881,
+              "support": 668.0
+            },
+            "fist": {
+              "precision": 0.9926793557833089,
+              "recall": 0.9840348330914369,
+              "f1-score": 0.9883381924198251,
+              "support": 689.0
+            },
+            "thumb_down": {
+              "precision": 0.9870689655172413,
+              "recall": 0.9800285306704708,
+              "f1-score": 0.9835361488904796,
+              "support": 701.0
+            },
+            "peace": {
+              "precision": 0.9967845659163987,
+              "recall": 0.9872611464968153,
+              "f1-score": 0.992,
+              "support": 314.0
+            },
+            "rock": {
+              "precision": 0.9966666666666667,
+              "recall": 0.9867986798679867,
+              "f1-score": 0.9917081260364843,
+              "support": 303.0
+            },
+            "stop_inverted": {
+              "precision": 0.9954296160877514,
+              "recall": 0.9945205479452055,
+              "f1-score": 0.9949748743718593,
+              "support": 1095.0
+            },
+            "no_gesture": {
+              "precision": 0.9633458646616542,
+              "recall": 0.9818007662835249,
+              "f1-score": 0.9724857685009488,
+              "support": 1044.0
+            },
+            "accuracy": 0.9910308935887499,
+            "macro avg": {
+              "precision": 0.9215689993402835,
+              "recall": 0.9201038492970023,
+              "f1-score": 0.9208219146907151,
+              "support": 9031.0
+            },
+            "weighted avg": {
+              "precision": 0.991095162838362,
+              "recall": 0.9910308935887499,
+              "f1-score": 0.9910460142216192,
+              "support": 9031.0
+            }
+          },
+          "confusion": [
+            [
+              708,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              709,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              709,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              708,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              676,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              685,
+              0,
+              0,
+              0,
+              5,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              667,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              678,
+              4,
+              0,
+              0,
+              0,
+              5
+            ],
+            [
+              0,
+              3,
+              0,
+              1,
+              0,
+              2,
+              0,
+              0,
+              1,
+              687,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              310,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              299,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1089,
+              5
+            ],
+            [
+              0,
+              2,
+              0,
+              1,
+              3,
+              4,
+              0,
+              0,
+              2,
+              0,
+              1,
+              1,
+              5,
+              1025
+            ]
+          ]
+        },
+        "candidate_model_scalar": {
+          "macro_f1": 0.9916543696669239,
+          "accepted_precision": 0.9947282540479477,
+          "old_command_correct_accept_rate": 0.991874637260592,
+          "unknown_false_accept_rate": 0.018199233716475097,
+          "stop_recall": 0.9945205479452055,
+          "stop_precision": 0.9954296160877514,
+          "per_class": {
+            "left": {
+              "precision": 0.998589562764457,
+              "recall": 0.9971830985915493,
+              "f1-score": 0.9978858350951374,
+              "support": 710.0
+            },
+            "right": {
+              "precision": 0.9929971988795518,
+              "recall": 0.9985915492957746,
+              "f1-score": 0.9957865168539326,
+              "support": 710.0
+            },
+            "up": {
+              "precision": 0.9957865168539326,
+              "recall": 0.9985915492957746,
+              "f1-score": 0.9971870604781997,
+              "support": 710.0
+            },
+            "down": {
+              "precision": 0.9971830985915493,
+              "recall": 0.9971830985915493,
+              "f1-score": 0.9971830985915493,
+              "support": 710.0
+            },
+            "open_palm": {
+              "precision": 0.9941176470588236,
+              "recall": 0.9955817378497791,
+              "f1-score": 0.9948491537895512,
+              "support": 679.0
+            },
+            "like": {
+              "precision": 0.9913169319826338,
+              "recall": 0.9813753581661891,
+              "f1-score": 0.986321094312455,
+              "support": 698.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.9985029940119761,
+              "f1-score": 0.9992509363295881,
+              "support": 668.0
+            },
+            "fist": {
+              "precision": 0.9926793557833089,
+              "recall": 0.9840348330914369,
+              "f1-score": 0.9883381924198251,
+              "support": 689.0
+            },
+            "thumb_down": {
+              "precision": 0.9870689655172413,
+              "recall": 0.9800285306704708,
+              "f1-score": 0.9835361488904796,
+              "support": 701.0
+            },
+            "peace": {
+              "precision": 0.9967845659163987,
+              "recall": 0.9872611464968153,
+              "f1-score": 0.992,
+              "support": 314.0
+            },
+            "rock": {
+              "precision": 0.9966666666666667,
+              "recall": 0.9867986798679867,
+              "f1-score": 0.9917081260364843,
+              "support": 303.0
+            },
+            "stop_inverted": {
+              "precision": 0.9954296160877514,
+              "recall": 0.9945205479452055,
+              "f1-score": 0.9949748743718593,
+              "support": 1095.0
+            },
+            "no_gesture": {
+              "precision": 0.9633458646616542,
+              "recall": 0.9818007662835249,
+              "f1-score": 0.9724857685009488,
+              "support": 1044.0
+            },
+            "accuracy": 0.9910308935887499,
+            "macro avg": {
+              "precision": 0.9215689993402835,
+              "recall": 0.9201038492970023,
+              "f1-score": 0.9208219146907151,
+              "support": 9031.0
+            },
+            "weighted avg": {
+              "precision": 0.991095162838362,
+              "recall": 0.9910308935887499,
+              "f1-score": 0.9910460142216192,
+              "support": 9031.0
+            }
+          },
+          "confusion": [
+            [
+              708,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              709,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              709,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              708,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              676,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              685,
+              0,
+              0,
+              0,
+              5,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              667,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              678,
+              4,
+              0,
+              0,
+              0,
+              5
+            ],
+            [
+              0,
+              3,
+              0,
+              1,
+              0,
+              2,
+              0,
+              0,
+              1,
+              687,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              310,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              299,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1089,
+              5
+            ],
+            [
+              0,
+              2,
+              0,
+              1,
+              3,
+              4,
+              0,
+              0,
+              2,
+              0,
+              1,
+              1,
+              5,
+              1025
+            ]
+          ]
+        }
+      },
+      "test": {
+        "previous_model_previous_rules": {
+          "macro_f1": 0.9006144958314893,
+          "accepted_precision": 0.9948029449978346,
+          "old_command_correct_accept_rate": 0.851304347826087,
+          "unknown_false_accept_rate": 0.0017793594306049821,
+          "stop_recall": 0.9990176817288802,
+          "stop_precision": 1.0,
+          "per_class": {
+            "left": {
+              "precision": 0.9955022488755623,
+              "recall": 0.9807976366322009,
+              "f1-score": 0.9880952380952381,
+              "support": 677.0
+            },
+            "right": {
+              "precision": 1.0,
+              "recall": 0.982274741506647,
+              "f1-score": 0.9910581222056631,
+              "support": 677.0
+            },
+            "up": {
+              "precision": 0.9940652818991098,
+              "recall": 0.9896602658788775,
+              "f1-score": 0.9918578830495929,
+              "support": 677.0
+            },
+            "down": {
+              "precision": 1.0,
+              "recall": 0.982274741506647,
+              "f1-score": 0.9910581222056631,
+              "support": 677.0
+            },
+            "open_palm": {
+              "precision": 1.0,
+              "recall": 0.33739837398373984,
+              "f1-score": 0.5045592705167173,
+              "support": 738.0
+            },
+            "like": {
+              "precision": 0.9715504978662873,
+              "recall": 0.9674220963172805,
+              "f1-score": 0.9694819020581973,
+              "support": 706.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.592436974789916,
+              "f1-score": 0.7440633245382586,
+              "support": 714.0
+            },
+            "fist": {
+              "precision": 1.0,
+              "recall": 0.8085106382978723,
+              "f1-score": 0.8941176470588236,
+              "support": 705.0
+            },
+            "thumb_down": {
+              "precision": 1.0,
+              "recall": 0.9569444444444445,
+              "f1-score": 0.9779985805535841,
+              "support": 720.0
+            },
+            "peace": {
+              "precision": 0.9863013698630136,
+              "recall": 0.9632107023411371,
+              "f1-score": 0.9746192893401016,
+              "support": 299.0
+            },
+            "rock": {
+              "precision": 0.9840255591054313,
+              "recall": 0.9935483870967742,
+              "f1-score": 0.9887640449438202,
+              "support": 310.0
+            },
+            "stop_inverted": {
+              "precision": 1.0,
+              "recall": 0.9990176817288802,
+              "f1-score": 0.9995085995085995,
+              "support": 1018.0
+            },
+            "no_gesture": {
+              "precision": 0.5304964539007092,
+              "recall": 0.998220640569395,
+              "f1-score": 0.6928064217351034,
+              "support": 1124.0
+            },
+            "accuracy": 0.8861977438619775,
+            "macro avg": {
+              "precision": 0.8901386722507224,
+              "recall": 0.8251226660781293,
+              "f1-score": 0.8362848889863831,
+              "support": 9042.0
+            },
+            "weighted avg": {
+              "precision": 0.9376334789785638,
+              "recall": 0.8861977438619775,
+              "f1-score": 0.8846555244024106,
+              "support": 9042.0
+            }
+          },
+          "confusion": [
+            [
+              664,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              11
+            ],
+            [
+              0,
+              665,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              670,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              665,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              11
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              249,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              489
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              683,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              23
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              423,
+              0,
+              0,
+              0,
+              0,
+              0,
+              290
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              20,
+              0,
+              0,
+              570,
+              0,
+              0,
+              0,
+              0,
+              113
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              689,
+              0,
+              0,
+              0,
+              30
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              288,
+              1,
+              0,
+              9
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              308,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1017,
+              1
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1122
+            ]
+          ]
+        },
+        "previous_model_current_rules": {
+          "macro_f1": 0.9006144958314893,
+          "accepted_precision": 0.9948029449978346,
+          "old_command_correct_accept_rate": 0.851304347826087,
+          "unknown_false_accept_rate": 0.0017793594306049821,
+          "stop_recall": 0.9990176817288802,
+          "stop_precision": 1.0,
+          "per_class": {
+            "left": {
+              "precision": 0.9955022488755623,
+              "recall": 0.9807976366322009,
+              "f1-score": 0.9880952380952381,
+              "support": 677.0
+            },
+            "right": {
+              "precision": 1.0,
+              "recall": 0.982274741506647,
+              "f1-score": 0.9910581222056631,
+              "support": 677.0
+            },
+            "up": {
+              "precision": 0.9940652818991098,
+              "recall": 0.9896602658788775,
+              "f1-score": 0.9918578830495929,
+              "support": 677.0
+            },
+            "down": {
+              "precision": 1.0,
+              "recall": 0.982274741506647,
+              "f1-score": 0.9910581222056631,
+              "support": 677.0
+            },
+            "open_palm": {
+              "precision": 1.0,
+              "recall": 0.33739837398373984,
+              "f1-score": 0.5045592705167173,
+              "support": 738.0
+            },
+            "like": {
+              "precision": 0.9715504978662873,
+              "recall": 0.9674220963172805,
+              "f1-score": 0.9694819020581973,
+              "support": 706.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.592436974789916,
+              "f1-score": 0.7440633245382586,
+              "support": 714.0
+            },
+            "fist": {
+              "precision": 1.0,
+              "recall": 0.8085106382978723,
+              "f1-score": 0.8941176470588236,
+              "support": 705.0
+            },
+            "thumb_down": {
+              "precision": 1.0,
+              "recall": 0.9569444444444445,
+              "f1-score": 0.9779985805535841,
+              "support": 720.0
+            },
+            "peace": {
+              "precision": 0.9863013698630136,
+              "recall": 0.9632107023411371,
+              "f1-score": 0.9746192893401016,
+              "support": 299.0
+            },
+            "rock": {
+              "precision": 0.9840255591054313,
+              "recall": 0.9935483870967742,
+              "f1-score": 0.9887640449438202,
+              "support": 310.0
+            },
+            "stop_inverted": {
+              "precision": 1.0,
+              "recall": 0.9990176817288802,
+              "f1-score": 0.9995085995085995,
+              "support": 1018.0
+            },
+            "no_gesture": {
+              "precision": 0.5304964539007092,
+              "recall": 0.998220640569395,
+              "f1-score": 0.6928064217351034,
+              "support": 1124.0
+            },
+            "accuracy": 0.8861977438619775,
+            "macro avg": {
+              "precision": 0.8901386722507224,
+              "recall": 0.8251226660781293,
+              "f1-score": 0.8362848889863831,
+              "support": 9042.0
+            },
+            "weighted avg": {
+              "precision": 0.9376334789785638,
+              "recall": 0.8861977438619775,
+              "f1-score": 0.8846555244024106,
+              "support": 9042.0
+            }
+          },
+          "confusion": [
+            [
+              664,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              11
+            ],
+            [
+              0,
+              665,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              670,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              665,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              11
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              249,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              489
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              683,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              23
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              423,
+              0,
+              0,
+              0,
+              0,
+              0,
+              290
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              20,
+              0,
+              0,
+              570,
+              0,
+              0,
+              0,
+              0,
+              113
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              689,
+              0,
+              0,
+              0,
+              30
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              288,
+              1,
+              0,
+              9
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              308,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1017,
+              1
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1122
+            ]
+          ]
+        },
+        "candidate_model_current_rules": {
+          "macro_f1": 0.9006144958314893,
+          "accepted_precision": 0.9948029449978346,
+          "old_command_correct_accept_rate": 0.851304347826087,
+          "unknown_false_accept_rate": 0.0017793594306049821,
+          "stop_recall": 0.9990176817288802,
+          "stop_precision": 1.0,
+          "per_class": {
+            "left": {
+              "precision": 0.9955022488755623,
+              "recall": 0.9807976366322009,
+              "f1-score": 0.9880952380952381,
+              "support": 677.0
+            },
+            "right": {
+              "precision": 1.0,
+              "recall": 0.982274741506647,
+              "f1-score": 0.9910581222056631,
+              "support": 677.0
+            },
+            "up": {
+              "precision": 0.9940652818991098,
+              "recall": 0.9896602658788775,
+              "f1-score": 0.9918578830495929,
+              "support": 677.0
+            },
+            "down": {
+              "precision": 1.0,
+              "recall": 0.982274741506647,
+              "f1-score": 0.9910581222056631,
+              "support": 677.0
+            },
+            "open_palm": {
+              "precision": 1.0,
+              "recall": 0.33739837398373984,
+              "f1-score": 0.5045592705167173,
+              "support": 738.0
+            },
+            "like": {
+              "precision": 0.9715504978662873,
+              "recall": 0.9674220963172805,
+              "f1-score": 0.9694819020581973,
+              "support": 706.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.592436974789916,
+              "f1-score": 0.7440633245382586,
+              "support": 714.0
+            },
+            "fist": {
+              "precision": 1.0,
+              "recall": 0.8085106382978723,
+              "f1-score": 0.8941176470588236,
+              "support": 705.0
+            },
+            "thumb_down": {
+              "precision": 1.0,
+              "recall": 0.9569444444444445,
+              "f1-score": 0.9779985805535841,
+              "support": 720.0
+            },
+            "peace": {
+              "precision": 0.9863013698630136,
+              "recall": 0.9632107023411371,
+              "f1-score": 0.9746192893401016,
+              "support": 299.0
+            },
+            "rock": {
+              "precision": 0.9840255591054313,
+              "recall": 0.9935483870967742,
+              "f1-score": 0.9887640449438202,
+              "support": 310.0
+            },
+            "stop_inverted": {
+              "precision": 1.0,
+              "recall": 0.9990176817288802,
+              "f1-score": 0.9995085995085995,
+              "support": 1018.0
+            },
+            "no_gesture": {
+              "precision": 0.5304964539007092,
+              "recall": 0.998220640569395,
+              "f1-score": 0.6928064217351034,
+              "support": 1124.0
+            },
+            "accuracy": 0.8861977438619775,
+            "macro avg": {
+              "precision": 0.8901386722507224,
+              "recall": 0.8251226660781293,
+              "f1-score": 0.8362848889863831,
+              "support": 9042.0
+            },
+            "weighted avg": {
+              "precision": 0.9376334789785638,
+              "recall": 0.8861977438619775,
+              "f1-score": 0.8846555244024106,
+              "support": 9042.0
+            }
+          },
+          "confusion": [
+            [
+              664,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              11
+            ],
+            [
+              0,
+              665,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              10
+            ],
+            [
+              0,
+              0,
+              670,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              665,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              11
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              249,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              489
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              683,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              23
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              423,
+              0,
+              0,
+              0,
+              0,
+              0,
+              290
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              20,
+              0,
+              0,
+              570,
+              0,
+              0,
+              0,
+              0,
+              113
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              689,
+              0,
+              0,
+              0,
+              30
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              288,
+              1,
+              0,
+              9
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              308,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1017,
+              1
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1122
+            ]
+          ]
+        },
+        "previous_model_scalar": {
+          "macro_f1": 0.9910724152481021,
+          "accepted_precision": 0.9958095238095238,
+          "old_command_correct_accept_rate": 0.9892753623188406,
+          "unknown_false_accept_rate": 0.00800711743772242,
+          "stop_recall": 0.9980353634577603,
+          "stop_precision": 0.9990167158308751,
+          "per_class": {
+            "left": {
+              "precision": 0.997037037037037,
+              "recall": 0.9940915805022157,
+              "f1-score": 0.9955621301775148,
+              "support": 677.0
+            },
+            "right": {
+              "precision": 0.9970282317979198,
+              "recall": 0.9911373707533235,
+              "f1-score": 0.9940740740740741,
+              "support": 677.0
+            },
+            "up": {
+              "precision": 0.9955489614243324,
+              "recall": 0.9911373707533235,
+              "f1-score": 0.993338267949667,
+              "support": 677.0
+            },
+            "down": {
+              "precision": 1.0,
+              "recall": 0.9926144756277696,
+              "f1-score": 0.9962935507783544,
+              "support": 677.0
+            },
+            "open_palm": {
+              "precision": 0.9919028340080972,
+              "recall": 0.9959349593495935,
+              "f1-score": 0.9939148073022313,
+              "support": 738.0
+            },
+            "like": {
+              "precision": 0.9913669064748202,
+              "recall": 0.9759206798866855,
+              "f1-score": 0.9835831548893648,
+              "support": 706.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.9985994397759104,
+              "f1-score": 0.9992992291520673,
+              "support": 714.0
+            },
+            "fist": {
+              "precision": 0.994277539341917,
+              "recall": 0.9858156028368794,
+              "f1-score": 0.99002849002849,
+              "support": 705.0
+            },
+            "thumb_down": {
+              "precision": 0.9971671388101983,
+              "recall": 0.9777777777777777,
+              "f1-score": 0.9873772791023843,
+              "support": 720.0
+            },
+            "peace": {
+              "precision": 0.9866220735785953,
+              "recall": 0.9866220735785953,
+              "f1-score": 0.9866220735785953,
+              "support": 299.0
+            },
+            "rock": {
+              "precision": 0.9903536977491961,
+              "recall": 0.9935483870967742,
+              "f1-score": 0.9919484702093397,
+              "support": 310.0
+            },
+            "stop_inverted": {
+              "precision": 0.9990167158308751,
+              "recall": 0.9980353634577603,
+              "f1-score": 0.9985257985257985,
+              "support": 1018.0
+            },
+            "no_gesture": {
+              "precision": 0.9554413024850043,
+              "recall": 0.9919928825622776,
+              "f1-score": 0.9733740724574421,
+              "support": 1124.0
+            },
+            "accuracy": 0.9905994249059943,
+            "macro avg": {
+              "precision": 0.9211258884669995,
+              "recall": 0.9195162831399204,
+              "f1-score": 0.9202815284446662,
+              "support": 9042.0
+            },
+            "weighted avg": {
+              "precision": 0.9907928393657772,
+              "recall": 0.9905994249059943,
+              "f1-score": 0.9906370724223442,
+              "support": 9042.0
+            }
+          },
+          "confusion": [
+            [
+              673,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              671,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              671,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1,
+              1,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              672,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              735,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              689,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              16
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              713,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              1,
+              1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              695,
+              1,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              1,
+              5,
+              0,
+              0,
+              2,
+              704,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              295,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              308,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1016,
+              2
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              5,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              1115
+            ]
+          ]
+        },
+        "candidate_model_scalar": {
+          "macro_f1": 0.9910724152481021,
+          "accepted_precision": 0.9958095238095238,
+          "old_command_correct_accept_rate": 0.9892753623188406,
+          "unknown_false_accept_rate": 0.00800711743772242,
+          "stop_recall": 0.9980353634577603,
+          "stop_precision": 0.9990167158308751,
+          "per_class": {
+            "left": {
+              "precision": 0.997037037037037,
+              "recall": 0.9940915805022157,
+              "f1-score": 0.9955621301775148,
+              "support": 677.0
+            },
+            "right": {
+              "precision": 0.9970282317979198,
+              "recall": 0.9911373707533235,
+              "f1-score": 0.9940740740740741,
+              "support": 677.0
+            },
+            "up": {
+              "precision": 0.9955489614243324,
+              "recall": 0.9911373707533235,
+              "f1-score": 0.993338267949667,
+              "support": 677.0
+            },
+            "down": {
+              "precision": 1.0,
+              "recall": 0.9926144756277696,
+              "f1-score": 0.9962935507783544,
+              "support": 677.0
+            },
+            "open_palm": {
+              "precision": 0.9919028340080972,
+              "recall": 0.9959349593495935,
+              "f1-score": 0.9939148073022313,
+              "support": 738.0
+            },
+            "like": {
+              "precision": 0.9913669064748202,
+              "recall": 0.9759206798866855,
+              "f1-score": 0.9835831548893648,
+              "support": 706.0
+            },
+            "dorsal": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 0.0
+            },
+            "ok": {
+              "precision": 1.0,
+              "recall": 0.9985994397759104,
+              "f1-score": 0.9992992291520673,
+              "support": 714.0
+            },
+            "fist": {
+              "precision": 0.994277539341917,
+              "recall": 0.9858156028368794,
+              "f1-score": 0.99002849002849,
+              "support": 705.0
+            },
+            "thumb_down": {
+              "precision": 0.9971671388101983,
+              "recall": 0.9777777777777777,
+              "f1-score": 0.9873772791023843,
+              "support": 720.0
+            },
+            "peace": {
+              "precision": 0.9866220735785953,
+              "recall": 0.9866220735785953,
+              "f1-score": 0.9866220735785953,
+              "support": 299.0
+            },
+            "rock": {
+              "precision": 0.9903536977491961,
+              "recall": 0.9935483870967742,
+              "f1-score": 0.9919484702093397,
+              "support": 310.0
+            },
+            "stop_inverted": {
+              "precision": 0.9990167158308751,
+              "recall": 0.9980353634577603,
+              "f1-score": 0.9985257985257985,
+              "support": 1018.0
+            },
+            "no_gesture": {
+              "precision": 0.9554413024850043,
+              "recall": 0.9919928825622776,
+              "f1-score": 0.9733740724574421,
+              "support": 1124.0
+            },
+            "accuracy": 0.9905994249059943,
+            "macro avg": {
+              "precision": 0.9211258884669995,
+              "recall": 0.9195162831399204,
+              "f1-score": 0.9202815284446662,
+              "support": 9042.0
+            },
+            "weighted avg": {
+              "precision": 0.9907928393657772,
+              "recall": 0.9905994249059943,
+              "f1-score": 0.9906370724223442,
+              "support": 9042.0
+            }
+          },
+          "confusion": [
+            [
+              673,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              671,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              671,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1,
+              1,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              672,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              735,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              689,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              16
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              713,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              1,
+              1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              695,
+              1,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              1,
+              5,
+              0,
+              0,
+              2,
+              704,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              295,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              308,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1016,
+              2
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              5,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              1115
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "jpeg_replay": {
+    "total": 739,
+    "correct": 689,
+    "actions": 692,
+    "per_class": {
+      "left": {
+        "rows": 270,
+        "correct": 251,
+        "actions": 252
+      },
+      "right": {
+        "rows": 469,
+        "correct": 438,
+        "actions": 440
+      },
+      "new_right": {
+        "rows": 331,
+        "correct": 315,
+        "actions": 315
+      }
+    },
+    "sampled_new_right_before": {
+      "correct": 3,
+      "actions": 5,
+      "rows": 14
+    },
+    "sampled_new_right_rule_diagnosis": {
+      "correct": 12,
+      "actions": 12,
+      "rows": 14
+    },
+    "scope": "Reviewed training JPEG static holds; not independent live-camera accuracy"
+  },
+  "feedback_runtime": {
+    "metric_world_rows": 713,
+    "summary": {
+      "down": {
+        "rows": 959,
+        "raw_labels": {
+          "down": 958,
+          "peace": 1
+        },
+        "raw_accepted_correct": 955,
+        "runtime_correct": 842,
+        "executed_correct": 842,
+        "failures": [
+          "752e32edfe55ec43",
+          "341dbbbbecbc8e47",
+          "b4c16e2d38a074fe",
+          "56b0af1a434d2a0a",
+          "aab9bbb1c5b6ca51",
+          "fbe395b31ef3964b",
+          "34a6b84e46d82a3b",
+          "2074eb8023ec28bd",
+          "c073f59c56203681",
+          "124da586df67abc2",
+          "4dca2d1f04672f15",
+          "67c6d36a75a94b57",
+          "c70f85c12acf624f",
+          "31a5ad39a9f4bc80",
+          "3e494a999908cc09",
+          "9677aab2a2896067",
+          "53c88c903c1f5d88",
+          "016cbabbbc1ab5e2",
+          "04ef4b75e1d61ef9",
+          "b1e76f3c14524ca1",
+          "335110b8ba9b7cf2",
+          "da4aa6f19227197b",
+          "a0e4ab4644d60a76",
+          "3c71b8636c7abc97",
+          "28963e07ceb980af",
+          "2f93ebdaece4c1f2",
+          "6efc0004fc595921",
+          "3d9bdc43049c94bc",
+          "72141859894dbaf0",
+          "8612a5f87aaf06fb",
+          "f7ee0b1babd64844",
+          "1363765e814874e0",
+          "417fb92c60c89bff",
+          "004c1500a54270df",
+          "b234ac52be1af259",
+          "96672c79fbf10fe2",
+          "cd0ad23067a4721d",
+          "6d85b8cb994bc83a",
+          "3f6f240f1e21ed30",
+          "a42c87703958b494",
+          "abb81116fff3cd4b",
+          "07f205831f1b5425",
+          "b0d5a6f4427899ce",
+          "9688f37ba4f0158e",
+          "859a570f6f8fb073",
+          "07557d72161ab9f6",
+          "39498422c2cff078",
+          "2ea26682d61ead2b",
+          "a6fafe895349eaa0",
+          "d7586ee88a3de6d7",
+          "e9fb56c3b4925522",
+          "8c47bd9892d4b856",
+          "c2df9795da4a306e",
+          "d1b1fbf552de1950",
+          "3bdda7330c5e3509",
+          "ebaaab925aef660c",
+          "50d54cd0b82b2645",
+          "a224d9ccc4ac5c20",
+          "c605ffe5a1b72c85",
+          "356664849171bf1c",
+          "3e9647ae6a7903f4",
+          "f3c6e050354d90d8",
+          "1e1ea13c6638527d",
+          "cc091b24a6eb7ee7",
+          "8bbac082ff8e008c",
+          "c7c738703d569d83",
+          "ba6cfd19f942b946",
+          "0d9f22d480564b35",
+          "1fd61dec28c27589",
+          "0fc8806ad2a3151d",
+          "696d10d5c73d74f1",
+          "ec0e5ac9a0e113a9",
+          "69120cb14550fb6a",
+          "89286acdecf6098f",
+          "70f5004b6ae5eec1",
+          "40fc2b7c8e8cf2f6",
+          "d0d4b39d13582f88",
+          "68d7ef8820fb06d8",
+          "d0fd68c74ac64b94",
+          "5880666166369aa5",
+          "3a7ea2cf79467598",
+          "b29a535cee92b462",
+          "526a7f055d939d50",
+          "11a5411d2058b652",
+          "c342c27d8f4403fc",
+          "b19bb6d822d9ecc6",
+          "9db891b9f51ce60c",
+          "1a8d612d312abadc",
+          "f508491df3d954f5",
+          "2b4f51a5b168721e",
+          "6ad04513ef86a266",
+          "5748dce35268547a",
+          "65eec156ba71b96f",
+          "c33bb7495b70ecab",
+          "d1b565f070b926ca",
+          "296a99b3fe2a4a03",
+          "c411212c575c16c9",
+          "947b24ece1ae0f36",
+          "e3e42074ec8f078f",
+          "eba3b3cc68abfc38",
+          "b514869e7c568804",
+          "bc9c3b4335c1e327",
+          "27e662994a2f5b7a",
+          "d8e369ce78040ab8",
+          "1bf00592164c65c7",
+          "7f61aa55e93da6db",
+          "c69b9f75e404fc29",
+          "88ca4b128bd6e012",
+          "e902266f5d8347b4",
+          "091fa05a65752512",
+          "cce1a21c3b7f1141",
+          "e81b1af63334c911",
+          "680b66303f1c18f6",
+          "127c2bed0b6aa5f1",
+          "0e92f47457ff7b11",
+          "62b37087659f4491",
+          "9fa8bf4119c56902"
+        ]
+      },
+      "fist": {
+        "rows": 159,
+        "raw_labels": {
+          "fist": 159
+        },
+        "raw_accepted_correct": 159,
+        "runtime_correct": 142,
+        "executed_correct": 142,
+        "failures": [
+          "31d36506f2ae3f8e",
+          "dc4d2a72a10b6ee4",
+          "455d2a752c050044",
+          "1ec89f961a908e93",
+          "5b14ba406ecf90db",
+          "a43d89ecadc4d86c",
+          "f50ac14fde8c359e",
+          "afe75a6f09a6a294",
+          "f56bf034dfed39ca",
+          "becb866ac6f24ff4",
+          "ad3d9410e2ee2a16",
+          "6583cb6ce5b4de05",
+          "bbc2d529b6cdb35b",
+          "1132d8f2d0119fe5",
+          "2189db22c8f87de9",
+          "d4d1a8ea49a511ed",
+          "5204add9221df377"
+        ]
+      },
+      "left": {
+        "rows": 270,
+        "raw_labels": {
+          "left": 270
+        },
+        "raw_accepted_correct": 265,
+        "runtime_correct": 250,
+        "executed_correct": 250,
+        "failures": [
+          "f780a5c95dabfab3",
+          "7f1a52c2056459c1",
+          "d6034da358c9b139",
+          "f75973e262bd8c14",
+          "92dd8a3f85012c97",
+          "a4634e6bdad74b52",
+          "13ae24c2af20997f",
+          "ae56cd61fd9b134a",
+          "6f94c321a60e69e7",
+          "b8692ef30aab8c7a",
+          "a23326e69ccb11dc",
+          "6e6cb5473b812641",
+          "5f3f2e049708245e",
+          "307a6966558bba73",
+          "c04298f0d37b8b7b",
+          "ec35020047d8efe1",
+          "df6e53c66b9d0984",
+          "50de5b45e23a7188",
+          "a1b99b391f4fe5dc",
+          "8b2a622ec9462206"
+        ]
+      },
+      "like": {
+        "rows": 90,
+        "raw_labels": {
+          "like": 90
+        },
+        "raw_accepted_correct": 90,
+        "runtime_correct": 90,
+        "executed_correct": 90,
+        "failures": []
+      },
+      "no_gesture": {
+        "rows": 1788,
+        "raw_labels": {
+          "peace": 119,
+          "like": 172,
+          "left": 215,
+          "down": 65,
+          "thumb_down": 267,
+          "fist": 309,
+          "right": 181,
+          "up": 57,
+          "ok": 17,
+          "stop_inverted": 290,
+          "open_palm": 35,
+          "rock": 61
+        },
+        "raw_accepted_correct": 0,
+        "runtime_correct": 1685,
+        "executed_correct": 0,
+        "failures": [
+          "d40339acb1401d27",
+          "0e92f5a4dd59e318",
+          "3fb146fdb29eb40a",
+          "4fc7d4cffe7b7aaf",
+          "78f2253d9cf5c74e",
+          "124fd4fabfe692de",
+          "4be2806b70139014",
+          "2ce28c4204bf96eb",
+          "d76e85788ca58cbc",
+          "0ec40df93b498e22",
+          "3111db6cf203199c",
+          "09a4e12095b61fea",
+          "67da1d38c3eadd00",
+          "ae6cd74feb5c517c",
+          "8cee93c1d4390710",
+          "140606d386779df5",
+          "cf4b77a9eda47434",
+          "1a7115b31c59836e",
+          "ce282caad41f9136",
+          "dad24caec3e8f10d",
+          "8e6442c2dde08641",
+          "6dd19bad8ac95c07",
+          "6e50fc499bf8d494",
+          "0fa8174fb118f740",
+          "32084adeddb6570a",
+          "8c6ec68ad693dcdb",
+          "dd17441a758c4565",
+          "407de42ba6b2b0c9",
+          "36f2aef06292e5c4",
+          "52f55ebef7d902fe",
+          "30e6c137a1676d41",
+          "bbafaf1b44c8da10",
+          "f65c88c401f42a54",
+          "cddf108ab8987368",
+          "e3403e525161d54f",
+          "d01007f4d5bada9b",
+          "d7d3b3d9dd305d5e",
+          "f860ce87817ef9bc",
+          "c2119086deb60ac7",
+          "a01d0003deedb703",
+          "67321f9854094c01",
+          "1742a2bd8ef337cf",
+          "963fe81ed4333ba5",
+          "8a1fd91794f7d068",
+          "816bf8e409d8d3d5",
+          "9685e52d9db7b6ca",
+          "bdfd512dec738c9e",
+          "6030b8e0e8c34733",
+          "88bd32c634de3f0c",
+          "f3e5c293dc7234a6",
+          "35fa8071b73332c7",
+          "c8d6fb0bc9e6fe3a",
+          "dc38c41f9fa249f0",
+          "93c2f5c3bc67448b",
+          "9163471f6fd4277b",
+          "521a06dd2d1b702c",
+          "86668745c4d0a921",
+          "12e6f5bdbf0650fc",
+          "4b8e14a117a84462",
+          "5fd8ce0469ffaa82",
+          "1f79fbca6eaef3b6",
+          "a8dbf20a62872db1",
+          "a91d7e02761bbb72",
+          "0c9b7b05ffa7ca4a",
+          "cceb403e8d986b93",
+          "59c6f0debb0cc6d6",
+          "c231f9b958a9e182",
+          "f8ed9d1766ba08b7",
+          "b15e3d29a3f3d54d",
+          "8fd097dc78b839fd",
+          "e14891f27fe59f3e",
+          "88f2e78962836b53",
+          "56137a717a5c4614",
+          "dfec1c410071ea72",
+          "09ddbe34ff58093c",
+          "d884607a01acd60b",
+          "83f5aa7fa1e6eeea",
+          "7372a95ee0c14bd1",
+          "29acb8b188c4478e",
+          "bcc7cbd726201a97",
+          "194a52a92511d2f1",
+          "564dffd74718cbf4",
+          "99bc9bd63a7764ea",
+          "e02f694890af505b",
+          "4964da6f48bab682",
+          "38de3d1ceccfc696",
+          "36b8635343301de6",
+          "d957a404eb20b509",
+          "fece56b73a943539",
+          "c5f7856c3697cac0",
+          "037970672b7c1da4",
+          "a4817cdd0cd41efb",
+          "3652525d60376bbb",
+          "7f27bdc0b13fd341",
+          "d4564682fbe5970b",
+          "412c9520015aac50",
+          "e19f3e885a6cc5a6",
+          "a04f1714ca4cf2fc",
+          "f35e0bd1738b7c28",
+          "80a9e9c3eb727085",
+          "7b87a413a4b9603b",
+          "c66fa228fc7a4be3",
+          "889ff331ca54b955"
+        ]
+      },
+      "peace": {
+        "rows": 102,
+        "raw_labels": {
+          "peace": 66,
+          "down": 36
+        },
+        "raw_accepted_correct": 54,
+        "runtime_correct": 12,
+        "executed_correct": 12,
+        "failures": [
+          "654de92341ba3394",
+          "2d05c8fd267beb7a",
+          "990e65a4cb4ae4e1",
+          "8c2a08718a9c9e83",
+          "96fbc4e03e69e4fb",
+          "38a92bc98cd3a9b0",
+          "76982aad00a1b3cd",
+          "4ff4b0b82babd290",
+          "4207d469eb6fbafa",
+          "22f9238469124a78",
+          "aa2e8bb428dd44fb",
+          "55539aa845927b6c",
+          "5667fafc372bf7cf",
+          "53c9a25f866d2d0e",
+          "886344ec0c9106b7",
+          "d0642e0088ceac2b",
+          "b4e376780b1a0db5",
+          "222053498dd7c48e",
+          "05e18fabd04845e2",
+          "12b171af8c4ad264",
+          "2734b9b79b021f9b",
+          "7a529cbf32d7a7c6",
+          "5a587a3f06849117",
+          "90376120c27d8e47",
+          "3781c3035d47983c",
+          "eb8b919913d21d10",
+          "772b5174b94cd457",
+          "f7935a2182500484",
+          "5e58af582f0c7ded",
+          "1ffd1e624da5e3bd",
+          "431113b40f2912c1",
+          "7bd6ea432805d676",
+          "09d4e1361deecd2d",
+          "9ef6e66de646f496",
+          "9df0e9370fb802d1",
+          "53b581d0ea4dac6a",
+          "8619e321334d862c",
+          "374d8f99586e1276",
+          "b97ed9da514aad04",
+          "8bc82bc10fa43ba7",
+          "beafe652afa8715c",
+          "6d2f7dfaf064a15e",
+          "91fef8efc27acfaa",
+          "fb4af1c6eb919fc4",
+          "019599cc35536767",
+          "73aac886c00524bd",
+          "3209722bdc90829f",
+          "d15474c71a4724e8",
+          "3ba5532e01e100f9",
+          "14e6ef887adb3c81",
+          "98b7e2190cd51fe3",
+          "d7becee0252a5e1c",
+          "4135a7c3f24d3bc5",
+          "dbaa3ca306bd11d5",
+          "fe36fef9b063ba1d",
+          "e58869b114f23d11",
+          "2e2bc2cf680e80cb",
+          "27ea03aca847bcbd",
+          "3c6262ac233fcd5f",
+          "c66cc13e1b0ccc17",
+          "51d58e2ff38f70de",
+          "1b8ffcac42d286c2",
+          "e5cc0aa42bf1e1de",
+          "b624c30bb16ca861",
+          "eb9b6d5e44811be3",
+          "f64e89f7438ffbfc",
+          "460f2d22fc2499de",
+          "8143791e88528aa9",
+          "679d2b0b5fe78c55",
+          "8af1a3fa4be09718",
+          "ce6176d5210089d7",
+          "957b0f6d54d37151",
+          "2d33ab273a877261",
+          "ebebbc1b29cbc41c",
+          "8afb3584891f36e3",
+          "0f2e922b91df2c27",
+          "0f0b457b511ca246",
+          "49c2c27b64a30329",
+          "68faf1969e0da619",
+          "9721b932df9973aa",
+          "6ae7be5a0929fd2f",
+          "c674da450044e06f",
+          "113a235f3b0ee67c",
+          "9de4a87ee77ce466",
+          "9b7149c76cbc10cd",
+          "eaa3a39360cb3642",
+          "52c17c3be54cdc0b",
+          "43710ea4f915a24a",
+          "53d0c45336c9c76a",
+          "a5805ef797ff9936"
+        ]
+      },
+      "right": {
+        "rows": 469,
+        "raw_labels": {
+          "right": 469
+        },
+        "raw_accepted_correct": 459,
+        "runtime_correct": 439,
+        "executed_correct": 439,
+        "failures": [
+          "36573e5af7a4ab6a",
+          "0f51b03a151ba7d1",
+          "098b6783fe9387f0",
+          "73654475959103af",
+          "95da69ee2d8da544",
+          "390f49d5c25ce132",
+          "109083d1ad8ca747",
+          "f919deedbaf2eee1",
+          "4ac8cf9eefccab6b",
+          "c797a27ce1699021",
+          "d7bbb3eb6636f897",
+          "d1bae30626f3ea0b",
+          "d95a110f8e4174ab",
+          "1d59f7dad59f9b67",
+          "edfa5524c2a0a44a",
+          "f357af0b8232e031",
+          "9b633230ff3ba47f",
+          "62cfd8467bf1aa7b",
+          "0e09e28aa5644027",
+          "d2beef938c1e5c3d",
+          "05310c9a9c38e44b",
+          "a6cbb271011dfd78",
+          "94762ad4be139385",
+          "1eab961c589daa0b",
+          "56c3db44836c5c96",
+          "aa0d2185cc1711e0",
+          "b5c68f23b469931b",
+          "920359fe97a30935",
+          "90382378f7e7f15c",
+          "1f282caffb926a2a"
+        ]
+      }
+    },
+    "stress_counts": {
+      "left_total": 14780,
+      "left_correct": 11456,
+      "right_total": 14780,
+      "right_correct": 12960
+    },
+    "scope": "Matching JPEG redetection supplies metric world for annotated XY; metric world XY is reflected/rotated with synthetic stress variants"
+  },
+  "left_stress_preservation": {
+    "previous_model_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+    "candidate_model_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+    "baseline_geometry_sha256": "0964a683fa352c743a37037d3af32428dfe93a4bd2067cd9251e1d332ae944f8",
+    "baseline_counts": {
+      "left_total": 14780,
+      "left_correct": 11456
+    },
+    "current_counts": {
+      "left_total": 14780,
+      "left_correct": 11456
+    },
+    "additional_failed_left_cases": 0,
+    "resolved_left_cases": 0,
+    "scope": "Expanded synthetic Left set includes mirrors of the new Right-only feedback; require preservation of every previously correct case"
+  },
+  "release_checks": {
+    "onnx_parity": true,
+    "offline_macro_f1_at_least_0_97": true,
+    "offline_accepted_precision_at_least_0_99": true,
+    "offline_unknown_false_accept_at_most_0_02": true,
+    "old_command_correct_accept_at_least_0_98": true,
+    "new_command_recall_at_least_0_97": true,
+    "retired_call_false_accept_at_most_0_02": true,
+    "runtime_peace_recall_at_least_0_95": true,
+    "runtime_rock_recall_at_least_0_97": true,
+    "runtime_unknown_false_accept_at_most_0_02": true,
+    "stop_precision": true,
+    "runtime_stop_precision": true,
+    "runtime_stop_recall": true,
+    "right_only_weights_preserved": true,
+    "right_preservation_matches_model": true,
+    "right_non_right_decisions_preserved": true,
+    "horizontal_feedback_matches_model": true,
+    "horizontal_feedback_matches_dataset": true,
+    "feedback_replay_matches_runtime_sources": true,
+    "reviewed_left_classified_and_executed": true,
+    "reviewed_left_angle_mirror_aspect_variants": true,
+    "left_stress_baseline_bound": true,
+    "reviewed_right_classified_and_executed": true,
+    "reviewed_right_angle_mirror_aspect_variants": true,
+    "reviewed_directional_jpeg_detection_and_actions": true
+  },
+  "backend": {
+    "passed": 4936,
+    "current_failures": [
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[False-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[True-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_thumb_down",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Left]",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Right]",
+      "backend/tests/test_hand_ownership.py::test_missing_owner_expires_and_visible_hand_requalifies"
+    ],
+    "baseline_failures": [
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[False-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[True-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_thumb_down",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Left]",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Right]",
+      "backend/tests/test_hand_ownership.py::test_missing_owner_expires_and_visible_hand_requalifies"
+    ],
+    "new_failures": [],
+    "all_tests_passed": false
+  },
+  "flutter_tests": {
+    "runtime": 76,
+    "tester": 8
+  },
+  "conversion": {
+    "passed": true,
+    "model_sha256": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
+    "bytes": 78960,
+    "evaluation": {
+      "validation": {
+        "rows": 9031,
+        "source_sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a",
+        "top1_agreement": 1.0,
+        "maximum_probability_error": 2.3245811462402344e-06,
+        "mean_probability_error": 3.176634733037531e-09,
+        "maximum_mass_error": 9.834766387939453e-07,
+        "scalar_gate_agreement": 1.0,
+        "source_scalar_metrics": {
+          "accepted_precision": 0.9947282540479477,
+          "unknown_false_accept_rate": 0.018199233716475097,
+          "acceptance_rate": 0.8821835898571587
+        },
+        "tflite_scalar_metrics": {
+          "accepted_precision": 0.9947282540479477,
+          "unknown_false_accept_rate": 0.018199233716475097,
+          "acceptance_rate": 0.8821835898571587
+        },
+        "host_invoke": {
+          "p50_ms": 0.0035,
+          "p95_ms": 0.0063,
+          "scope": "warm host CPU invoke only; not iPhone or camera latency"
+        },
+        "geometry_and_temporal_not_included": true
+      },
+      "untouched_test": {
+        "rows": 9042,
+        "source_sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd",
+        "top1_agreement": 1.0,
+        "maximum_probability_error": 1.9073486328125e-06,
+        "mean_probability_error": 3.2020044393732405e-09,
+        "maximum_mass_error": 1.9073486328125e-06,
+        "scalar_gate_agreement": 1.0,
+        "source_scalar_metrics": {
+          "accepted_precision": 0.9958095238095238,
+          "unknown_false_accept_rate": 0.00800711743772242,
+          "acceptance_rate": 0.8709356337093563
+        },
+        "tflite_scalar_metrics": {
+          "accepted_precision": 0.9958095238095238,
+          "unknown_false_accept_rate": 0.00800711743772242,
+          "acceptance_rate": 0.8709356337093563
+        },
+        "host_invoke": {
+          "p50_ms": 0.0035,
+          "p95_ms": 0.0063,
+          "scope": "warm host CPU invoke only; not iPhone or camera latency"
+        },
+        "geometry_and_temporal_not_included": true
+      }
+    }
+  },
+  "classifier_timing": {
+    "schema_version": 1,
+    "scope": "Same-host one-thread warm native CPU invoke only; excludes camera, transport, detector, isolate, display and confirmation.",
+    "physical_device_tested": false,
+    "baseline_archive": "handover_static\\static_gesture_runtime_20261111_direction_stability.zip",
+    "baseline_archive_sha256": "733e409fc78886ee2c41f7d8a9fc1eb37787a230d46904d8069bf2fda76e4491",
+    "previous_model_sha256": "a0d8d4df9c55ae68e21e90733253a365862ae89ceb666975d0e0e69655ed12d2",
+    "current_model_sha256": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
+    "previous_model_bytes": 78960,
+    "current_model_bytes": 78960,
+    "methodology": "100 warmup invokes each; 40 alternating-order rounds of the same 100 feature rows; set_tensor excluded from invoke timer.",
+    "models": {
+      "previous": {
+        "samples": 4000,
+        "p50_ms": 0.0033,
+        "p95_ms": 0.006
+      },
+      "current": {
+        "samples": 4000,
+        "p50_ms": 0.0033,
+        "p95_ms": 0.006
+      }
+    },
+    "retained_runtime_policy": {
+      "target_fps": 10,
+      "admission_interval_ms": 100,
+      "pending_frames_maximum": 1,
+      "interpreter_initialization": "persistent worker",
+      "strong_confirmation": "immediate at confidence >= 0.92 and margin >= 0.25 after mass/geometry qualification",
+      "ordinary_confirmation": "two matching results among latest three",
+      "fixed_action_cooldown_ms": 0
+    }
+  },
+  "rule_timing": {
+    "scope": "Alternating same-host CPU landmark geometry; excludes camera, detector, Flutter and physical-phone latency",
+    "baseline_source_sha256": "0964a683fa352c743a37037d3af32428dfe93a4bd2067cd9251e1d332ae944f8",
+    "current_source_sha256": "6dd7cd38c26268562254c071184eaca4547e3ab9054ac5070a80108a84724a5f",
+    "rules": {
+      "previous": {
+        "samples": 1640,
+        "p50_ms": 3.3034499999999998,
+        "p95_ms": 5.38437
+      },
+      "current": {
+        "samples": 1640,
+        "p50_ms": 3.27895,
+        "p95_ms": 5.4154
+      }
+    },
+    "state_update": {
+      "p50_ms": 0.0012,
+      "p95_ms": 0.0015
+    },
+    "p95_delta_ms": 0.031030000000000335,
+    "frame_budget_ms": 100,
+    "additional_p95_below_one_ms": true,
+    "scheduling_changed": false,
+    "extra_detector_or_classifier_passes": 0,
+    "physical_device_tested": false
+  },
+  "runtime_source_sha256": {
+    "backend/geometry.py": "6dd7cd38c26268562254c071184eaca4547e3ab9054ac5070a80108a84724a5f",
+    "backend/runtime.py": "158dc2329423bee78128d832595ffc256e125a91fff17e21ad22a494ded98eb0",
+    "backend/model_runtime.py": "e23cdaafc34db543b02eaabb10abb4526f93a75b79375ab7d6b9238744663907",
+    "backend/hand_selection.py": "a800e5dd9dcf8dd94d1de7005fed74fa6abb4db0c07e441c70d863fbf0ad98c1",
+    "backend/direction_stability.py": "040aecc293bf885e9637df9d8033ca551c20a8b1ae4014502c069feb76f7b3a3"
+  },
+  "limits": [
+    "Saved feedback, JPEG holds and synthetic transforms are training regressions, not new people or live accuracy.",
+    "The Right entry exception needs metric world landmarks; missing/contradictory depth remains rejected.",
+    "Existing backend failures are retained; physical phone/NCM latency and iOS build acceptance remain pending."
+  ]
+}

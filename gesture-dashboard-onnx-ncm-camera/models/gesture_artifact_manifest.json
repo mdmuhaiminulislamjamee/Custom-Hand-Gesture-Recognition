@@ -5,16 +5,16 @@
       "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
     },
     "gesture_mlp_onnx_metadata.json": {
-      "bytes": 13848,
-      "sha256": "652e7de30013b9b9931bc6292ecf1ca85c6a1f0b9b9106151eaf089c9946e0ae"
+      "bytes": 14890,
+      "sha256": "a6c77c01b673d500dffa6c19c10d95a0e1747f428d7845f0d21dc4a85c497bf2"
     },
     "gesture_mlp_production.onnx": {
       "bytes": 77797,
-      "sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed"
+      "sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992"
     },
     "gesture_mobile_runtime_config.json": {
-      "bytes": 9591,
-      "sha256": "21d618b176bcc382c1ecb3d5ab9f1f1867fb0344c8da53e196a9e1ba183176cd"
+      "bytes": 9776,
+      "sha256": "d9dc97419d483917dc1e756e08a4c222493dd35830dc0708c3e1d28108451ef7"
     },
     "gesture_online_replay_cache.npz": {
       "bytes": 843627,
@@ -48,8 +48,8 @@
     "rock",
     "stop_inverted"
   ],
-  "created_utc": "2026-11-11T05:47:28.492370+00:00",
+  "created_utc": "2026-11-11T07:20:30.946357+00:00",
   "feature_count": 76,
-  "release_fingerprint": "d010b7f048c0a2cf6659b8549adc24cbbd418e2e71b9eb4c33f5c14aa2eb78cd",
+  "release_fingerprint": "d00714b5d367a99ffe55a0e115e862b0046687aa6c5e19100d23a85cd91e0f6f",
   "schema_version": 1
 }

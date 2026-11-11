@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+  "positive_constraints": 11283,
+  "negative_constraints": 9,
+  "val": {
+    "non_right_changes": 5183,
+    "old_right_regressions": 0
+  },
+  "test": {
+    "non_right_changes": 5072,
+    "old_right_regressions": 0
+  },
+  "model_sha256": "b6237de50fc7a55c0cdbc71fe607aebccb628fc788ea0f94172668d506c7617b"
+}

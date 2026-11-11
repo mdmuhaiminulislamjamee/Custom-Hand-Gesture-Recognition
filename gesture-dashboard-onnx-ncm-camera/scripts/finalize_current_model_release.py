@@ -53,7 +53,7 @@ def input_files(base: Path) -> dict[str, Path]:
         for path in sorted((base / folder).glob('*')):
             if path.is_file():
                 result[path.relative_to(base).as_posix()] = path
-    for name in ('python_reference.json', 'model_reference.json', 'false_hand_policy.json', 'direction_pose_reference.json'):
+    for name in ('python_reference.json', 'model_reference.json', 'false_hand_policy.json', 'direction_pose_reference.json', 'right_pose_reference.json'):
         path = base / 'static_gesture_runtime/validation' / name
         result[path.relative_to(base).as_posix()] = path
     return result

@@ -2106,6 +2106,34 @@ class GeometryResolver:
             self.config.class_names[int(np.argmax(adjusted))] != model_label
             or (shape.get("dorsal_hard_negative", False) and not existing_single_index)))
         directional["model_backed_single_index"] = model_backed_index
+        # In this Right side view the folded fingers project behind their MCPs.
+        # Their 2-D joint angles can look extended, triggering the open-hand
+        # angle veto despite a long, isolated index. Require full model support
+        # and keep the normal known-mass gate; this is not low-mass recovery.
+        right_retracted_shape = bool(
+            model_label == "right"
+            and not directional.get("world_pointing_contradiction", True)
+            and directional.get("index_extension", 0.) >= .85
+            and directional.get("index_straightness", 0.) >= .92
+            and directional.get("index_lead_ratio", 0.) >= .50
+            and directional.get("relative_index_reach", 0.) >= .75
+            and directional.get("maximum_other_projected_reach", 1.) <= .15)
+        right_retracted_index = bool(right_retracted_shape and world_landmarks is not None
+            and directional.get("gesture") == "right"
+            and directional.get("valid", False) and directional.get("strong_geometry", False)
+            and float(np.max(probabilities)) >= .95
+            and directional.get("axis_dominance", 0.) >= .86
+            and (shape.get("open_hand_lower_arc", False)
+                 or (not existing_single_index and not model_backed_index
+                     and (shape.get("open_palm_outside_angle", False)
+                          or shape.get("stop_inverted_outside_angle", False)))))
+        directional["right_retracted_index"] = right_retracted_index
+        if right_retracted_shape:
+            # Continuation still uses the existing one-frame/200 ms controller
+            # and cannot authorize entry or an action below the strict gate.
+            directional["continuation_safe"] = True
+        if right_retracted_index:
+            adjusted = _set_probability_floor(adjusted, self.config.class_to_idx["right"], .98)
         if model_backed_index:
             adjusted = _set_probability_floor(adjusted, self.config.class_to_idx[model_label], .98)
         resolved = self.config.class_names[int(np.argmax(adjusted))]
@@ -2120,7 +2148,7 @@ class GeometryResolver:
         elif shape.get("downward_closed_fist", False):
             valid = False
             reason = "fist points below the horizontal"
-        if shape.get("open_hand_lower_arc", False):
+        if shape.get("open_hand_lower_arc", False) and not right_retracted_index:
             # Four extended fingers cannot become a different command simply
             # because the classifier changes its top label during rotation.
             valid = False
@@ -2129,7 +2157,8 @@ class GeometryResolver:
         # hand, even when their projected joint angles look locally straight.
         single_index = bool(directional.get("prominent_index_down", False)
                             or directional.get("reverse_palm_edge_down", False)
-                            or directional.get("horizontal_pointing", False) or model_backed_index)
+                            or directional.get("horizontal_pointing", False) or model_backed_index
+                            or right_retracted_index)
         hard_negative = bool((shape.get("dorsal_hard_negative", False) and not single_index)
                              or resolved in DISABLED_GESTURES)
         if hard_negative:
@@ -2164,7 +2193,7 @@ class GeometryResolver:
                     or (resolved == "thumb_down" and shape.get("thumb_down_geometry_supported", False))
                     or (resolved == "peace" and shape.get("peace_geometry_supported", False))
                     or (resolved in {"left", "right", "up", "down"} and directional.get("strong_geometry", False)
-                        and not model_backed_index))),
+                        and not model_backed_index and not right_retracted_index))),
                 "sideways_palm_recovery": bool(
                     resolved == "open_palm"
                     and shape.get("sideways_palm_recovery", False)

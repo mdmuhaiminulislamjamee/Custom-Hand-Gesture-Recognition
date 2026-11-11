@@ -637,6 +637,25 @@ def install():
                   stop_precision=test["stop_precision"] >= .97,
                   runtime_stop_precision=evaluation["test_runtime"]["stop_precision"] >= .97,
                   runtime_stop_recall=evaluation["test_runtime"]["stop_recall"] >= .95)
+    if evaluation.get('right_head_training'):
+        import onnx
+        from onnx import numpy_helper
+        original = {v.name: numpy_helper.to_array(v) for v in onnx.load(OUTPUT / 'baseline/gesture_mlp_production.onnx').graph.initializer}
+        updated = {v.name: numpy_helper.to_array(v) for v in onnx.load(source).graph.initializer}
+        unchanged = True
+        for name, value in original.items():
+            candidate_value = updated[name]
+            if name == 'w2':
+                value, candidate_value = np.delete(value, 1, axis=1), np.delete(candidate_value, 1, axis=1)
+            elif name == 'b2':
+                value, candidate_value = np.delete(value, 1), np.delete(candidate_value, 1)
+            unchanged &= np.array_equal(value, candidate_value)
+        preservation = json.loads((OUTPUT / 'preservation.json').read_text())
+        checks['right_only_weights_preserved'] = bool(unchanged)
+        checks['right_preservation_matches_model'] = preservation['candidate_sha256'] == digest
+        checks['right_non_right_decisions_preserved'] = all(
+            row[mode]['non_right_label_changes'] == 0
+            for row in preservation['splits'].values() for mode in ('scalar', 'runtime'))
     if evaluation["audit"].get("reviewed_horizontal_augmentation", {}).get("rows", 0):
         report = json.loads((OUTPUT / "candidate_feedback.json").read_text(encoding="utf-8"))
         checks["horizontal_feedback_matches_model"] = report["model_sha256"] == digest
@@ -652,6 +671,21 @@ def install():
             counts = report["stress"]["counts"]
             checks[f"reviewed_{label}_angle_mirror_aspect_variants"] = (
                 counts[label + "_total"] > 0 and (counts[label + "_correct"] / counts[label + "_total"] >= 0.85))
+            if label == 'left' and evaluation.get('right_head_training'):
+                # The expanded set adds mirrors of the new Right poses. This
+                # release must preserve every formerly correct Left case; it
+                # does not retrain Left to cover a new synthetic distribution.
+                preserved = report.get('left_stress_preservation', {})
+                baseline_comparison = json.loads((OUTPUT / 'baseline_comparison.json').read_text())
+                checks['left_stress_baseline_bound'] = bool(preserved) and (
+                    preserved['previous_model_sha256'] == hashlib.sha256((OUTPUT / 'baseline/gesture_mlp_production.onnx').read_bytes()).hexdigest()
+                    and preserved['candidate_model_sha256'] == digest
+                    and preserved['baseline_geometry_sha256'] == baseline_comparison['baseline_geometry_sha256']
+                    and preserved['current_counts'] == {k: v for k, v in counts.items() if k.startswith('left_')}
+                    and preserved['baseline_counts']['left_total'] == counts['left_total'])
+                checks[f'reviewed_{label}_angle_mirror_aspect_variants'] = (
+                    checks['left_stress_baseline_bound']
+                    and preserved.get('additional_failed_left_cases', -1) == 0)
         replay = report["image_replay"]
         checks["reviewed_directional_jpeg_detection_and_actions"] = (
             replay["total"] > 0 and (replay["correct"] / replay["total"] >= 0.90)
@@ -662,6 +696,8 @@ def install():
             reviewed_rows=sum(report["summary"][label]["rows"] for label in ("left", "right")),
             transformed_rows=sum(report["stress"]["counts"][label + "_total"] for label in ("left", "right")),
             jpeg_actions=replay["correct_action"], training_evidence_only=True)
+        if evaluation.get('right_head_training'):
+            evaluation['directional_feedback_evidence']['left_stress_preservation'] = report['left_stress_preservation']
     if not all(checks.values()):
         raise ValueError(f"Candidate release checks failed: {checks}")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -719,6 +755,10 @@ def install():
                                            name: config["temporal_smoothing"][name]
                                            for name in ("known_mass_floor", "confidence_floor", "probability_margin_floor")})),
                     runtime_note="Stop inverted plus feedback training; live camera validation pending.")
+    if evaluation.get('right_head_training'):
+        metadata.update(model_name='StopInvertedRightFeedbackMLP',
+            right_head_training=evaluation['right_head_training'],
+            runtime_note='Right-only output retraining; normalization, hidden layers and other output weights unchanged. Metric world is required for the retracted-finger Right entry correction. Physical camera validation pending.')
     for split, name in (("train", "replay"), ("val", "validation"), ("test", "untouched_test")):
         data = load_npz(OUTPUT / f"{split}.npz")
         if split == "train":

@@ -50,12 +50,18 @@ Install `build/app/outputs/flutter-apk/app-release.apk` on a 64-bit Android API
 screen but are not connected to Boss app actions.
 
 The current NCM tester build is
-`releases/GestureLab-v2.0.9-litert-ncm-arm64-diagnostic-release.apk`. It is a
+`releases/GestureLab-v2.0.10-litert-ncm-arm64-diagnostic-release.apk`. It is a
 release-optimized test build signed with the Android debug certificate; replace
 that signing configuration with the owner's production key before store or Boss
 app distribution.
 
-Version 2.0.9 adds bounded directional continuation for Left/Right/Up/Down:
+Version 2.0.10 adds Right-only feedback training and corrects a Right side-view
+conflict with the generic open-palm angle veto. The new entry exception requires
+metric world landmarks, an isolated index, confidence >= .95 and full known
+mass. Existing model weights for other gestures and scheduling remain unchanged.
+The same one-frame/200 ms continuation bounds apply to a marginal Right result.
+
+Version 2.0.9 added bounded directional continuation for Left/Right/Up/Down:
 strict entry, one marginal visible-hand frame within 200 ms, release after two
 consecutive invalid observations, and immediate clear-gesture transitions.
 Lost hands and competing poses cannot retain a direction. The existing 3-D
@@ -112,7 +118,7 @@ network routing or general socket service. It is not qualified as a general TCP
 stack. Physical Realme 9/camera acceptance and sustained throughput measurement
 are still required. The gesture pipeline remains the shared qualified FP32 path.
 
-Install v2.0.9, connect the powered camera with OTG enabled, select NCM and choose
+Install v2.0.10, connect the powered camera with OTG enabled, select NCM and choose
 **Allow** in Android's USB access dialog. After a denial, tap Reconnect to request
 permission again. If streaming fails, use **USB diagnostics → Copy report**;
 the report now includes recent native initialization/link/TCP errors. Logcat tag

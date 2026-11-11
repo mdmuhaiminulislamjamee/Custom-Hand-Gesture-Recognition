@@ -1,0 +1,86 @@
+{
+  "previous_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+  "candidate_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+  "splits": {
+    "val": {
+      "scalar": {
+        "rows": 9031,
+        "non_right_rows": 8321,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 709,
+        "right_after_correct": 709,
+        "changes": []
+      },
+      "runtime": {
+        "rows": 9031,
+        "non_right_rows": 8321,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 702,
+        "right_after_correct": 702,
+        "changes": []
+      }
+    },
+    "test": {
+      "scalar": {
+        "rows": 9042,
+        "non_right_rows": 8365,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 671,
+        "right_after_correct": 671,
+        "changes": []
+      },
+      "runtime": {
+        "rows": 9042,
+        "non_right_rows": 8365,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 665,
+        "right_after_correct": 665,
+        "changes": []
+      }
+    },
+    "previous_feedback": {
+      "scalar": {
+        "rows": 3416,
+        "non_right_rows": 3278,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 138,
+        "right_after_correct": 138,
+        "changes": []
+      },
+      "runtime": {
+        "rows": 3416,
+        "non_right_rows": 3278,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 118,
+        "right_after_correct": 118,
+        "changes": []
+      }
+    },
+    "new_feedback": {
+      "scalar": {
+        "rows": 421,
+        "non_right_rows": 90,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 321,
+        "right_after_correct": 321,
+        "changes": []
+      },
+      "runtime": {
+        "rows": 421,
+        "non_right_rows": 90,
+        "non_right_label_changes": 0,
+        "non_right_correct_to_wrong": 0,
+        "right_before_correct": 185,
+        "right_after_correct": 185,
+        "changes": []
+      }
+    }
+  }
+}

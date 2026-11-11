@@ -1,11 +1,11 @@
 {
   "schema_version": 4,
-  "created_utc": "2026-11-11T05:47:27.209948+00:00",
+  "created_utc": "2026-11-11T07:20:29.732986+00:00",
   "format": "ONNX",
-  "model_name": "StopInvertedDirectionalFeedbackMLP",
+  "model_name": "StopInvertedRightFeedbackMLP",
   "onnx_file": "gesture_mlp_production.onnx",
   "onnx_bytes": 77797,
-  "onnx_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+  "onnx_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
   "input": {
     "name": "landmark_features",
     "dtype": "float32",
@@ -149,8 +149,8 @@
   "parity": {
     "passed": true,
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 1.9073486328125e-06,
-    "maximum_absolute_mass_error": 1.7881393432617188e-06
+    "maximum_absolute_probability_error": 1.3709068298339844e-06,
+    "maximum_absolute_mass_error": 1.1026859283447266e-06
   },
   "quality": {
     "macro_f1": 0.9910724152481021,
@@ -178,11 +178,15 @@
       "stop_precision": true,
       "runtime_stop_precision": true,
       "runtime_stop_recall": true,
+      "right_only_weights_preserved": true,
+      "right_preservation_matches_model": true,
+      "right_non_right_decisions_preserved": true,
       "horizontal_feedback_matches_model": true,
       "horizontal_feedback_matches_dataset": true,
       "feedback_replay_matches_runtime_sources": true,
       "reviewed_left_classified_and_executed": true,
       "reviewed_left_angle_mirror_aspect_variants": true,
+      "left_stress_baseline_bound": true,
       "reviewed_right_classified_and_executed": true,
       "reviewed_right_angle_mirror_aspect_variants": true,
       "reviewed_directional_jpeg_detection_and_actions": true
@@ -335,11 +339,11 @@
         "test": 1019
       },
       "feedback": {
-        "sha256": "26ddb8ab0a3b2a500639270c874d78558fbc9817f67d8b658da5b9fade582b3b",
-        "rows": 3416,
+        "sha256": "cac69f33646c9122b4704e553e8c8adbe655621b0f9aa701d7eb56770aa2df13",
+        "rows": 3837,
         "class_counts": {
           "left": 270,
-          "right": 138,
+          "right": 469,
           "up": 0,
           "down": 959,
           "open_palm": 0,
@@ -351,7 +355,7 @@
           "peace": 102,
           "rock": 0,
           "stop_inverted": 0,
-          "no_gesture": 1698
+          "no_gesture": 1788
         },
         "skipped": [
           {
@@ -399,8 +403,7 @@
             "reason": "missing finite 21x2 landmarks"
           }
         ],
-        "evaluation_use": "training only; participant/session metadata is absent",
-        "repeat_factor": 2
+        "evaluation_use": "training only; participant/session metadata is absent"
       },
       "ambiguous_legacy_dorsal_excluded": {
         "train": 0,
@@ -473,16 +476,39 @@
         "Feedback is training only and cannot independently measure generalization.",
         "Source Stop-inverted handedness is inferred from the known surface label, not a tested detector.",
         "Live webcam verification at different distances and lighting is still required."
-      ]
+      ],
+      "right_only_update": {
+        "new_records": 421,
+        "new_right": 331,
+        "new_negatives": 90,
+        "frozen": "normalization, hidden layers, all non-Right output columns",
+        "training_source": "Previous training split plus new reviewed landmarks; no test rows used for fitting/selection"
+      }
     },
     "selection": {
-      "model_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+      "model_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
       "known_mass_floor": 0.7,
       "confidence_floor": 0.75,
       "probability_margin_floor": 0.1
     }
   },
-  "runtime_note": "Stop inverted plus feedback training; live camera validation pending.",
+  "runtime_note": "Right-only output retraining; normalization, hidden layers and other output weights unchanged. Metric world is required for the retracted-finger Right entry correction. Physical camera validation pending.",
+  "right_head_training": {
+    "iterations": 106,
+    "success": true,
+    "selected_fraction": 1.0,
+    "validation_trials": [
+      {
+        "fraction": 1.0,
+        "non_right_changes": 0,
+        "right_regressions": 0
+      }
+    ],
+    "fitted_parameters": 65,
+    "all_non_right_weights_bit_identical": true,
+    "val_non_right_decision_changes": 0,
+    "test_non_right_decision_changes": 0
+  },
   "reviewed_feedback_replay_counts": {
     "left": 64,
     "right": 64,

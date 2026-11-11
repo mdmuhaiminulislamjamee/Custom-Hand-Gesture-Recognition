@@ -39,7 +39,7 @@ from backend.runtime import TemporalGate
 from research.v18_20 import predict_onnx
 
 
-def audit(model_path, feedback_path=None):
+def audit(model_path, feedback_path=None, world_lookup=None):
     config = load_runtime_config()
     feedback_path = feedback_path or PROJECT_ROOT / "feedback/misclassification_log.csv"
     with Path(feedback_path).open(encoding="utf-8-sig", newline="") as stream:
@@ -63,7 +63,12 @@ def audit(model_path, feedback_path=None):
         if image.is_file():
             with Image.open(image) as source:
                 shape = (source.height, source.width, 3)
-        resolved, details = resolver.resolve(probability, pose, image_shape=shape)
+        depth = (world_lookup or {}).get(record['feedback_id']) or {}
+        world = depth.get('world_landmarks')
+        side = ((depth.get('quality') or {}).get('detector') or {}).get('selected_handedness')
+        resolved, details = resolver.resolve(probability, pose, image_shape=shape,
+            world_landmarks=None if not world else np.asarray(world),
+            handedness=side, handedness_confidence=.99 if side else None)
         gate = TemporalGate(config)
         arguments = gate_arguments(details, {"known_gesture_mass": float(mass)})
         for tick in range(9):
@@ -94,10 +99,11 @@ def audit(model_path, feedback_path=None):
                                  "models/gesture_mobile_runtime_config.json")},
                 feedback_sha256=hashlib.sha256(Path(feedback_path).read_bytes()).hexdigest(),
                 summary=summary, rows=rows,
-                limitation="Reviewed training corrections; world/depth and handedness were not retained. Static hold replay is not raw-image detector replay.")
+                metric_world_rows=sum(bool((world_lookup or {}).get(r['feedback_id'], {}).get('world_landmarks')) for r in records),
+                limitation="Reviewed training corrections. With --images, metric world/handedness is redetected from the matching JPEG; otherwise no depth is assumed. Annotated-XY hold replay is separate from raw-image replay and is not independent camera accuracy.")
 
 
-def stress_audit(model_path):
+def stress_audit(model_path, world_lookup=None, *, target_labels=None, resolver_type=GeometryResolver):
     """Unseen transformations of the training corrections, with fixed grids."""
     config = load_runtime_config()
     with (PROJECT_ROOT / "feedback/misclassification_log.csv").open(encoding="utf-8-sig", newline="") as stream:
@@ -108,6 +114,7 @@ def stress_audit(model_path):
             aspect = image.width / image.height
         points = np.asarray(json.loads(record["landmarks_json"]), np.float32)
         points = (points - points[0]) * [aspect, 1.]
+        source_world = ((world_lookup or {}).get(record['feedback_id']) or {}).get('world_landmarks')
         for mirror in (False, True):
             pose = points.copy()
             if mirror:
@@ -115,21 +122,28 @@ def stress_audit(model_path):
             label = record["actual_label"]
             if mirror:
                 label = "right" if label == "left" else "left"
+            if target_labels is not None and label not in target_labels:
+                continue
             for tilt in (-35., -20., 0., 20., 35.):
                 vector = pose[8] - pose[5]
                 target = np.deg2rad(tilt) + (0. if label == "left" else np.pi)
                 angle = target - np.arctan2(vector[1], vector[0])
                 c, s = np.cos(angle), np.sin(angle)
                 pixels = pose @ np.asarray([[c, -s], [s, c]]).T
+                world = None if not source_world else np.asarray(source_world).copy()
+                if world is not None:
+                    if mirror:
+                        world[:, 0] *= -1
+                    world[:, :2] = world[:, :2] @ np.asarray([[c, -s], [s, c]]).T
                 for width, height in ((600, 600), (800, 600), (960, 540), (540, 720)):
                     poses.append(pixels / [width / height, 1.])
                     cases.append(dict(id=record["feedback_id"], label=label, mirror=mirror,
-                                      tilt=tilt, shape=(height, width, 3)))
+                                      tilt=tilt, shape=(height, width, 3), world=world))
     probabilities, masses = predict_onnx(Path(model_path), np.asarray([landmarks_to_feature(p) for p in poses]))
-    resolver = GeometryResolver(config)
+    resolver = resolver_type(config)
     counts, failures = Counter(), []
     for points, probability, mass, case in zip(poses, probabilities, masses, cases):
-        row, details = resolver.resolve(probability, points, image_shape=case["shape"])
+        row, details = resolver.resolve(probability, points, image_shape=case["shape"], world_landmarks=case['world'])
         gate = TemporalGate(config)
         args = gate_arguments(details, {"known_gesture_mass": float(mass)})
         for tick in range(9):
@@ -138,35 +152,48 @@ def stress_audit(model_path):
         counts[case["label"] + "_total"] += 1
         counts[case["label"] + "_correct"] += int(correct)
         if not correct:
-            failures.append(dict(**case, predicted=decision.predicted_gesture, reason=decision.reason,
+            failures.append(dict(**{k: v for k, v in case.items() if k != 'world'}, predicted=decision.predicted_gesture, reason=decision.reason,
                                  raw=config.class_names[int(probability.argmax())], mass=float(mass),
                                  directional=details["directional"]))
     return dict(counts=dict(counts), failures=failures,
                 limitation="Synthetic transforms of training feedback, not independent people or measured 3-D camera viewpoints.")
 
 
-def replay_images(model_path, output_directory):
+def replay_images(model_path, output_directory, feedback_path=None, workers=1, records=None, offset=0):
     """Redetect actual saved JPEGs, then replay each as a static held image."""
+    if records is None:
+        with Path(feedback_path or PROJECT_ROOT / "feedback/misclassification_log.csv").open(encoding="utf-8-sig", newline="") as stream:
+            records = [r for r in csv.DictReader(stream) if r["actual_label"] in {"left", "right"}]
+    if workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+        size = (len(records) + workers - 1) // workers
+        rows = []
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(replay_images, model_path, output_directory, feedback_path,
+                1, records[start:start + size], start) for start in range(0, len(records), size)]
+            for future in futures:
+                rows.extend(future.result()['rows'])
+        return dict(rows=rows, total=len(rows), correct=sum(r['predicted'] == r['actual'] for r in rows),
+            correct_action=sum(r['action_seen'] for r in rows), detector_workers=workers,
+            limitation='Full 12-frame JPEG holds; contiguous chunks use separate persistent detectors. Training regressions, not independent live camera accuracy.')
     from backend.model_runtime import InferenceEngine, OnnxClassifier, RuntimeSession
     config = load_runtime_config()
     metadata = json.loads((PROJECT_ROOT / "models/gesture_mlp_onnx_metadata.json").read_text(encoding="utf-8"))
     metadata["onnx_sha256"] = hashlib.sha256(Path(model_path).read_bytes()).hexdigest()
-    metadata_path = output_directory / "replay_metadata.json"
+    metadata_path = output_directory / f"replay_metadata_{offset}.json"
     metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
     engine = InferenceEngine(config, load_models=False)
     engine.model_manager.models["ONNX"] = OnnxClassifier(Path(model_path), metadata_path, config)
     engine.model_manager.errors.clear()
     if not engine.detector.ready:
         raise RuntimeError(engine.detector.error)
-    with (PROJECT_ROOT / "feedback/misclassification_log.csv").open(encoding="utf-8-sig", newline="") as stream:
-        records = [r for r in csv.DictReader(stream) if r["actual_label"] in {"left", "right"}]
     rows = []
     try:
         for number, record in enumerate(records):
             image_path = PROJECT_ROOT / "feedback/images" / Path(record["image_path"]).name
             image_bytes = image_path.read_bytes()
             session = RuntimeSession(config)
-            results = [engine.process_frame(image_bytes, session, now=1. + number * 4 + tick * .1)
+            results = [engine.process_frame(image_bytes, session, now=1. + (offset + number) * 4 + tick * .1)
                        for tick in range(12)]
             last = results[-1]
             expected_action = config.gesture_to_action[record["actual_label"]]
@@ -179,7 +206,7 @@ def replay_images(model_path, output_directory):
                              resolvers=last.get("resolvers"),
                              annotated_landmarks=json.loads(record["landmarks_json"])))
             if number % 10 == 0:
-                print(f"JPEG replay {number + 1}/{len(records)}", flush=True)
+                print(f"JPEG replay chunk {offset}: {number + 1}/{len(records)}", flush=True)
     finally:
         engine.close()
     return dict(rows=rows, total=len(rows),
@@ -194,12 +221,16 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--stress", action="store_true")
     parser.add_argument("--images", action="store_true")
+    parser.add_argument("--feedback", type=Path, help="Optional diagnostic feedback subset; release audits use the complete log")
+    parser.add_argument('--workers', type=int, choices=(1, 2), default=1, help='Independent persistent detectors for offline replay only; app scheduling is unchanged')
     args = parser.parse_args()
-    report = audit(args.model)
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    replay = replay_images(args.model, args.output.parent, args.feedback, args.workers) if args.images else None
+    world_lookup = {r['id']: r for r in replay['rows']} if replay else None
+    report = audit(args.model, args.feedback, world_lookup)
     if args.stress:
-        report["stress"] = stress_audit(args.model)
-    if args.images:
-        report["image_replay"] = replay_images(args.model, args.output.parent)
+        report["stress"] = stress_audit(args.model, world_lookup)
+    if replay:
+        report["image_replay"] = replay
     args.output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     print(json.dumps(report["summary"], indent=2))

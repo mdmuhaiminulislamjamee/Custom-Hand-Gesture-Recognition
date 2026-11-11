@@ -6,7 +6,7 @@ The production ONNX model and Windows reference use the matching qualified model
 No training or Boss-app data is required to integrate this runtime.
 
 The complete Boss handover is generated as
-`handover_static/Boss_Static_Gesture_Handover_20261111_direction_stability.zip`. Start with
+`handover_static/Boss_Static_Gesture_Handover_20261111_right_stability.zip`. Start with
 its `START_HERE.md`. It includes this latest runtime, the iOS example, current
 Flutter tester source, the verified Android test APK and integrity checks.
 Earlier `candidate`, `overlay`, and `fix1` archives are superseded by that bundle.
@@ -20,10 +20,10 @@ rejected, and stricter acquisition can reduce range. The bundle also includes a
 native Android/iOS filter source update in `native_false_hand_update/`.
 
 The 11 November FP32 TFLite conversion now uses the current production ONNX
-`7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed`.
+`aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992`.
 It preserves the current learned model: all 18,073
 validation/test rows keep the same top label and scalar accept/reject result.
-The largest probability difference is approximately 0.00000233. This measures
+Exact numerical errors are retained in `validation/conversion_report.json`. This measures
 conversion parity, not camera accuracy or physical iPhone performance.
 
 The Dart feature/geometry port also matches all 1,142 exported Python reference
@@ -60,7 +60,7 @@ code, including the thumb-direction and hand-surface fixes.
 INT8 can replace FP32 only in a future release that passes qualification and
 target-device acceptance with updated matching manifests. The supplied
 inference plugin is `flutter_litert` 3.9.4. That dependency version, model
-precision and the Android tester's 2.0.9 release number describe different things.
+precision and the Android tester's 2.0.10 release number describe different things.
 
 ## Package contents
 
@@ -121,16 +121,21 @@ The current scalar gates match the model's runtime configuration: confidence
 pointing, side-view Like and Fist thumb/PIP rules are ported with these weights.
 The fast confirmation policy below is retained from the previous delivery.
 `validation/latency_comparison.json` compares old/current FP32 on identical
-inputs on one host: median warm invocation is 0.0048 ms previous and 0.0046 ms current. This excludes
+inputs on one host; the current measured medians and percentiles are recorded there. This excludes
 camera transport, detector, UI and phone performance. NCM preview results
 expose each frame's local `receiveToResultMs`, including pending-frame wait;
 it does not measure capture-to-receipt time.
 
-The classifier was retrained with 3,416 usable saved feedback records (11 invalid
-landmark rows were excluded). The corrected JPEG replay reaches 375/408 correct
-final directions and 378/408 correct actions. These are training-feedback
-regressions, not independent camera accuracy. Details and class-by-class holdout
-comparisons are in `validation/direction_stability_release.json`.
+Only the Right output was retrained, using 3,837 usable saved landmark records
+(11 invalid rows excluded), including 331 new Right and 90 new hard negatives.
+Normalization, both hidden layers and every other output column remain identical.
+The additional Right side-view exception requires metric world landmarks and
+full known mass; missing depth and competing fingers cannot acquire Right through
+it. This corrects folded fingers falsely triggering the open-palm angle veto.
+JPEG replay, exact preservation checks and limits are recorded in
+`validation/right_stability_release.json`. Saved corrections are training
+regressions, not independent camera accuracy. The earlier
+`validation/direction_stability_release.json` is historical evidence for v2.0.9.
 
 Directions retain strict entry. A confirmed direction can survive one marginal
 visible-hand observation within 200 ms, using signed axis alignment >= .65 and

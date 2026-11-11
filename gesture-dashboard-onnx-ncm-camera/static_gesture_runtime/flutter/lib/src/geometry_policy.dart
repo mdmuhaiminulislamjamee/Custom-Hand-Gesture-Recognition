@@ -127,6 +127,34 @@ abstract final class StaticGeometryPolicy {
           (_top(row) != modelLabel ||
               (_flag(s, 'dorsal_hard_negative') && !existingSingleIndex));
       d['model_backed_single_index'] = modelBackedIndex;
+      // Folded fingers can project as locally straight chains behind their
+      // MCPs in this Right view. Keep the full known-mass gate for this case.
+      final rightRetractedShape = modelLabel == 'right' &&
+          !_flag(d, 'world_pointing_contradiction') &&
+          _number(d, 'index_extension') >= .85 &&
+          _number(d, 'index_straightness') >= .92 &&
+          _number(d, 'index_lead_ratio') >= .50 &&
+          _number(d, 'relative_index_reach') >= .75 &&
+          _number(d, 'maximum_other_projected_reach') <= .15;
+      final rightRetractedIndex = rightRetractedShape &&
+          worldLandmarks != null &&
+          d['gesture'] == 'right' &&
+          _flag(d, 'valid') &&
+          _flag(d, 'strong_geometry') &&
+          maxValue(model) >= .95 &&
+          _number(d, 'axis_dominance') >= .86 &&
+          (_flag(s, 'open_hand_lower_arc') ||
+              (!existingSingleIndex &&
+                  !modelBackedIndex &&
+                  (_flag(s, 'open_palm_outside_angle') ||
+                      _flag(s, 'stop_inverted_outside_angle'))));
+      d['right_retracted_index'] = rightRetractedIndex;
+      if (rightRetractedShape) {
+        d['continuation_safe'] = true;
+      }
+      if (rightRetractedIndex) {
+        row = _floor(row, 'right', .98);
+      }
       if (modelBackedIndex) row = _floor(row, modelLabel, .98);
       var resolved = _top(row);
       var valid = _flag(s, 'valid');
@@ -142,14 +170,15 @@ abstract final class StaticGeometryPolicy {
         valid = false;
         reason = 'fist points below horizontal';
       }
-      if (_flag(s, 'open_hand_lower_arc')) {
+      if (_flag(s, 'open_hand_lower_arc') && !rightRetractedIndex) {
         valid = false;
         reason = 'open hand points below horizontal';
       }
       final singleIndex = _flag(d, 'prominent_index_down') ||
           _flag(d, 'reverse_palm_edge_down') ||
           _flag(d, 'horizontal_pointing') ||
-          modelBackedIndex;
+          modelBackedIndex ||
+          rightRetractedIndex;
       final hardNegative = (_flag(s, 'dorsal_hard_negative') && !singleIndex) ||
           resolved == 'dorsal';
       if (hardNegative) {
@@ -181,7 +210,8 @@ abstract final class StaticGeometryPolicy {
               (resolved == 'peace' && _flag(s, 'peace_geometry_supported')) ||
               (_directions.contains(resolved) &&
                   _flag(d, 'strong_geometry') &&
-                  !modelBackedIndex));
+                  !modelBackedIndex &&
+                  !rightRetractedIndex));
       final expanded =
           supported && _flag(d, 'expanded_thumb_pointing') && knownMass >= .005;
       final horizontal = supported && _flag(d, 'horizontal_pointing');
