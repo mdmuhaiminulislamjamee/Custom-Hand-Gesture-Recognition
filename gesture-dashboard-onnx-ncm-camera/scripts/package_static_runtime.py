@@ -14,8 +14,13 @@ PACKAGE = ROOT / "static_gesture_runtime"
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "handover_static/static_gesture_runtime_20261031_false_hands.zip")
+    parser.add_argument("--output", type=Path, default=ROOT / "handover_static/static_gesture_runtime_20261111_current_model.zip")
     args = parser.parse_args()
+    args.output = args.output.resolve()
+    if not args.output.is_relative_to(ROOT):
+        raise ValueError("Build output must remain inside the workspace")
+    if args.output.exists() or args.output.with_suffix(args.output.suffix + ".sha256").exists():
+        raise FileExistsError("Choose a fresh output; existing deliveries are immutable")
     reference = json.loads((PACKAGE / "validation/python_reference.json").read_text(encoding="utf-8"))
     small = {key: reference[key] for key in ("schema_version", "model_sha256", "class_names", "feature_count", "probability_tolerance", "model_cases")}
     (PACKAGE / "validation/model_parity.json").write_text(json.dumps(small, indent=2)+"\n", encoding="utf-8")
@@ -23,8 +28,8 @@ def main():
     tools_dir.mkdir(exist_ok=True)
     shutil.copyfile(ROOT / "scripts/verify_static_runtime.py", tools_dir / "verify_static_runtime.py")
     shutil.copyfile(ROOT / "requirements-static-conversion.txt", tools_dir / "requirements-verification.txt")
-    ignored = {".dart_tool", "build", ".git", "__pycache__", ".idea"}
-    files = sorted(path for path in PACKAGE.rglob("*") if path.is_file() and not ignored.intersection(path.relative_to(PACKAGE).parts) and path.name not in {"SHA256SUMS.json", ".flutter-plugins-dependencies"})
+    ignored = {".dart_tool", "build", ".git", "__pycache__", ".idea", ".gradle", ".kotlin", ".cxx"}
+    files = sorted(path for path in PACKAGE.rglob("*") if path.is_file() and not ignored.intersection(path.relative_to(PACKAGE).parts) and path.name not in {"SHA256SUMS.json", ".flutter-plugins-dependencies", "local.properties"} and path.suffix not in {".log", ".hprof", ".iml", ".pyc", ".jks", ".keystore"})
     hashes = {path.relative_to(PACKAGE).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     checksum = PACKAGE / "SHA256SUMS.json"
     checksum.write_text(json.dumps(hashes, indent=2)+"\n", encoding="utf-8")

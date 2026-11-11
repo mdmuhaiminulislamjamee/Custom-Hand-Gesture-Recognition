@@ -25,6 +25,7 @@ from static_tflite_graph import build_graph
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "static_gesture_runtime/flutter/assets/models"
+RUNTIME_CONFIG = ROOT / "models/gesture_mobile_runtime_config.json"
 
 
 def sha(path: Path) -> str:
@@ -109,20 +110,20 @@ def invoke(interpreter, contracts, rows):
     return results["probabilities"], results["known_gesture_mass"].ravel(), {"p50_ms": float(np.median(timings[10:])), "p95_ms": float(np.percentile(timings[10:], 95)), "scope": "warm host CPU invoke only; not iPhone or camera latency"}
 
 
-def accepted(p, mass):
+def accepted(p, mass, gates):
     rank = np.sort(p, axis=1)
     arg = p.argmax(axis=1)
-    return np.where((mass >= .70) & (rank[:, -1] >= .70) & (rank[:, -1] - rank[:, -2] >= .08) & (arg != 6), arg, 13)
+    return np.where((mass >= gates["known_mass_floor"]) & (rank[:, -1] >= gates["confidence_floor"]) & (rank[:, -1] - rank[:, -2] >= gates["probability_margin_floor"]) & (arg != 6), arg, 13)
 
 
-def metrics(p, mass, labels):
-    pred = accepted(p, mass)
+def metrics(p, mass, labels, gates):
+    pred = accepted(p, mass, gates)
     selected = pred != 13
     unknown = labels == 13
     return {"accepted_precision": float(np.mean(pred[selected] == labels[selected])) if selected.any() else 0., "unknown_false_accept_rate": float(np.mean(selected[unknown])) if unknown.any() else None, "acceptance_rate": float(selected.mean())}
 
 
-def evaluate(path, interpreter, contracts, session):
+def evaluate(path, interpreter, contracts, session, gates):
     with np.load(path, allow_pickle=False) as data:
         rows, y = data["X"].copy(), data["y"].copy()
     # Existing online caches encode hard negatives / unknowns as -1.
@@ -132,7 +133,7 @@ def evaluate(path, interpreter, contracts, session):
     base_p, base_m = session.run(["probabilities", "known_gesture_mass"], {"landmark_features": rows})
     base_m = base_m.ravel()
     p, m, timings = invoke(interpreter, contracts, rows)
-    comparisons = {"rows": len(rows), "source_sha256": sha(path), "top1_agreement": float(np.mean(p.argmax(1) == base_p.argmax(1))), "maximum_probability_error": float(np.max(np.abs(p-base_p))), "mean_probability_error": float(np.mean(np.abs(p-base_p))), "maximum_mass_error": float(np.max(np.abs(m-base_m))), "scalar_gate_agreement": float(np.mean(accepted(p,m) == accepted(base_p,base_m))), "source_scalar_metrics": metrics(base_p,base_m,y), "tflite_scalar_metrics": metrics(p,m,y), "host_invoke": timings, "geometry_and_temporal_not_included": True}
+    comparisons = {"rows": len(rows), "source_sha256": sha(path), "top1_agreement": float(np.mean(p.argmax(1) == base_p.argmax(1))), "maximum_probability_error": float(np.max(np.abs(p-base_p))), "mean_probability_error": float(np.mean(np.abs(p-base_p))), "maximum_mass_error": float(np.max(np.abs(m-base_m))), "scalar_gate_agreement": float(np.mean(accepted(p,m,gates) == accepted(base_p,base_m,gates))), "source_scalar_metrics": metrics(base_p,base_m,y,gates), "tflite_scalar_metrics": metrics(p,m,y,gates), "host_invoke": timings, "geometry_and_temporal_not_included": True}
     return comparisons
 
 
@@ -143,24 +144,30 @@ def main():
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     source, metadata, weights = source_model()
+    smoothing = json.loads(RUNTIME_CONFIG.read_text(encoding="utf-8"))["temporal_smoothing"]
+    gates = {key: float(smoothing[key]) for key in ("known_mass_floor", "confidence_floor", "probability_margin_floor")}
     calibration, calibration_info = calibration_rows(args.calibration_rows)
     options = ort.SessionOptions()
     options.intra_op_num_threads = 1
     options.inter_op_num_threads = 1
     session = ort.InferenceSession(str(source), options, providers=["CPUExecutionProvider"])
-    report = {"schema_version": 1, "source_onnx_sha256": sha(source), "weights_retrained": False, "converter": "explicit_builtin_flatbuffer_graph", "calibration": calibration_info, "models": {}, "limitations": ["Landmark-level conversion checks do not measure camera detection or iPhone latency.", "New command-controller timing is tested separately; scalar-gate agreement is not full runtime parity.", "INT8 candidate quantizes the three dense layers; normalization and open-set probability tail remain FP32."]}
+    report = {"schema_version": 1, "source_onnx_sha256": sha(source), "runtime_config_sha256": sha(RUNTIME_CONFIG), "scalar_gates": gates, "weights_retrained": False, "converter": "explicit_builtin_flatbuffer_graph", "calibration": calibration_info, "models": {}, "limitations": ["Landmark-level conversion checks do not measure camera detection or iPhone latency.", "New command-controller timing is tested separately; scalar-gate agreement is not full runtime parity.", "INT8 candidate quantizes the three dense layers; normalization and open-set probability tail remain FP32."]}
     for variant in ("float32", "int8"):
         print(f"Converting {variant}", flush=True)
         path = args.output / f"gesture_static_{variant}.tflite"
         try:
             interpreter, contracts = convert(weights, calibration, path, variant == "int8")
-            evaluations = {split: evaluate(ROOT / f"models/{cache}", interpreter, contracts, session) for split, cache in (("validation", "gesture_online_validation_cache.npz"), ("untouched_test", "gesture_online_untouched_test_cache.npz"))}
+            evaluations = {split: evaluate(ROOT / f"models/{cache}", interpreter, contracts, session, gates) for split, cache in (("validation", "gesture_online_validation_cache.npz"), ("untouched_test", "gesture_online_untouched_test_cache.npz"))}
             test = evaluations["untouched_test"]
             if variant == "float32":
                 passed = all(v["maximum_probability_error"] <= 1e-4 and v["maximum_mass_error"] <= 1e-4 and v["top1_agreement"] == 1.0 and v["scalar_gate_agreement"] == 1.0 for v in evaluations.values())
             else:
                 passed = all(v["top1_agreement"] >= .995 and v["scalar_gate_agreement"] >= .995 and v["tflite_scalar_metrics"]["accepted_precision"] >= v["source_scalar_metrics"]["accepted_precision"] - .002 and v["tflite_scalar_metrics"]["unknown_false_accept_rate"] <= v["source_scalar_metrics"]["unknown_false_accept_rate"] + .002 for v in evaluations.values())
-            manifest = {"schema_version": 1, "model_name": metadata["model_name"], "source_onnx_sha256": sha(source), "model_file": path.name, "model_sha256": sha(path), "model_bytes": path.stat().st_size, "labels": metadata["output_class_order"], "feature_names": metadata["feature_names"], "input": tensor_record(interpreter.get_input_details()[0], 0), "outputs": contracts, "normalization_embedded": True, "precision": "int8_dense_float32_normalization_and_tail" if variant == "int8" else "float32", "qualification": {"passed": passed, "conversion_passed": passed, "recommended_default": variant == "float32" and passed, "physical_ios_tested": False}, "calibration": calibration_info if variant == "int8" else None}
+            # A changed source model can make the quantized candidate pass its
+            # conversion gate. Do not silently promote that precision into the
+            # app: its geometry/controller/device qualification is separate.
+            qualified = passed and variant == "float32"
+            manifest = {"schema_version": 1, "model_name": metadata["model_name"], "source_onnx_sha256": sha(source), "model_file": path.name, "model_sha256": sha(path), "model_bytes": path.stat().st_size, "labels": metadata["output_class_order"], "feature_names": metadata["feature_names"], "input": tensor_record(interpreter.get_input_details()[0], 0), "outputs": contracts, "normalization_embedded": True, "precision": "int8_dense_float32_normalization_and_tail" if variant == "int8" else "float32", "qualification": {"passed": qualified, "conversion_passed": passed, "recommended_default": qualified, "physical_ios_tested": False, "pending": [] if variant == "float32" else ["precision-specific geometry/controller qualification", "target-device acceptance"]}, "calibration": calibration_info if variant == "int8" else None}
             write_json(path.with_name(path.stem + "_manifest.json"), manifest)
             report["models"][variant] = {"passed": passed, "model_sha256": sha(path), "bytes": path.stat().st_size, "evaluation": evaluations}
             print(f"{variant}: passed={passed}; top1={test['top1_agreement']:.6f}; scalar gate={test['scalar_gate_agreement']:.6f}", flush=True)

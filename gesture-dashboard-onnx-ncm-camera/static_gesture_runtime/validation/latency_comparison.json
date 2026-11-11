@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scope": "Same-host one-thread warm native CPU invoke only; excludes camera, transport, detector, isolate, display and confirmation.",
+  "physical_device_tested": false,
+  "baseline_archive": "handover_static\\static_gesture_runtime_20261111_current_model.zip",
+  "baseline_archive_sha256": "ec1cb02f547bc27aba8671208168a13a2a974600f8783168cfb881e6050d81d7",
+  "previous_model_sha256": "47746adac0d301f5d2ea4b7b5620cc185e4b1a248170f882c7836849c321d4f1",
+  "current_model_sha256": "a0d8d4df9c55ae68e21e90733253a365862ae89ceb666975d0e0e69655ed12d2",
+  "previous_model_bytes": 78960,
+  "current_model_bytes": 78960,
+  "methodology": "100 warmup invokes each; 40 alternating-order rounds of the same 100 feature rows; set_tensor excluded from invoke timer.",
+  "models": {
+    "previous": {
+      "samples": 4000,
+      "p50_ms": 0.0048,
+      "p95_ms": 0.0063
+    },
+    "current": {
+      "samples": 4000,
+      "p50_ms": 0.0046,
+      "p95_ms": 0.0059
+    }
+  },
+  "retained_runtime_policy": {
+    "target_fps": 10,
+    "admission_interval_ms": 100,
+    "pending_frames_maximum": 1,
+    "interpreter_initialization": "persistent worker",
+    "strong_confirmation": "immediate at confidence >= 0.92 and margin >= 0.25 after mass/geometry qualification",
+    "ordinary_confirmation": "two matching results among latest three",
+    "fixed_action_cooldown_ms": 0
+  }
+}

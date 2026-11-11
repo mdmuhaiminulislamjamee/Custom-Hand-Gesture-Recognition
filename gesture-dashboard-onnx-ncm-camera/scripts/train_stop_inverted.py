@@ -48,6 +48,7 @@ from backend.geometry import (GeometryResolver, hand_surface_orientation,
                               landmarks_to_feature, stop_inverted_geometry,
                               open_hand_xy_orientation)
 from backend.config import RuntimeConfig
+from backend.config import load_runtime_config
 from research.v18_20 import feature_keys, load_npz, predict_onnx
 from scripts.train_twelve_gesture_candidate import prepare as prepare_legacy, export_onnx, _partition
 
@@ -494,7 +495,7 @@ def score(path, data, runtime=False):
         probabilities = np.pad(probabilities, ((0, 0), (0, 1)))
     resolved, valid = probabilities.copy(), np.ones(len(mass), bool)
     if runtime:
-        resolver = GeometryResolver(RuntimeConfig())
+        resolver = GeometryResolver(load_runtime_config())
         for i, points in enumerate(data["landmarks"]):
             side = str(data["handedness"][i]) or None
             resolved[i], details = resolver.resolve(probabilities[i], points,
@@ -502,7 +503,8 @@ def score(path, data, runtime=False):
             valid[i] = details["pose_validation"]["valid"]
     raw = resolved.argmax(1)
     ordered = np.sort(resolved, axis=1)
-    accepted = valid & (raw != DORSAL) & (mass >= .70) & (ordered[:, -1] >= .70) & (ordered[:, -1] - ordered[:, -2] >= .08)
+    config = load_runtime_config()
+    accepted = valid & (raw != DORSAL) & (mass >= config.known_mass_floor) & (ordered[:, -1] >= config.confidence_floor) & (ordered[:, -1] - ordered[:, -2] >= config.probability_margin_floor)
     predicted = np.where(accepted, raw, REJECT)
     truth = np.where(data["y"] == DORSAL, REJECT, data["y"])
     report = classification_report(truth, predicted, labels=np.arange(len(LABELS)),
@@ -639,6 +641,9 @@ def install():
         report = json.loads((OUTPUT / "candidate_feedback.json").read_text(encoding="utf-8"))
         checks["horizontal_feedback_matches_model"] = report["model_sha256"] == digest
         checks["horizontal_feedback_matches_dataset"] = report["feedback_sha256"] == evaluation["audit"]["feedback"]["sha256"]
+        checks["feedback_replay_matches_runtime_sources"] = bool(report.get("runtime_sources")) and all(
+            hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == expected
+            for name, expected in report.get("runtime_sources", {}).items())
         for label in ("left", "right"):
             summary = report["summary"][label]
             checks[f"reviewed_{label}_classified_and_executed"] = (

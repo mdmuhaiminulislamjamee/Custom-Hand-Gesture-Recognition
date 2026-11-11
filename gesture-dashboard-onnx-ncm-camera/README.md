@@ -1,5 +1,7 @@
 # Gesture Dashboard: ONNX + USB-NCM Camera
 
+**Current Flutter/Boss static handover (11 November, direction stability):** [integration guide](handover_static/final_docs/START_HERE.md) · [complete ZIP](handover_static/Boss_Static_Gesture_Handover_20261111_direction_stability.zip). Includes the model retrained from saved feedback, bounded directional continuation, FP32 LiteRT and GestureLab 2.0.9, retaining 10 FPS/newest-frame scheduling. [Qualification and baseline limitations](static_gesture_runtime/VALIDATION.md) include six pre-existing backend failures and pending device/iOS acceptance.
+
 **Current iOS app-team handover:** [README and integration instructions](handover_final/v2026.10.27_ios_ncm_final_01/README.md) · [complete ZIP](handover_final/gesture-final-handover-v2026.10.27_ios_ncm_final_01.zip).
 
 **Current Android app-team handover:** [README and integration instructions](handover_android/v2026.10.27_android_ncm_01/README.md) · [complete ZIP](handover_android/gesture-android-handover-v2026.10.27_android_ncm_01.zip).

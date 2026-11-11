@@ -1,0 +1,1069 @@
+{
+  "schema_version": 1,
+  "qualified": true,
+  "model_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+  "previous_model_sha256": "bb1df78e02ec0aaf8d55fe9edb78503d2ca5b473245a15c0cc3f7c37c91de2b2",
+  "training": {
+    "usable_feedback_records": 3416,
+    "skipped_feedback_records": 11,
+    "feedback_sha256": "26ddb8ab0a3b2a500639270c874d78558fbc9817f67d8b658da5b9fade582b3b",
+    "per_class": {
+      "left": 270,
+      "right": 138,
+      "up": 0,
+      "down": 959,
+      "open_palm": 0,
+      "like": 90,
+      "dorsal": 0,
+      "ok": 0,
+      "fist": 159,
+      "thumb_down": 0,
+      "peace": 102,
+      "rock": 0,
+      "stop_inverted": 0,
+      "no_gesture": 1698
+    },
+    "source": "Saved reviewed 21x2 landmarks; the MLP does not train on RGB pixels",
+    "feedback_used_only_for_training": true
+  },
+  "policy": {
+    "entry_axis_dominance": 0.73,
+    "continuation_signed_axis_alignment": 0.65,
+    "marginal_grace_ms": 200,
+    "invalid_observations_to_release_direction": 2,
+    "grace_can_emit_new_command": false,
+    "missing_hand_clears_grace": true,
+    "existing_positive_3d_turn_preserved": true,
+    "extra_prediction_panels": false,
+    "target_fps": 10,
+    "added_detector_or_classifier_passes": 0
+  },
+  "release_checks": {
+    "onnx_parity": true,
+    "offline_macro_f1_at_least_0_97": true,
+    "offline_accepted_precision_at_least_0_99": true,
+    "offline_unknown_false_accept_at_most_0_02": true,
+    "old_command_correct_accept_at_least_0_98": true,
+    "new_command_recall_at_least_0_97": true,
+    "retired_call_false_accept_at_most_0_02": true,
+    "runtime_peace_recall_at_least_0_95": true,
+    "runtime_rock_recall_at_least_0_97": true,
+    "runtime_unknown_false_accept_at_most_0_02": true,
+    "stop_precision": true,
+    "runtime_stop_precision": true,
+    "runtime_stop_recall": true,
+    "horizontal_feedback_matches_model": true,
+    "horizontal_feedback_matches_dataset": true,
+    "feedback_replay_matches_runtime_sources": true,
+    "reviewed_left_classified_and_executed": true,
+    "reviewed_left_angle_mirror_aspect_variants": true,
+    "reviewed_right_classified_and_executed": true,
+    "reviewed_right_angle_mirror_aspect_variants": true,
+    "reviewed_directional_jpeg_detection_and_actions": true
+  },
+  "jpeg_replay": {
+    "total": 408,
+    "previous_correct": 358,
+    "correct": 375,
+    "previous_actions": 362,
+    "actions": 378,
+    "scope": "Reviewed training JPEGs replayed as static holds; not independent live accuracy"
+  },
+  "preserved_model_stateless_rule_predictions_unchanged": true,
+  "holdout_metrics": {
+    "val": {
+      "previous_scalar": {
+        "macro_f1": 0.9910208218997896,
+        "accepted_precision": 0.9947236180904523,
+        "unknown_false_accept_rate": 0.018199233716475097,
+        "per_class": {
+          "left": {
+            "precision": 0.998589562764457,
+            "recall": 0.9971830985915493,
+            "f1-score": 0.9978858350951374,
+            "support": 710.0
+          },
+          "right": {
+            "precision": 0.9943899018232819,
+            "recall": 0.9985915492957746,
+            "f1-score": 0.9964862965565706,
+            "support": 710.0
+          },
+          "up": {
+            "precision": 0.995774647887324,
+            "recall": 0.995774647887324,
+            "f1-score": 0.995774647887324,
+            "support": 710.0
+          },
+          "down": {
+            "precision": 1.0,
+            "recall": 0.9985915492957746,
+            "f1-score": 0.9992952783650458,
+            "support": 710.0
+          },
+          "open_palm": {
+            "precision": 0.9911764705882353,
+            "recall": 0.9926362297496318,
+            "f1-score": 0.9919058130978661,
+            "support": 679.0
+          },
+          "like": {
+            "precision": 0.9870875179340028,
+            "recall": 0.9856733524355301,
+            "f1-score": 0.9863799283154122,
+            "support": 698.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.9970059880239521,
+            "f1-score": 0.9985007496251874,
+            "support": 668.0
+          },
+          "fist": {
+            "precision": 0.995575221238938,
+            "recall": 0.9796806966618288,
+            "f1-score": 0.9875640087783467,
+            "support": 689.0
+          },
+          "thumb_down": {
+            "precision": 0.9899135446685879,
+            "recall": 0.9800285306704708,
+            "f1-score": 0.9849462365591398,
+            "support": 701.0
+          },
+          "peace": {
+            "precision": 0.9935897435897436,
+            "recall": 0.9872611464968153,
+            "f1-score": 0.9904153354632588,
+            "support": 314.0
+          },
+          "rock": {
+            "precision": 0.9966666666666667,
+            "recall": 0.9867986798679867,
+            "f1-score": 0.9917081260364843,
+            "support": 303.0
+          },
+          "stop_inverted": {
+            "precision": 0.9945054945054945,
+            "recall": 0.9917808219178083,
+            "f1-score": 0.9931412894375857,
+            "support": 1095.0
+          },
+          "no_gesture": {
+            "precision": 0.9570494864612512,
+            "recall": 0.9818007662835249,
+            "f1-score": 0.9692671394799054,
+            "support": 1044.0
+          },
+          "accuracy": 0.9902557856272838,
+          "macro avg": {
+            "precision": 0.9210227327234274,
+            "recall": 0.919486218369855,
+            "f1-score": 0.9202336203355189,
+            "support": 9031.0
+          },
+          "weighted avg": {
+            "precision": 0.9903678898225214,
+            "recall": 0.9902557856272838,
+            "f1-score": 0.9902846966970504,
+            "support": 9031.0
+          }
+        }
+      },
+      "retrained_scalar": {
+        "macro_f1": 0.9916543696669239,
+        "accepted_precision": 0.9947282540479477,
+        "unknown_false_accept_rate": 0.018199233716475097,
+        "per_class": {
+          "left": {
+            "precision": 0.998589562764457,
+            "recall": 0.9971830985915493,
+            "f1-score": 0.9978858350951374,
+            "support": 710.0
+          },
+          "right": {
+            "precision": 0.9929971988795518,
+            "recall": 0.9985915492957746,
+            "f1-score": 0.9957865168539326,
+            "support": 710.0
+          },
+          "up": {
+            "precision": 0.9957865168539326,
+            "recall": 0.9985915492957746,
+            "f1-score": 0.9971870604781997,
+            "support": 710.0
+          },
+          "down": {
+            "precision": 0.9971830985915493,
+            "recall": 0.9971830985915493,
+            "f1-score": 0.9971830985915493,
+            "support": 710.0
+          },
+          "open_palm": {
+            "precision": 0.9941176470588236,
+            "recall": 0.9955817378497791,
+            "f1-score": 0.9948491537895512,
+            "support": 679.0
+          },
+          "like": {
+            "precision": 0.9913169319826338,
+            "recall": 0.9813753581661891,
+            "f1-score": 0.986321094312455,
+            "support": 698.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.9985029940119761,
+            "f1-score": 0.9992509363295881,
+            "support": 668.0
+          },
+          "fist": {
+            "precision": 0.9926793557833089,
+            "recall": 0.9840348330914369,
+            "f1-score": 0.9883381924198251,
+            "support": 689.0
+          },
+          "thumb_down": {
+            "precision": 0.9870689655172413,
+            "recall": 0.9800285306704708,
+            "f1-score": 0.9835361488904796,
+            "support": 701.0
+          },
+          "peace": {
+            "precision": 0.9967845659163987,
+            "recall": 0.9872611464968153,
+            "f1-score": 0.992,
+            "support": 314.0
+          },
+          "rock": {
+            "precision": 0.9966666666666667,
+            "recall": 0.9867986798679867,
+            "f1-score": 0.9917081260364843,
+            "support": 303.0
+          },
+          "stop_inverted": {
+            "precision": 0.9954296160877514,
+            "recall": 0.9945205479452055,
+            "f1-score": 0.9949748743718593,
+            "support": 1095.0
+          },
+          "no_gesture": {
+            "precision": 0.9633458646616542,
+            "recall": 0.9818007662835249,
+            "f1-score": 0.9724857685009488,
+            "support": 1044.0
+          },
+          "accuracy": 0.9910308935887499,
+          "macro avg": {
+            "precision": 0.9215689993402835,
+            "recall": 0.9201038492970023,
+            "f1-score": 0.9208219146907151,
+            "support": 9031.0
+          },
+          "weighted avg": {
+            "precision": 0.991095162838362,
+            "recall": 0.9910308935887499,
+            "f1-score": 0.9910460142216192,
+            "support": 9031.0
+          }
+        }
+      },
+      "previous_runtime": {
+        "macro_f1": 0.9022695450603684,
+        "accepted_precision": 0.9925373134328358,
+        "unknown_false_accept_rate": 0.006704980842911878,
+        "per_class": {
+          "left": {
+            "precision": 0.9957446808510638,
+            "recall": 0.9887323943661972,
+            "f1-score": 0.992226148409894,
+            "support": 710.0
+          },
+          "right": {
+            "precision": 0.9971590909090909,
+            "recall": 0.9887323943661972,
+            "f1-score": 0.9929278642149929,
+            "support": 710.0
+          },
+          "up": {
+            "precision": 0.9957627118644068,
+            "recall": 0.9929577464788732,
+            "f1-score": 0.9943582510578279,
+            "support": 710.0
+          },
+          "down": {
+            "precision": 0.9957507082152974,
+            "recall": 0.9901408450704225,
+            "f1-score": 0.9929378531073446,
+            "support": 710.0
+          },
+          "open_palm": {
+            "precision": 0.9909502262443439,
+            "recall": 0.3225331369661267,
+            "f1-score": 0.4866666666666667,
+            "support": 679.0
+          },
+          "like": {
+            "precision": 0.953257790368272,
+            "recall": 0.9641833810888252,
+            "f1-score": 0.9586894586894587,
+            "support": 698.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.6197604790419161,
+            "f1-score": 0.7652495378927912,
+            "support": 668.0
+          },
+          "fist": {
+            "precision": 0.9930915371329879,
+            "recall": 0.8345428156748912,
+            "f1-score": 0.9069400630914827,
+            "support": 689.0
+          },
+          "thumb_down": {
+            "precision": 1.0,
+            "recall": 0.9500713266761769,
+            "f1-score": 0.9743964886613021,
+            "support": 701.0
+          },
+          "peace": {
+            "precision": 0.9934426229508196,
+            "recall": 0.964968152866242,
+            "f1-score": 0.9789983844911146,
+            "support": 314.0
+          },
+          "rock": {
+            "precision": 0.9966666666666667,
+            "recall": 0.9867986798679867,
+            "f1-score": 0.9917081260364843,
+            "support": 303.0
+          },
+          "stop_inverted": {
+            "precision": 1.0,
+            "recall": 0.993607305936073,
+            "f1-score": 0.9967934035730646,
+            "support": 1095.0
+          },
+          "no_gesture": {
+            "precision": 0.5375842405391394,
+            "recall": 0.9932950191570882,
+            "f1-score": 0.6976118398923646,
+            "support": 1044.0
+          },
+          "accuracy": 0.8953604252020817,
+          "macro avg": {
+            "precision": 0.889243591124435,
+            "recall": 0.827880262682644,
+            "f1-score": 0.8378217204131992,
+            "support": 9031.0
+          },
+          "weighted avg": {
+            "precision": 0.9401588248607365,
+            "recall": 0.8953604252020817,
+            "f1-score": 0.8932411048351498,
+            "support": 9031.0
+          }
+        }
+      },
+      "retrained_runtime": {
+        "macro_f1": 0.9025515811146655,
+        "accepted_precision": 0.992818924246691,
+        "unknown_false_accept_rate": 0.005747126436781609,
+        "per_class": {
+          "left": {
+            "precision": 0.9971590909090909,
+            "recall": 0.9887323943661972,
+            "f1-score": 0.9929278642149929,
+            "support": 710.0
+          },
+          "right": {
+            "precision": 0.9971590909090909,
+            "recall": 0.9887323943661972,
+            "f1-score": 0.9929278642149929,
+            "support": 710.0
+          },
+          "up": {
+            "precision": 0.9943661971830986,
+            "recall": 0.9943661971830986,
+            "f1-score": 0.9943661971830986,
+            "support": 710.0
+          },
+          "down": {
+            "precision": 0.9943422913719944,
+            "recall": 0.9901408450704225,
+            "f1-score": 0.9922371206774877,
+            "support": 710.0
+          },
+          "open_palm": {
+            "precision": 0.9954545454545455,
+            "recall": 0.3225331369661267,
+            "f1-score": 0.4872080088987764,
+            "support": 679.0
+          },
+          "like": {
+            "precision": 0.9545454545454546,
+            "recall": 0.9627507163323782,
+            "f1-score": 0.9586305278174037,
+            "support": 698.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.6197604790419161,
+            "f1-score": 0.7652495378927912,
+            "support": 668.0
+          },
+          "fist": {
+            "precision": 0.9930915371329879,
+            "recall": 0.8345428156748912,
+            "f1-score": 0.9069400630914827,
+            "support": 689.0
+          },
+          "thumb_down": {
+            "precision": 1.0,
+            "recall": 0.9500713266761769,
+            "f1-score": 0.9743964886613021,
+            "support": 701.0
+          },
+          "peace": {
+            "precision": 0.9967105263157895,
+            "recall": 0.964968152866242,
+            "f1-score": 0.9805825242718447,
+            "support": 314.0
+          },
+          "rock": {
+            "precision": 0.9966666666666667,
+            "recall": 0.9867986798679867,
+            "f1-score": 0.9917081260364843,
+            "support": 303.0
+          },
+          "stop_inverted": {
+            "precision": 1.0,
+            "recall": 0.9954337899543378,
+            "f1-score": 0.9977116704805492,
+            "support": 1095.0
+          },
+          "no_gesture": {
+            "precision": 0.5381026438569206,
+            "recall": 0.9942528735632183,
+            "f1-score": 0.698284561049445,
+            "support": 1044.0
+          },
+          "accuracy": 0.8956926143284243,
+          "macro avg": {
+            "precision": 0.8898284317389742,
+            "recall": 0.8280774144235136,
+            "f1-score": 0.8380836110350466,
+            "support": 9031.0
+          },
+          "weighted avg": {
+            "precision": 0.9406612373088029,
+            "recall": 0.8956926143284243,
+            "f1-score": 0.8935221391187408,
+            "support": 9031.0
+          }
+        }
+      }
+    },
+    "test": {
+      "previous_scalar": {
+        "macro_f1": 0.989262072544328,
+        "accepted_precision": 0.9945369076356244,
+        "unknown_false_accept_rate": 0.009786476868327402,
+        "per_class": {
+          "left": {
+            "precision": 0.9955489614243324,
+            "recall": 0.9911373707533235,
+            "f1-score": 0.993338267949667,
+            "support": 677.0
+          },
+          "right": {
+            "precision": 0.9955555555555555,
+            "recall": 0.9926144756277696,
+            "f1-score": 0.9940828402366864,
+            "support": 677.0
+          },
+          "up": {
+            "precision": 0.9970193740685543,
+            "recall": 0.9881831610044313,
+            "f1-score": 0.9925816023738873,
+            "support": 677.0
+          },
+          "down": {
+            "precision": 1.0,
+            "recall": 0.9911373707533235,
+            "f1-score": 0.9955489614243324,
+            "support": 677.0
+          },
+          "open_palm": {
+            "precision": 0.9918809201623816,
+            "recall": 0.9932249322493225,
+            "f1-score": 0.992552471225457,
+            "support": 738.0
+          },
+          "like": {
+            "precision": 0.9885550786838341,
+            "recall": 0.9787535410764873,
+            "f1-score": 0.9836298932384342,
+            "support": 706.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.9971988795518207,
+            "f1-score": 0.9985974754558204,
+            "support": 714.0
+          },
+          "fist": {
+            "precision": 0.9956647398843931,
+            "recall": 0.9773049645390071,
+            "f1-score": 0.9863994273443092,
+            "support": 705.0
+          },
+          "thumb_down": {
+            "precision": 0.9929378531073446,
+            "recall": 0.9763888888888889,
+            "f1-score": 0.9845938375350141,
+            "support": 720.0
+          },
+          "peace": {
+            "precision": 0.9800664451827242,
+            "recall": 0.9866220735785953,
+            "f1-score": 0.9833333333333333,
+            "support": 299.0
+          },
+          "rock": {
+            "precision": 0.9840255591054313,
+            "recall": 0.9935483870967742,
+            "f1-score": 0.9887640449438202,
+            "support": 310.0
+          },
+          "stop_inverted": {
+            "precision": 0.9980314960629921,
+            "recall": 0.9960707269155207,
+            "f1-score": 0.9970501474926253,
+            "support": 1018.0
+          },
+          "no_gesture": {
+            "precision": 0.950469684030743,
+            "recall": 0.9902135231316725,
+            "f1-score": 0.9699346405228758,
+            "support": 1124.0
+          },
+          "accuracy": 0.988829904888299,
+          "macro avg": {
+            "precision": 0.9192682619477347,
+            "recall": 0.9180284496547814,
+            "f1-score": 0.9186004959340187,
+            "support": 9042.0
+          },
+          "weighted avg": {
+            "precision": 0.9890686300598546,
+            "recall": 0.988829904888299,
+            "f1-score": 0.988879647621891,
+            "support": 9042.0
+          }
+        }
+      },
+      "retrained_scalar": {
+        "macro_f1": 0.9910724152481021,
+        "accepted_precision": 0.9958095238095238,
+        "unknown_false_accept_rate": 0.00800711743772242,
+        "per_class": {
+          "left": {
+            "precision": 0.997037037037037,
+            "recall": 0.9940915805022157,
+            "f1-score": 0.9955621301775148,
+            "support": 677.0
+          },
+          "right": {
+            "precision": 0.9970282317979198,
+            "recall": 0.9911373707533235,
+            "f1-score": 0.9940740740740741,
+            "support": 677.0
+          },
+          "up": {
+            "precision": 0.9955489614243324,
+            "recall": 0.9911373707533235,
+            "f1-score": 0.993338267949667,
+            "support": 677.0
+          },
+          "down": {
+            "precision": 1.0,
+            "recall": 0.9926144756277696,
+            "f1-score": 0.9962935507783544,
+            "support": 677.0
+          },
+          "open_palm": {
+            "precision": 0.9919028340080972,
+            "recall": 0.9959349593495935,
+            "f1-score": 0.9939148073022313,
+            "support": 738.0
+          },
+          "like": {
+            "precision": 0.9913669064748202,
+            "recall": 0.9759206798866855,
+            "f1-score": 0.9835831548893648,
+            "support": 706.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.9985994397759104,
+            "f1-score": 0.9992992291520673,
+            "support": 714.0
+          },
+          "fist": {
+            "precision": 0.994277539341917,
+            "recall": 0.9858156028368794,
+            "f1-score": 0.99002849002849,
+            "support": 705.0
+          },
+          "thumb_down": {
+            "precision": 0.9971671388101983,
+            "recall": 0.9777777777777777,
+            "f1-score": 0.9873772791023843,
+            "support": 720.0
+          },
+          "peace": {
+            "precision": 0.9866220735785953,
+            "recall": 0.9866220735785953,
+            "f1-score": 0.9866220735785953,
+            "support": 299.0
+          },
+          "rock": {
+            "precision": 0.9903536977491961,
+            "recall": 0.9935483870967742,
+            "f1-score": 0.9919484702093397,
+            "support": 310.0
+          },
+          "stop_inverted": {
+            "precision": 0.9990167158308751,
+            "recall": 0.9980353634577603,
+            "f1-score": 0.9985257985257985,
+            "support": 1018.0
+          },
+          "no_gesture": {
+            "precision": 0.9554413024850043,
+            "recall": 0.9919928825622776,
+            "f1-score": 0.9733740724574421,
+            "support": 1124.0
+          },
+          "accuracy": 0.9905994249059943,
+          "macro avg": {
+            "precision": 0.9211258884669995,
+            "recall": 0.9195162831399204,
+            "f1-score": 0.9202815284446662,
+            "support": 9042.0
+          },
+          "weighted avg": {
+            "precision": 0.9907928393657772,
+            "recall": 0.9905994249059943,
+            "f1-score": 0.9906370724223442,
+            "support": 9042.0
+          }
+        }
+      },
+      "previous_runtime": {
+        "macro_f1": 0.8998850714365804,
+        "accepted_precision": 0.9942254944420384,
+        "unknown_false_accept_rate": 0.0035587188612099642,
+        "per_class": {
+          "left": {
+            "precision": 0.9940209267563528,
+            "recall": 0.982274741506647,
+            "f1-score": 0.9881129271916791,
+            "support": 677.0
+          },
+          "right": {
+            "precision": 1.0,
+            "recall": 0.9793205317577548,
+            "f1-score": 0.9895522388059701,
+            "support": 677.0
+          },
+          "up": {
+            "precision": 0.9925705794947994,
+            "recall": 0.9867060561299852,
+            "f1-score": 0.9896296296296296,
+            "support": 677.0
+          },
+          "down": {
+            "precision": 1.0,
+            "recall": 0.9807976366322009,
+            "f1-score": 0.9903057419835943,
+            "support": 677.0
+          },
+          "open_palm": {
+            "precision": 1.0,
+            "recall": 0.33604336043360433,
+            "f1-score": 0.5030425963488844,
+            "support": 738.0
+          },
+          "like": {
+            "precision": 0.9716312056737588,
+            "recall": 0.9702549575070821,
+            "f1-score": 0.9709425939050319,
+            "support": 706.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.592436974789916,
+            "f1-score": 0.7440633245382586,
+            "support": 714.0
+          },
+          "fist": {
+            "precision": 1.0,
+            "recall": 0.8085106382978723,
+            "f1-score": 0.8941176470588236,
+            "support": 705.0
+          },
+          "thumb_down": {
+            "precision": 1.0,
+            "recall": 0.9569444444444445,
+            "f1-score": 0.9779985805535841,
+            "support": 720.0
+          },
+          "peace": {
+            "precision": 0.9829351535836177,
+            "recall": 0.9632107023411371,
+            "f1-score": 0.972972972972973,
+            "support": 299.0
+          },
+          "rock": {
+            "precision": 0.9808917197452229,
+            "recall": 0.9935483870967742,
+            "f1-score": 0.9871794871794872,
+            "support": 310.0
+          },
+          "stop_inverted": {
+            "precision": 1.0,
+            "recall": 0.9980353634577603,
+            "f1-score": 0.9990167158308751,
+            "support": 1018.0
+          },
+          "no_gesture": {
+            "precision": 0.5295508274231678,
+            "recall": 0.99644128113879,
+            "f1-score": 0.6915714726767521,
+            "support": 1124.0
+          },
+          "accuracy": 0.8855341738553417,
+          "macro avg": {
+            "precision": 0.889400029476923,
+            "recall": 0.8246089339667121,
+            "f1-score": 0.8356075663339675,
+            "support": 9042.0
+          },
+          "weighted avg": {
+            "precision": 0.937080651957959,
+            "recall": 0.8855341738553417,
+            "f1-score": 0.883993531985116,
+            "support": 9042.0
+          }
+        }
+      },
+      "retrained_runtime": {
+        "macro_f1": 0.9006144958314893,
+        "accepted_precision": 0.9948029449978346,
+        "unknown_false_accept_rate": 0.0017793594306049821,
+        "per_class": {
+          "left": {
+            "precision": 0.9955022488755623,
+            "recall": 0.9807976366322009,
+            "f1-score": 0.9880952380952381,
+            "support": 677.0
+          },
+          "right": {
+            "precision": 1.0,
+            "recall": 0.982274741506647,
+            "f1-score": 0.9910581222056631,
+            "support": 677.0
+          },
+          "up": {
+            "precision": 0.9940652818991098,
+            "recall": 0.9896602658788775,
+            "f1-score": 0.9918578830495929,
+            "support": 677.0
+          },
+          "down": {
+            "precision": 1.0,
+            "recall": 0.982274741506647,
+            "f1-score": 0.9910581222056631,
+            "support": 677.0
+          },
+          "open_palm": {
+            "precision": 1.0,
+            "recall": 0.33739837398373984,
+            "f1-score": 0.5045592705167173,
+            "support": 738.0
+          },
+          "like": {
+            "precision": 0.9715504978662873,
+            "recall": 0.9674220963172805,
+            "f1-score": 0.9694819020581973,
+            "support": 706.0
+          },
+          "dorsal": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "ok": {
+            "precision": 1.0,
+            "recall": 0.592436974789916,
+            "f1-score": 0.7440633245382586,
+            "support": 714.0
+          },
+          "fist": {
+            "precision": 1.0,
+            "recall": 0.8085106382978723,
+            "f1-score": 0.8941176470588236,
+            "support": 705.0
+          },
+          "thumb_down": {
+            "precision": 1.0,
+            "recall": 0.9569444444444445,
+            "f1-score": 0.9779985805535841,
+            "support": 720.0
+          },
+          "peace": {
+            "precision": 0.9863013698630136,
+            "recall": 0.9632107023411371,
+            "f1-score": 0.9746192893401016,
+            "support": 299.0
+          },
+          "rock": {
+            "precision": 0.9840255591054313,
+            "recall": 0.9935483870967742,
+            "f1-score": 0.9887640449438202,
+            "support": 310.0
+          },
+          "stop_inverted": {
+            "precision": 1.0,
+            "recall": 0.9990176817288802,
+            "f1-score": 0.9995085995085995,
+            "support": 1018.0
+          },
+          "no_gesture": {
+            "precision": 0.5304964539007092,
+            "recall": 0.998220640569395,
+            "f1-score": 0.6928064217351034,
+            "support": 1124.0
+          },
+          "accuracy": 0.8861977438619775,
+          "macro avg": {
+            "precision": 0.8901386722507224,
+            "recall": 0.8251226660781293,
+            "f1-score": 0.8362848889863831,
+            "support": 9042.0
+          },
+          "weighted avg": {
+            "precision": 0.9376334789785638,
+            "recall": 0.8861977438619775,
+            "f1-score": 0.8846555244024106,
+            "support": 9042.0
+          }
+        }
+      }
+    }
+  },
+  "backend": {
+    "passed": 4903,
+    "current_failures": [
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[False-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[True-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_thumb_down",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Left]",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Right]",
+      "backend/tests/test_hand_ownership.py::test_missing_owner_expires_and_visible_hand_requalifies"
+    ],
+    "baseline_failures": [
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[False-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_closed_fist_depth_rotation_rejects_away_views[True-x--65]",
+      "backend/tests/test_gesture_orientation.py::test_recorded_fist_remains_fist_when_the_shipped_model_calls_its_rotation_thumb_down",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Left]",
+      "backend/tests/test_hand_ownership.py::test_confident_opposite_hand_gets_new_identity_after_missing_owner_expires[Right]",
+      "backend/tests/test_hand_ownership.py::test_missing_owner_expires_and_visible_hand_requalifies",
+      "backend/tests/test_reported_left_view.py::test_reported_view_recovers_left_from_shipped_onnx"
+    ],
+    "new_failures": [],
+    "resolved_baseline_failures": [
+      "backend/tests/test_reported_left_view.py::test_reported_view_recovers_left_from_shipped_onnx"
+    ],
+    "all_tests_passed": false
+  },
+  "flutter_tests": {
+    "runtime": 74,
+    "tester": 8
+  },
+  "conversion": {
+    "passed": true,
+    "model_sha256": "a0d8d4df9c55ae68e21e90733253a365862ae89ceb666975d0e0e69655ed12d2",
+    "bytes": 78960,
+    "evaluation": {
+      "validation": {
+        "rows": 9031,
+        "source_sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a",
+        "top1_agreement": 1.0,
+        "maximum_probability_error": 2.3245811462402344e-06,
+        "mean_probability_error": 3.187859753950306e-09,
+        "maximum_mass_error": 9.834766387939453e-07,
+        "scalar_gate_agreement": 1.0,
+        "source_scalar_metrics": {
+          "accepted_precision": 0.9947282540479477,
+          "unknown_false_accept_rate": 0.018199233716475097,
+          "acceptance_rate": 0.8821835898571587
+        },
+        "tflite_scalar_metrics": {
+          "accepted_precision": 0.9947282540479477,
+          "unknown_false_accept_rate": 0.018199233716475097,
+          "acceptance_rate": 0.8821835898571587
+        },
+        "host_invoke": {
+          "p50_ms": 0.0037,
+          "p95_ms": 0.0067,
+          "scope": "warm host CPU invoke only; not iPhone or camera latency"
+        },
+        "geometry_and_temporal_not_included": true
+      },
+      "untouched_test": {
+        "rows": 9042,
+        "source_sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd",
+        "top1_agreement": 1.0,
+        "maximum_probability_error": 1.8775463104248047e-06,
+        "mean_probability_error": 3.2384566139853632e-09,
+        "maximum_mass_error": 1.6093254089355469e-06,
+        "scalar_gate_agreement": 1.0,
+        "source_scalar_metrics": {
+          "accepted_precision": 0.9958095238095238,
+          "unknown_false_accept_rate": 0.00800711743772242,
+          "acceptance_rate": 0.8709356337093563
+        },
+        "tflite_scalar_metrics": {
+          "accepted_precision": 0.9958095238095238,
+          "unknown_false_accept_rate": 0.00800711743772242,
+          "acceptance_rate": 0.8709356337093563
+        },
+        "host_invoke": {
+          "p50_ms": 0.0036,
+          "p95_ms": 0.0064,
+          "scope": "warm host CPU invoke only; not iPhone or camera latency"
+        },
+        "geometry_and_temporal_not_included": true
+      }
+    }
+  },
+  "classifier_timing": {
+    "schema_version": 1,
+    "scope": "Same-host one-thread warm native CPU invoke only; excludes camera, transport, detector, isolate, display and confirmation.",
+    "physical_device_tested": false,
+    "baseline_archive": "handover_static\\static_gesture_runtime_20261111_current_model.zip",
+    "baseline_archive_sha256": "ec1cb02f547bc27aba8671208168a13a2a974600f8783168cfb881e6050d81d7",
+    "previous_model_sha256": "47746adac0d301f5d2ea4b7b5620cc185e4b1a248170f882c7836849c321d4f1",
+    "current_model_sha256": "a0d8d4df9c55ae68e21e90733253a365862ae89ceb666975d0e0e69655ed12d2",
+    "previous_model_bytes": 78960,
+    "current_model_bytes": 78960,
+    "methodology": "100 warmup invokes each; 40 alternating-order rounds of the same 100 feature rows; set_tensor excluded from invoke timer.",
+    "models": {
+      "previous": {
+        "samples": 4000,
+        "p50_ms": 0.0048,
+        "p95_ms": 0.0063
+      },
+      "current": {
+        "samples": 4000,
+        "p50_ms": 0.0046,
+        "p95_ms": 0.0059
+      }
+    },
+    "retained_runtime_policy": {
+      "target_fps": 10,
+      "admission_interval_ms": 100,
+      "pending_frames_maximum": 1,
+      "interpreter_initialization": "persistent worker",
+      "strong_confirmation": "immediate at confidence >= 0.92 and margin >= 0.25 after mass/geometry qualification",
+      "ordinary_confirmation": "two matching results among latest three",
+      "fixed_action_cooldown_ms": 0
+    }
+  },
+  "rule_timing": {
+    "scope": "Alternating same-host CPU landmark geometry; excludes camera, detector, Flutter and physical-phone latency",
+    "baseline_source_sha256": "542976589f32e7b94990a1fc6517f798ff2e0d87a8b33ccf738bac70dceb057d",
+    "current_source_sha256": "0964a683fa352c743a37037d3af32428dfe93a4bd2067cd9251e1d332ae944f8",
+    "rules": {
+      "previous": {
+        "samples": 1640,
+        "p50_ms": 3.0339,
+        "p95_ms": 4.819069999999999
+      },
+      "current": {
+        "samples": 1640,
+        "p50_ms": 3.0287499999999996,
+        "p95_ms": 4.700149999999997
+      }
+    },
+    "state_update": {
+      "p50_ms": 0.0007,
+      "p95_ms": 0.0008
+    },
+    "p95_delta_ms": -0.11892000000000191,
+    "frame_budget_ms": 100,
+    "additional_p95_below_one_ms": true,
+    "scheduling_changed": false,
+    "extra_detector_or_classifier_passes": 0,
+    "physical_device_tested": false
+  },
+  "runtime_source_sha256": {
+    "backend/geometry.py": "0964a683fa352c743a37037d3af32428dfe93a4bd2067cd9251e1d332ae944f8",
+    "backend/runtime.py": "158dc2329423bee78128d832595ffc256e125a91fff17e21ad22a494ded98eb0",
+    "backend/model_runtime.py": "e23cdaafc34db543b02eaabb10abb4526f93a75b79375ab7d6b9238744663907",
+    "backend/hand_selection.py": "a800e5dd9dcf8dd94d1de7005fed74fa6abb4db0c07e441c70d863fbf0ad98c1",
+    "backend/direction_stability.py": "040aecc293bf885e9637df9d8033ca551c20a8b1ae4014502c069feb76f7b3a3"
+  },
+  "limits": [
+    "Per-class metrics can move by a few samples after retraining; all metrics are retained here.",
+    "Existing backend failures remain listed; no new backend failures were observed.",
+    "Physical phone/NCM latency, lighting/angle coverage and iOS build acceptance remain pending."
+  ]
+}

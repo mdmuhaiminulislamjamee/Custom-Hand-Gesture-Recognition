@@ -83,11 +83,15 @@ def audit(model_path, feedback_path=None):
     for label in sorted({r["actual"] for r in rows}):
         subset = [r for r in rows if r["actual"] == label]
         summary[label] = dict(rows=len(subset), raw_labels=dict(Counter(r["raw"] for r in subset)),
-                              raw_accepted_correct=sum(r["raw"] == label and r["mass"] >= .7 and r["confidence"] >= .7 for r in subset),
+                              raw_accepted_correct=sum(r["raw"] == label and r["mass"] >= config.known_mass_floor and r["confidence"] >= config.confidence_floor for r in subset),
                               runtime_correct=sum(r["predicted"] == label for r in subset),
                               executed_correct=sum(r["predicted"] == label and r["executed"] for r in subset),
                               failures=[r["id"] for r in subset if r["predicted"] != label])
     return dict(model=str(model_path), model_sha256=hashlib.sha256(Path(model_path).read_bytes()).hexdigest(),
+                runtime_sources={name: hashlib.sha256((PROJECT_ROOT / name).read_bytes()).hexdigest()
+                    for name in ("backend/geometry.py", "backend/runtime.py", "backend/model_runtime.py",
+                                 "backend/hand_selection.py", "backend/direction_stability.py",
+                                 "models/gesture_mobile_runtime_config.json")},
                 feedback_sha256=hashlib.sha256(Path(feedback_path).read_bytes()).hexdigest(),
                 summary=summary, rows=rows,
                 limitation="Reviewed training corrections; world/depth and handedness were not retained. Static hold replay is not raw-image detector replay.")
@@ -169,7 +173,11 @@ def replay_images(model_path, output_directory):
             rows.append(dict(id=record["feedback_id"], actual=record["actual_label"],
                              predicted=last.get("runtime_prediction"), status=last.get("status"),
                              action_seen=any(r.get("runtime_action") == expected_action for r in results),
-                             reason=last.get("action_reason"), quality=last.get("quality")))
+                             reason=last.get("action_reason"), quality=last.get("quality"),
+                             raw=last.get("raw_prediction"), mass=last.get("known_gesture_mass"),
+                             landmarks=last.get("landmarks"), world_landmarks=last.get("world_landmarks"),
+                             resolvers=last.get("resolvers"),
+                             annotated_landmarks=json.loads(record["landmarks_json"])))
             if number % 10 == 0:
                 print(f"JPEG replay {number + 1}/{len(records)}", flush=True)
     finally:

@@ -50,10 +50,38 @@ Install `build/app/outputs/flutter-apk/app-release.apk` on a 64-bit Android API
 screen but are not connected to Boss app actions.
 
 The current NCM tester build is
-`releases/GestureLab-v2.0.7-litert-ncm-arm64-diagnostic-release.apk`. It is a
+`releases/GestureLab-v2.0.9-litert-ncm-arm64-diagnostic-release.apk`. It is a
 release-optimized test build signed with the Android debug certificate; replace
 that signing configuration with the owner's production key before store or Boss
 app distribution.
+
+Version 2.0.9 adds bounded directional continuation for Left/Right/Up/Down:
+strict entry, one marginal visible-hand frame within 200 ms, release after two
+consecutive invalid observations, and immediate clear-gesture transitions.
+Lost hands and competing poses cannot retain a direction. The existing 3-D
+single-index turn remains independently supported. A strict model/3-D
+single-index check prevents a generic Dorsal rule from rejecting clear
+Left/Right poses; that new exception requires full known-gesture mass.
+No additional prediction panels are added. The same persistent workers,
+100 ms admission interval and strong/ordinary confirmation remain in use.
+The matching trained model and exact qualification are recorded in the handover.
+
+Version 2.0.8 integrated the current production model in the shared qualified
+FP32 runtime. It retains the previous full detector, GPU preference/CPU fallback,
+persistent classifier, newest-frame-only NCM processing and 10 FPS admission
+rate. Phone admission and FPS measurements now use monotonic clocks. Busy phone
+callbacks are dropped; a slow inference does not incur another 100 ms wait.
+Pause, camera changes and backgrounding invalidate late results, clear the
+overlay and reset evidence before fresh phone frames resume. Returning from the
+background reopens the phone camera and preserves an explicit user pause.
+Accepted-event history now records valid repeats emitted by the shared command
+controller. NCM latency displays the latest frame's receive-to-result timing,
+including its pending wait, instead of the session's historical median.
+
+The strong-confidence shortcut and ordinary two-of-three confirmation policy
+are unchanged. Detection, JPEG decode, USB transit and intentional confirmation
+still take time; zero physical latency is not claimed. Device FPS, heating,
+camera-to-screen latency and the direct USB fallback require physical acceptance.
 
 Version 2.0.7 keeps the last decoded NCM picture visible while the next JPEG
 loads, removing the black gap caused by replacing the image widget every frame.
@@ -84,7 +112,7 @@ network routing or general socket service. It is not qualified as a general TCP
 stack. Physical Realme 9/camera acceptance and sustained throughput measurement
 are still required. The gesture pipeline remains the shared qualified FP32 path.
 
-Install v2.0.7, connect the powered camera with OTG enabled, select NCM and choose
+Install v2.0.9, connect the powered camera with OTG enabled, select NCM and choose
 **Allow** in Android's USB access dialog. After a denial, tap Reconnect to request
 permission again. If streaming fails, use **USB diagnostics → Copy report**;
 the report now includes recent native initialization/link/TCP errors. Logcat tag

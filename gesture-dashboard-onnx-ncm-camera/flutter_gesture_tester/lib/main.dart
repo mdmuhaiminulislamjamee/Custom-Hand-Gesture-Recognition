@@ -14,6 +14,7 @@ import 'package:static_gesture_runtime/static_gesture_runtime_api.dart';
 import 'models/gesture_result.dart';
 import 'services/phone_static_gesture_engine.dart';
 import 'services/android_ncm_transport.dart';
+import 'services/phone_frame_gate.dart';
 
 enum _VideoSource { phone, ncm }
 
@@ -69,9 +70,9 @@ class _GestureLabScreenState extends State<GestureLabScreen>
     with WidgetsBindingObserver {
   static const _mint = Color(0xFF7EF2CC);
   static const _amber = Color(0xFFFFC37A);
-  static const _frameGap = Duration(milliseconds: 100);
-
   final List<_GestureEvent> _history = [];
+  final PhoneFrameGate _phoneFrames = PhoneFrameGate();
+  final Stopwatch _frameClock = Stopwatch()..start();
 
   List<CameraDescription> _cameras = const [];
   CameraController? _camera;
@@ -79,8 +80,7 @@ class _GestureLabScreenState extends State<GestureLabScreen>
   NcmStaticGestureRuntime? _ncmEngine;
   NcmStaticPreviewFrame? _ncmPreview;
   GestureResult? _result;
-  DateTime _lastSubmitted = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime? _lastCompleted;
+  int? _lastCompletedMicroseconds;
   String? _error;
   String _phase = 'Loading model';
   String _ncmState = 'stopped';
@@ -90,13 +90,11 @@ class _GestureLabScreenState extends State<GestureLabScreen>
   bool _initializing = true;
   bool _switchingSource = false;
   bool _paused = false;
-  bool _processing = false;
   double _fps = 0;
   int _cameraIndex = 0;
   int _generation = 0;
   int? _boardSequence;
   _VideoSource _source = _VideoSource.phone;
-  String? _lastHistoryLabel;
 
   @override
   void initState() {
@@ -152,11 +150,18 @@ class _GestureLabScreenState extends State<GestureLabScreen>
     });
   }
 
-  Future<void> _openCamera(int index) async {
+  Future<void> _openCamera(int index, {bool startPaused = false}) async {
     final generation = ++_generation;
+    _phoneFrames.invalidate();
     final oldCamera = _camera;
     _camera = null;
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        _result = null;
+        _fps = 0;
+        _lastCompletedMicroseconds = null;
+      });
+    }
     if (oldCamera != null) {
       if (oldCamera.value.isStreamingImages) await oldCamera.stopImageStream();
       await oldCamera.dispose();
@@ -174,18 +179,18 @@ class _GestureLabScreenState extends State<GestureLabScreen>
       return;
     }
     _camera = controller;
-    _paused = false;
+    _paused = startPaused;
     await _phoneEngine?.reset();
-    await controller.startImageStream((image) => _analyze(image, generation));
+    if (!startPaused) {
+      await controller.startImageStream((image) => _analyze(image, generation));
+    }
     if (mounted) setState(() {});
   }
 
   Future<void> _analyze(CameraImage image, int generation) async {
-    final now = DateTime.now();
-    if (_paused || _processing || generation != _generation) return;
-    if (now.difference(_lastSubmitted) < _frameGap) return;
-    _lastSubmitted = now;
-    _processing = true;
+    if (_paused || generation != _generation) return;
+    final ticket = _phoneFrames.begin();
+    if (ticket == null) return;
     try {
       final controller = _camera;
       final engine = _phoneEngine;
@@ -197,7 +202,11 @@ class _GestureLabScreenState extends State<GestureLabScreen>
             Platform.isIOS &&
             controller.description.lensDirection == CameraLensDirection.front,
       );
-      if (!mounted || generation != _generation) return;
+      if (!mounted ||
+          generation != _generation ||
+          !_phoneFrames.isCurrent(ticket)) {
+        return;
+      }
       _detectorBackend = engine.detectorBackend;
       _commitResult(
         GestureResult.fromStatic(
@@ -209,7 +218,11 @@ class _GestureLabScreenState extends State<GestureLabScreen>
         ),
       );
     } catch (error) {
-      if (!mounted || generation != _generation) return;
+      if (!mounted ||
+          generation != _generation ||
+          !_phoneFrames.isCurrent(ticket)) {
+        return;
+      }
       setState(() {
         _error = error.toString();
         _result = null;
@@ -220,7 +233,7 @@ class _GestureLabScreenState extends State<GestureLabScreen>
         // The original error is already shown; evidence/preview are cleared.
       }
     } finally {
-      _processing = false;
+      _phoneFrames.finish();
     }
   }
 
@@ -242,14 +255,14 @@ class _GestureLabScreenState extends State<GestureLabScreen>
 
   void _commitResult(GestureResult result) {
     final completed = DateTime.now();
-    final lastCompleted = _lastCompleted;
+    final completedMicroseconds = _frameClock.elapsedMicroseconds;
+    final lastCompleted = _lastCompletedMicroseconds;
     if (lastCompleted != null) {
       final instantaneous =
-          1000 /
-          completed.difference(lastCompleted).inMilliseconds.clamp(1, 10000);
+          1000000 / (completedMicroseconds - lastCompleted).clamp(1, 10000000);
       _fps = _fps == 0 ? instantaneous : (_fps * .78) + (instantaneous * .22);
     }
-    _lastCompleted = completed;
+    _lastCompletedMicroseconds = completedMicroseconds;
     _remember(result, completed);
     setState(() {
       _result = result;
@@ -269,11 +282,12 @@ class _GestureLabScreenState extends State<GestureLabScreen>
       _result = null;
       _ncmPreview = null;
       _fps = 0;
-      _lastCompleted = null;
+      _lastCompletedMicroseconds = null;
     });
     try {
       if (source == _VideoSource.ncm) {
         ++_generation;
+        _phoneFrames.invalidate();
         final camera = _camera;
         _camera = null;
         if (camera != null) {
@@ -363,7 +377,6 @@ class _GestureLabScreenState extends State<GestureLabScreen>
         },
         onPreview: (preview) {
           if (!mounted || _ncmEngine != created) return;
-          final latency = created.telemetry.endToEnd.snapshot['p50_ms'];
           _boardSequence = preview.source.sequence;
           _detectorBackend = created.detectorBackend ?? 'initializing';
           _ncmPreview = preview;
@@ -373,9 +386,8 @@ class _GestureLabScreenState extends State<GestureLabScreen>
               detections: preview.detections,
               frameWidth: preview.width,
               frameHeight: preview.height,
-              totalLatencyMs: latency is num
-                  ? latency.toDouble()
-                  : preview.result.runtimeMs,
+              totalLatencyMs:
+                  preview.receiveToResultMs ?? preview.result.runtimeMs,
             ),
           );
         },
@@ -461,8 +473,9 @@ class _GestureLabScreenState extends State<GestureLabScreen>
   }
 
   void _remember(GestureResult result, DateTime time) {
-    if (!result.accepted || result.label == _lastHistoryLabel) return;
-    _lastHistoryLabel = result.label;
+    // Each emitted command is already debounced by the shared controller.
+    // Keeping a second label latch here hid valid repeats after rearming.
+    if (!result.accepted) return;
     _history.insert(0, _GestureEvent(result.label, result.confidence, time));
     if (_history.length > 8) _history.removeLast();
   }
@@ -487,12 +500,23 @@ class _GestureLabScreenState extends State<GestureLabScreen>
     final camera = _camera;
     if (camera == null) return;
     if (_paused) {
+      await _phoneEngine?.reset();
+      _phoneFrames.invalidate();
+      if (!mounted) return;
+      setState(() => _paused = false);
       final generation = _generation;
       await camera.startImageStream((image) => _analyze(image, generation));
-    } else if (camera.value.isStreamingImages) {
-      await camera.stopImageStream();
+    } else {
+      _phoneFrames.invalidate();
+      setState(() {
+        _paused = true;
+        _result = null;
+        _fps = 0;
+        _lastCompletedMicroseconds = null;
+      });
+      if (camera.value.isStreamingImages) await camera.stopImageStream();
+      await _phoneEngine?.invalidateFrame();
     }
-    if (mounted) setState(() => _paused = !_paused);
   }
 
   Future<void> _switchCamera() async {
@@ -541,14 +565,25 @@ class _GestureLabScreenState extends State<GestureLabScreen>
       }
       return;
     }
+    if (state == AppLifecycleState.resumed) {
+      if (_camera == null && _cameras.isNotEmpty) {
+        unawaited(_openCamera(_cameraIndex, startPaused: _paused));
+      }
+      return;
+    }
     final camera = _camera;
     if (camera == null || !camera.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
       ++_generation;
+      _phoneFrames.invalidate();
       _camera = null;
+      setState(() {
+        _result = null;
+        _fps = 0;
+        _lastCompletedMicroseconds = null;
+      });
+      unawaited(_phoneEngine?.invalidateFrame().catchError((Object _) {}));
       unawaited(camera.dispose());
-    } else if (state == AppLifecycleState.resumed && _cameras.isNotEmpty) {
-      unawaited(_openCamera(_cameraIndex));
     }
   }
 
@@ -556,6 +591,7 @@ class _GestureLabScreenState extends State<GestureLabScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     ++_generation;
+    _phoneFrames.invalidate();
     unawaited(_camera?.dispose());
     unawaited(_phoneEngine?.close());
     unawaited(_ncmEngine?.close());
@@ -865,7 +901,7 @@ class _GestureLabScreenState extends State<GestureLabScreen>
                       : 'CENTER YOUR HAND',
                 ),
               ),
-              if (_processing)
+              if (_phoneFrames.isProcessing)
                 const Positioned(
                   right: 17,
                   top: 18,

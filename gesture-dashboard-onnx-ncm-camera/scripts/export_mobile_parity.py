@@ -18,6 +18,7 @@ from backend.model_runtime import ModelManager
 from backend.runtime import TemporalGate
 
 SOURCE_FILES = ['backend/config.py', 'backend/geometry.py', 'backend/runtime.py',
+                'backend/direction_stability.py',
                 'backend/hand_selection.py', 'backend/model_runtime.py',
                 'models/gesture_mobile_runtime_config.json', 'models/gesture_mlp_onnx_metadata.json']
 

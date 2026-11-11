@@ -1,11 +1,17 @@
 {
   "schema_version": 1,
-  "source_onnx_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
+  "source_onnx_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
+  "runtime_config_sha256": "21d618b176bcc382c1ecb3d5ab9f1f1867fb0344c8da53e196a9e1ba183176cd",
+  "scalar_gates": {
+    "known_mass_floor": 0.7,
+    "confidence_floor": 0.75,
+    "probability_margin_floor": 0.1
+  },
   "weights_retrained": false,
   "converter": "explicit_builtin_flatbuffer_graph",
   "calibration": {
     "source": "models\\gesture_online_replay_cache.npz",
-    "sha256": "351a59f4d64e0db69b3575fc21da59a3e68179d6054814c1cd141c0b461b8245",
+    "sha256": "4ba5a8e310b2fa73d0a38412d2c9b7c0db656e744c9d13cfa0bbad61778e9c47",
     "rows": 1391,
     "indices_sha256": "6a6f556e49d175498bebb3d5edcd4dfc30b572bcff577ad9a08eb3a36ba95945",
     "test_used_for_calibration": false
@@ -13,55 +19,55 @@
   "models": {
     "float32": {
       "passed": true,
-      "model_sha256": "712c1fa0689370861ec42ff649117853fffb6cacf885f7d3b570c3e3acbb3c1a",
+      "model_sha256": "a0d8d4df9c55ae68e21e90733253a365862ae89ceb666975d0e0e69655ed12d2",
       "bytes": 78960,
       "evaluation": {
         "validation": {
           "rows": 9031,
-          "source_sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648",
+          "source_sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a",
           "top1_agreement": 1.0,
-          "maximum_probability_error": 1.4007091522216797e-06,
-          "mean_probability_error": 2.68880917531078e-09,
-          "maximum_mass_error": 1.6689300537109375e-06,
+          "maximum_probability_error": 2.3245811462402344e-06,
+          "mean_probability_error": 3.187859753950306e-09,
+          "maximum_mass_error": 9.834766387939453e-07,
           "scalar_gate_agreement": 1.0,
           "source_scalar_metrics": {
-            "accepted_precision": 0.995829244357213,
-            "unknown_false_accept_rate": 0.012746234067207415,
-            "acceptance_rate": 0.9026685859816189
+            "accepted_precision": 0.9947282540479477,
+            "unknown_false_accept_rate": 0.018199233716475097,
+            "acceptance_rate": 0.8821835898571587
           },
           "tflite_scalar_metrics": {
-            "accepted_precision": 0.995829244357213,
-            "unknown_false_accept_rate": 0.012746234067207415,
-            "acceptance_rate": 0.9026685859816189
+            "accepted_precision": 0.9947282540479477,
+            "unknown_false_accept_rate": 0.018199233716475097,
+            "acceptance_rate": 0.8821835898571587
           },
           "host_invoke": {
-            "p50_ms": 0.0034,
-            "p95_ms": 0.0041,
+            "p50_ms": 0.0037,
+            "p95_ms": 0.0067,
             "scope": "warm host CPU invoke only; not iPhone or camera latency"
           },
           "geometry_and_temporal_not_included": true
         },
         "untouched_test": {
           "rows": 9042,
-          "source_sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008",
+          "source_sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd",
           "top1_agreement": 1.0,
-          "maximum_probability_error": 1.4007091522216797e-06,
-          "mean_probability_error": 2.7068183250378297e-09,
-          "maximum_mass_error": 1.7583370208740234e-06,
+          "maximum_probability_error": 1.8775463104248047e-06,
+          "mean_probability_error": 3.2384566139853632e-09,
+          "maximum_mass_error": 1.6093254089355469e-06,
           "scalar_gate_agreement": 1.0,
           "source_scalar_metrics": {
-            "accepted_precision": 0.9949488727362326,
-            "unknown_false_accept_rate": 0.011123470522803115,
-            "acceptance_rate": 0.8976996239769962
+            "accepted_precision": 0.9958095238095238,
+            "unknown_false_accept_rate": 0.00800711743772242,
+            "acceptance_rate": 0.8709356337093563
           },
           "tflite_scalar_metrics": {
-            "accepted_precision": 0.9949488727362326,
-            "unknown_false_accept_rate": 0.011123470522803115,
-            "acceptance_rate": 0.8976996239769962
+            "accepted_precision": 0.9958095238095238,
+            "unknown_false_accept_rate": 0.00800711743772242,
+            "acceptance_rate": 0.8709356337093563
           },
           "host_invoke": {
-            "p50_ms": 0.0034,
-            "p95_ms": 0.0037,
+            "p50_ms": 0.0036,
+            "p95_ms": 0.0064,
             "scope": "warm host CPU invoke only; not iPhone or camera latency"
           },
           "geometry_and_temporal_not_included": true
@@ -69,56 +75,56 @@
       }
     },
     "int8": {
-      "passed": false,
-      "model_sha256": "02cecca35294fa7e62d9551a98bba285816b81c5c780d07a0150a133f2aaa208",
+      "passed": true,
+      "model_sha256": "999480a42a1ef5f34a2100414dae0624988ffdb8b11bcae20542475c326d2a55",
       "bytes": 23240,
       "evaluation": {
         "validation": {
           "rows": 9031,
-          "source_sha256": "58c7a8ea952edd4a3e1bb86ab998a042e7635bcfbf5fa72b5d705f8a523b8648",
-          "top1_agreement": 0.9937991363082715,
-          "maximum_probability_error": 0.3237713575363159,
-          "mean_probability_error": 0.0005029823514632881,
-          "maximum_mass_error": 0.21879678964614868,
-          "scalar_gate_agreement": 0.999114162329753,
+          "source_sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a",
+          "top1_agreement": 0.995903000775108,
+          "maximum_probability_error": 0.29146453738212585,
+          "mean_probability_error": 0.0005416072672232985,
+          "maximum_mass_error": 0.3272443413734436,
+          "scalar_gate_agreement": 0.9993356217473148,
           "source_scalar_metrics": {
-            "accepted_precision": 0.995829244357213,
-            "unknown_false_accept_rate": 0.012746234067207415,
-            "acceptance_rate": 0.9026685859816189
+            "accepted_precision": 0.9947282540479477,
+            "unknown_false_accept_rate": 0.018199233716475097,
+            "acceptance_rate": 0.8821835898571587
           },
           "tflite_scalar_metrics": {
-            "accepted_precision": 0.9957065750736016,
-            "unknown_false_accept_rate": 0.016222479721900347,
-            "acceptance_rate": 0.9026685859816189
+            "accepted_precision": 0.9949780288763339,
+            "unknown_false_accept_rate": 0.016283524904214558,
+            "acceptance_rate": 0.8819621304395969
           },
           "host_invoke": {
-            "p50_ms": 0.0029,
-            "p95_ms": 0.0031,
+            "p50_ms": 0.003,
+            "p95_ms": 0.0056,
             "scope": "warm host CPU invoke only; not iPhone or camera latency"
           },
           "geometry_and_temporal_not_included": true
         },
         "untouched_test": {
           "rows": 9042,
-          "source_sha256": "dfe2637492c165f131d77f6d030485e99fd2284145dde0e045c683b10d93e008",
-          "top1_agreement": 0.9948020349480203,
-          "maximum_probability_error": 0.6226279735565186,
-          "mean_probability_error": 0.0004969630972482264,
-          "maximum_mass_error": 0.330379843711853,
-          "scalar_gate_agreement": 0.9982304799823049,
+          "source_sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd",
+          "top1_agreement": 0.9954656049546561,
+          "maximum_probability_error": 0.3013608455657959,
+          "mean_probability_error": 0.0005570537759922445,
+          "maximum_mass_error": 0.2631264328956604,
+          "scalar_gate_agreement": 0.9991152399911524,
           "source_scalar_metrics": {
-            "accepted_precision": 0.9949488727362326,
-            "unknown_false_accept_rate": 0.011123470522803115,
-            "acceptance_rate": 0.8976996239769962
+            "accepted_precision": 0.9958095238095238,
+            "unknown_false_accept_rate": 0.00800711743772242,
+            "acceptance_rate": 0.8709356337093563
           },
           "tflite_scalar_metrics": {
-            "accepted_precision": 0.994703781253849,
-            "unknown_false_accept_rate": 0.008898776418242492,
-            "acceptance_rate": 0.8979208139792081
+            "accepted_precision": 0.9955566840167577,
+            "unknown_false_accept_rate": 0.0071174377224199285,
+            "acceptance_rate": 0.8711568237115682
           },
           "host_invoke": {
-            "p50_ms": 0.0029,
-            "p95_ms": 0.0031,
+            "p50_ms": 0.0045,
+            "p95_ms": 0.0062,
             "scope": "warm host CPU invoke only; not iPhone or camera latency"
           },
           "geometry_and_temporal_not_included": true

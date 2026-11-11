@@ -886,7 +886,8 @@ class GeometryResolver:
             finger_extension_score(points, 17, 18, 19, 20),
         ], dtype=np.float32)
         if (raw in {"left", "right", "up", "down"}
-                and "peace" in self.config.class_to_idx and not world_index_only):
+                and "peace" in self.config.class_to_idx and not world_index_only
+                and not horizontal_pointing and not world_folded_pointing):
             index_extension = finger_extension_score(points, 5, 6, 7, 8)
             index_span = float(np.linalg.norm(points[8] - points[5]))
             middle_span = float(np.linalg.norm(points[12] - points[9]))
@@ -915,15 +916,13 @@ class GeometryResolver:
                             "strong_geometry": False,
                             "model_supported_pose": False,
                         }
-                    # Some genuine one-finger camera views have spurious
-                    # straight middle/pinky landmarks. Do not veto those when
-                    # the new command has essentially no model support.
-                    if model_support >= .08:
+                    if model_support >= .08 or world_pointing_contradiction:
                         return probabilities, {
                             "valid": False,
                             "reason": "more than one finger is extended; not a one-finger direction",
                             "strong_geometry": False,
                             "model_supported_pose": False,
+                            "multi_finger_conflict": True,
                         }
         # Normalized x and y have different units on a rectangular image.
         # Use camera pixels for the direction sector, as for the open-hand
@@ -931,7 +930,8 @@ class GeometryResolver:
         screen_vector = vector.astype(np.float64)
         if image_shape is not None:
             screen_vector = screen_vector * [image_shape[1], image_shape[0]]
-        dominance = float(np.max(np.abs(screen_vector)) / np.linalg.norm(screen_vector))
+        screen_norm = max(float(np.linalg.norm(screen_vector)), 1e-8)
+        dominance = float(np.max(np.abs(screen_vector)) / screen_norm)
         # The world joints retain the index's length when it points partly
         # toward the lens. They establish the pose, while the image projection
         # still determines the command's camera-relative direction.
@@ -1173,6 +1173,12 @@ class GeometryResolver:
         details = {
             "valid": directional if raw in {"left", "right", "up", "down"} else True,
             "gesture": gesture,
+            "axis_alignment": {"left": dx / screen_norm, "right": -dx / screen_norm,
+                               "up": -dy / screen_norm, "down": dy / screen_norm},
+            "continuation_safe": bool(index_extension >= .40 and index_straightness >= .65
+                                      and index_lead >= .02
+                                      and float(non_index_extensions.max()) <= .65
+                                      and not world_pointing_contradiction),
             "pose_score": pose_score,
             "axis_dominance": dominance,
             "direction_xy_degrees": float(np.degrees(np.arctan2(dy, dx))),
@@ -2081,6 +2087,27 @@ class GeometryResolver:
         if directional.get("horizontal_pointing", False):
             adjusted = _set_probability_floor(
                 adjusted, self.config.class_to_idx[directional["gesture"]], .98)
+        model_label = self.config.class_names[int(np.argmax(probabilities))]
+        model_backed_index = bool(
+            model_label in {"left", "right"} and world_landmarks is not None
+            and directional.get("gesture") == model_label
+            and directional.get("valid", False) and directional.get("strong_geometry", False)
+            and not directional.get("world_pointing_contradiction", True)
+            and float(np.max(probabilities)) >= .95
+            and directional.get("axis_dominance", 0.) >= .86
+            and directional.get("index_extension", 0.) >= .85
+            and directional.get("index_straightness", 0.) >= .92
+            and directional.get("index_lead_ratio", 0.) >= .30
+            and directional.get("relative_index_reach", 0.) >= .30
+            and directional.get("maximum_other_projected_reach", 1.) <= .50)
+        existing_single_index = bool(directional.get("prominent_index_down", False)
+            or directional.get("reverse_palm_edge_down", False) or directional.get("horizontal_pointing", False))
+        model_backed_index = bool(model_backed_index and (
+            self.config.class_names[int(np.argmax(adjusted))] != model_label
+            or (shape.get("dorsal_hard_negative", False) and not existing_single_index)))
+        directional["model_backed_single_index"] = model_backed_index
+        if model_backed_index:
+            adjusted = _set_probability_floor(adjusted, self.config.class_to_idx[model_label], .98)
         resolved = self.config.class_names[int(np.argmax(adjusted))]
         valid = bool(shape.get("valid", True))
         reason = str(shape.get("reason", "pose geometry accepted"))
@@ -2102,7 +2129,7 @@ class GeometryResolver:
         # hand, even when their projected joint angles look locally straight.
         single_index = bool(directional.get("prominent_index_down", False)
                             or directional.get("reverse_palm_edge_down", False)
-                            or directional.get("horizontal_pointing", False))
+                            or directional.get("horizontal_pointing", False) or model_backed_index)
         hard_negative = bool((shape.get("dorsal_hard_negative", False) and not single_index)
                              or resolved in DISABLED_GESTURES)
         if hard_negative:
@@ -2136,7 +2163,8 @@ class GeometryResolver:
                     or (resolved == "fist" and shape.get("fist_geometry_supported", False))
                     or (resolved == "thumb_down" and shape.get("thumb_down_geometry_supported", False))
                     or (resolved == "peace" and shape.get("peace_geometry_supported", False))
-                    or (resolved in {"left", "right", "up", "down"} and directional.get("strong_geometry", False)))),
+                    or (resolved in {"left", "right", "up", "down"} and directional.get("strong_geometry", False)
+                        and not model_backed_index))),
                 "sideways_palm_recovery": bool(
                     resolved == "open_palm"
                     and shape.get("sideways_palm_recovery", False)

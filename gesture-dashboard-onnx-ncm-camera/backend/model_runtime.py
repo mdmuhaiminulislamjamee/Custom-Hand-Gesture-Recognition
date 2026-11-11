@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 import hashlib
 import json
 import os
@@ -17,6 +17,7 @@ from .config import DISABLED_GESTURES, DORSAL_REJECTION_REASON, MODELS_DIRECTORY
 from .follow_object import FollowObjectStateMachine
 from .geometry import GeometryResolver, landmarks_to_feature
 from .runtime import TemporalGate
+from .direction_stability import DirectionStability
 from .hand_detection import HandDetector, DETECTOR_SETTINGS
 from .hand_selection import AutomaticHandSelector, DORSAL_HANDS_SIMILAR_REASON, gate_arguments
 
@@ -38,6 +39,7 @@ class RuntimeSession:
     selected_track_id: int | None = field(default=None, init=False)
     last_screen_direction: str | None = field(default=None, init=False)
     last_screen_direction_at: float = field(default=0.0, init=False)
+    direction_stability: DirectionStability = field(default_factory=DirectionStability, init=False)
     diagnostic_gates: dict[str, TemporalGate] = field(default_factory=dict)
     frame_times: deque[float] = field(default_factory=lambda: deque(maxlen=30))
     last_action_gesture: str | None = None
@@ -71,6 +73,7 @@ class RuntimeSession:
         self.selected_track_id = None
         self.last_screen_direction = None
         self.last_screen_direction_at = 0.0
+        self.direction_stability.reset()
         self.follow_object.reset()
         self.diagnostic_gates.clear()
         self.frame_times.clear()
@@ -847,6 +850,8 @@ class InferenceEngine:
         message: str,
     ) -> dict[str, Any]:
         selection = detector_quality.get("selection") or {}
+        session.direction_stability.reset()
+        session.last_screen_direction = None
         brief_owner_miss = bool(
             selection.get("reason") == "active_hand_missing"
             and not selection.get("ownership_reset")
@@ -1035,6 +1040,7 @@ class InferenceEngine:
                 detector_quality = self.detector.diagnostics()
                 detector_quality.update(selection=selection, hands=hands)
                 if selection.get("ownership_reset"):
+                    session.direction_stability.reset()
                     session.selected_track_id = None
                     session.last_screen_direction = None
                     session.reset_landmark_tracking()
@@ -1046,6 +1052,7 @@ class InferenceEngine:
                     detector_quality.update(chosen["metrics"])
                     track_id = chosen["track_id"]
                     if track_id != session.selected_track_id or chosen.get("identity_reacquired", False):
+                        session.direction_stability.reset()
                         session.last_screen_direction = None
                     detector_quality.update(
                         selected_handedness=chosen["handedness"],
@@ -1160,13 +1167,15 @@ class InferenceEngine:
                 session.hand_selector.detector_state["pose_recovery_requested"] = True
             elif hasattr(self.detector, "request_pose_recovery"):
                 self.detector.request_pose_recovery()
+        boundary_candidate = session.direction_stability.boundary_candidate(
+            str(pose_validation.get("gesture")), bool(pose_validation.get("valid", False)), direction_details)
         decision = session.temporal_gate.update(
             resolved_probabilities,
             now=now,
             known_gesture_mass=float(
                 selected_quality.get("known_gesture_mass", 1.0)
             ),
-            pose_valid=bool(pose_validation.get("valid", True)),
+            pose_valid=bool(pose_validation.get("valid", True)) and not boundary_candidate,
             rejection_reason=str(
                 pose_validation.get("reason", "pose geometry rejected")
             ),
@@ -1185,6 +1194,25 @@ class InferenceEngine:
             continued_direction_recovery=bool(
                 geometry_supported and direction_details.get("continued_direction", False)),
         )
+
+        ordered_raw = np.sort(raw_probabilities)
+        override = session.direction_stability.update(
+            label=str(pose_validation.get("gesture")) if boundary_candidate else decision.predicted_gesture,
+            qualified=bool(pose_validation.get("valid", False)
+                           and (boundary_candidate or decision.predicted_gesture != self.config.reject_label)),
+            confirmed=decision.execute, now=now, directional=direction_details,
+            hard_rejection=bool(pose_validation.get("hard_negative", False)
+                or (resolver_details.get("hand_shape") or {}).get("open_hand_lower_arc", False)
+                or (resolver_details.get("hand_shape") or {}).get("reverse_closed_fist", False)
+                or (resolver_details.get("hand_shape") or {}).get("downward_closed_fist", False)),
+            confidence=float(ordered_raw[-1]),
+            margin=float(ordered_raw[-1] - ordered_raw[-2]),
+            known_mass=float(selected_quality.get("known_gesture_mass", 0.0)),
+            raw_label=self.config.class_names[int(np.argmax(raw_probabilities))])
+        if override is not None:
+            decision = replace(decision, predicted_gesture=override, execute=False,
+                reason="direction continuation grace" if override != self.config.reject_label
+                else "direction continuation released")
 
         diagnostic_results: dict[str, dict[str, Any]] = {}
         for name, (probabilities, elapsed_ms, model_quality) in model_rows.items():
@@ -1246,7 +1274,7 @@ class InferenceEngine:
             if not direction_details.get("continued_direction", False):
                 session.last_screen_direction = decision.predicted_gesture
                 session.last_screen_direction_at = now
-        elif decision.execute:
+        elif decision.execute or session.direction_stability.label is None:
             session.last_screen_direction = None
 
         switch_pending = bool((detector_quality.get("selection") or {}).get("switch_pending"))

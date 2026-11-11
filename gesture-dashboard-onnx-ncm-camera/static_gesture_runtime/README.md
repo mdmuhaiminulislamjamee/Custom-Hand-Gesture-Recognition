@@ -2,11 +2,11 @@
 
 This handover puts the existing twelve static commands into the same Flutter,
 LiteRT and tracked MediaPipe detector setup supplied with the dynamic runtime.
-The production ONNX model and Windows application remain available unchanged.
+The production ONNX model and Windows reference use the matching qualified model.
 No training or Boss-app data is required to integrate this runtime.
 
 The complete Boss handover is generated as
-`handover_static/Boss_Static_Gesture_Handover_20261031_false_hands.zip`. Start with
+`handover_static/Boss_Static_Gesture_Handover_20261111_direction_stability.zip`. Start with
 its `START_HERE.md`. It includes this latest runtime, the iOS example, current
 Flutter tester source, the verified Android test APK and integrity checks.
 Earlier `candidate`, `overlay`, and `fix1` archives are superseded by that bundle.
@@ -19,9 +19,11 @@ face overlap remain eligible. Compact real hands directly over the face may be
 rejected, and stricter acquisition can reduce range. The bundle also includes a
 native Android/iOS filter source update in `native_false_hand_update/`.
 
-The FP32 TFLite conversion preserves the current learned model: all 18,073
+The 11 November FP32 TFLite conversion now uses the current production ONNX
+`7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed`.
+It preserves the current learned model: all 18,073
 validation/test rows keep the same top label and scalar accept/reject result.
-The largest probability difference is approximately 0.0000014. This measures
+The largest probability difference is approximately 0.00000233. This measures
 conversion parity, not camera accuracy or physical iPhone performance.
 
 The Dart feature/geometry port also matches all 1,142 exported Python reference
@@ -34,9 +36,10 @@ original camera dimensions or metric world depth; their scope is recorded in
 `validation/dart_cache_geometry_parity.json`. All 5,710 canonical known-mass
 qualification cases also match the reference.
 
-The INT8 dense-layer candidate is included for inspection, but failed the
-predeclared 99.5% top-label-agreement gate on validation. Its manifest prevents
-the runtime from loading it. FP32 is the recommended default. The quantized
+The INT8 dense-layer candidate is included for inspection. Its current weights
+pass the offline conversion gate, but precision-specific geometry/controller
+and target-device qualification remain pending. Its manifest prevents
+the runtime from loading it. FP32 remains the recommended default. The quantized
 candidate retains floating-point normalization and output calculations; it is
 not described as a fully integer model.
 
@@ -45,7 +48,7 @@ not described as a fully integer model.
 | Model | Use case | Current selection |
 |---|---|---|
 | `flutter/assets/models/gesture_static_float32.tflite` | Static gestures on iOS/Android, with either phone or NCM camera input | Use for all current integrations; qualified default |
-| `flutter/assets/models/gesture_static_int8.tflite` | Inspection and future quantization development | Failed qualification and blocked from loading; not a current app option |
+| `flutter/assets/models/gesture_static_int8.tflite` | Inspection and future quantization development | Conversion gate passed; release qualification pending; blocked from loading |
 | `flutter/third_party/hand_detection/assets/models/hand_detection.tflite` and `hand_landmark_full.tflite` | Detect hands and produce landmarks before classification | Use the bundled FP16 pair together, or reuse the compatible existing detector |
 
 Use `StaticTfliteClassifier(model: StaticTfliteModel.float32)`; the constructor
@@ -57,7 +60,7 @@ code, including the thumb-direction and hand-surface fixes.
 INT8 can replace FP32 only in a future release that passes qualification and
 target-device acceptance with updated matching manifests. The supplied
 inference plugin is `flutter_litert` 3.9.4. That dependency version, model
-precision and the Android tester's 2.0.2 release number describe different things.
+precision and the Android tester's 2.0.9 release number describe different things.
 
 ## Package contents
 
@@ -112,6 +115,31 @@ decodes a JPEG once, tracks up to two hands and uses the original supplied GPU
 factory with explicit CPU fallback. Classifier inference uses a persistent CPU
 LiteRT interpreter in a background isolate. Initialization is not repeated per
 frame. The detector's selected backend is observable.
+
+The current scalar gates match the model's runtime configuration: confidence
+0.75, known mass 0.70 and probability margin 0.10. The current horizontal
+pointing, side-view Like and Fist thumb/PIP rules are ported with these weights.
+The fast confirmation policy below is retained from the previous delivery.
+`validation/latency_comparison.json` compares old/current FP32 on identical
+inputs on one host: median warm invocation is 0.0048 ms previous and 0.0046 ms current. This excludes
+camera transport, detector, UI and phone performance. NCM preview results
+expose each frame's local `receiveToResultMs`, including pending-frame wait;
+it does not measure capture-to-receipt time.
+
+The classifier was retrained with 3,416 usable saved feedback records (11 invalid
+landmark rows were excluded). The corrected JPEG replay reaches 375/408 correct
+final directions and 378/408 correct actions. These are training-feedback
+regressions, not independent camera accuracy. Details and class-by-class holdout
+comparisons are in `validation/direction_stability_release.json`.
+
+Directions retain strict entry. A confirmed direction can survive one marginal
+visible-hand observation within 200 ms, using signed axis alignment >= .65 and
+strict single-index/no-conflict checks. Two consecutive invalid observations
+release it. Missing hands and competing gestures clear continuation, and grace
+cannot emit a new action. The separately validated 3-D single-index turn remains
+supported. Model/3-D corroboration can prevent an incorrect generic Dorsal veto
+on clear Left/Right poses; that new path requires full known mass. The existing
+prediction display is retained without additional output panels.
 
 Each physical hand has independent confirmation and duplicate state. A strong
 raw model prediction can confirm immediately at confidence 0.92 and margin

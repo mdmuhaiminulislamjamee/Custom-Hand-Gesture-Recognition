@@ -14,8 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "static_gesture_runtime"
 TESTER = ROOT / "flutter_gesture_tester"
 DOCS = ROOT / "handover_static/final_docs"
-BUNDLE = "Boss_Static_Gesture_Handover_20261031"
-APK = "releases/GestureLab-v2.0.2-litert-ncm-arm64-release.apk"
+BUNDLE = "Boss_Static_Gesture_Handover_20261111"
+APK = "releases/GestureLab-v2.0.8-litert-ncm-arm64-diagnostic-release.apk"
 IGNORED = {".dart_tool", "build", ".git", "__pycache__", ".idea", ".gradle", ".kotlin", ".cxx"}
 
 
@@ -39,15 +39,34 @@ def included(path: Path, base: Path) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / f"handover_static/{BUNDLE}_false_hands.zip")
+    parser.add_argument("--output", type=Path, default=ROOT / f"handover_static/{BUNDLE}_current_model.zip")
+    parser.add_argument("--bundle-name", default=BUNDLE)
+    parser.add_argument("--release-revision", default="current_model_20261111")
+    parser.add_argument("--apk", default=APK, help="APK path relative to flutter_gesture_tester")
+    parser.add_argument("--retrained", action="store_true", help="The source classifier was retrained for this release")
+    parser.add_argument("--supersedes", action="append", help="Earlier archive superseded by this release; repeat as needed")
+    parser.add_argument("--native-output", type=Path, help="Optionally also export the unchanged native filter update")
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--allow-pending-checks", action="store_true", help="Only for creating an isolated preflight archive")
     args = parser.parse_args()
+    bundle = args.bundle_name
+    if not bundle or any(c in bundle for c in "/\\:") or bundle in {".", ".."}:
+        raise ValueError("Bundle name must be a single safe directory name")
+    apk_path = (TESTER / args.apk).resolve()
+    if not apk_path.is_relative_to(TESTER.resolve()) or apk_path.suffix != ".apk":
+        raise ValueError("APK must be a .apk file inside flutter_gesture_tester")
+    apk_relative = apk_path.relative_to(TESTER).as_posix()
     output = args.output.resolve()
     if not output.is_relative_to(ROOT):
         raise ValueError("Build output must remain inside the workspace")
-    if output.exists() and not args.replace:
+    if (output.exists() or output.with_suffix(output.suffix + ".sha256").exists()) and not args.replace:
         raise FileExistsError(f"Use --replace to regenerate {output}")
+    native_output = args.native_output.resolve() if args.native_output else None
+    if native_output is not None:
+        if not native_output.is_relative_to(ROOT) or native_output == output:
+            raise ValueError("Native output must be a separate file inside the workspace")
+        if native_output.exists() and not args.replace:
+            raise FileExistsError(native_output)
 
     payload: dict[str, bytes] = {}
     for path in sorted(RUNTIME.rglob("*")):
@@ -56,7 +75,7 @@ def main() -> None:
     # Keep the portable verification tool aligned with the repository source.
     payload["static_gesture_runtime/tools/verify_static_runtime.py"] = (ROOT / "scripts/verify_static_runtime.py").read_bytes()
 
-    tester_roots = (TESTER / "lib", TESTER / "test", TESTER / "android/app/src", TESTER / "android/gradle/wrapper")
+    tester_roots = (TESTER / "lib", TESTER / "test", TESTER / "android/app/src", TESTER / "android/gradle/wrapper", TESTER / "android/host_tests")
     retired = {"lib/services/native_gesture_engine.dart", "lib/widgets/landmark_painter.dart"}
     for base in tester_roots:
         for path in sorted(base.rglob("*")):
@@ -67,7 +86,7 @@ def main() -> None:
         "README.md", "pubspec.yaml", "pubspec.lock", "analysis_options.yaml", ".gitignore", ".metadata",
         "android/.gitignore", "android/build.gradle.kts", "android/settings.gradle.kts",
         "android/gradle.properties", "android/gradlew", "android/gradlew.bat", "android/app/build.gradle.kts",
-        APK, APK + ".sha256",
+        apk_relative, apk_relative + ".sha256",
     )
     for relative in tester_files:
         path = TESTER / relative
@@ -78,6 +97,29 @@ def main() -> None:
     for path in sorted(DOCS.iterdir()):
         if path.is_file() and path.suffix in {".md", ".py", ".json"}:
             payload[path.name] = path.read_bytes()
+    payload["scripts/check_native_usb_ncm.py"] = (ROOT / "scripts/check_native_usb_ncm.py").read_bytes()
+    payload["scripts/README.md"] = (
+        "# Native transport host checks\n\n"
+        "check_native_usb_ncm.py and android/host_tests/NativeNcmMain.kt are the "
+        "Windows/JVM transport regression harness. The script expects the prepared "
+        "Gradle cache and JDK/Android SDK paths used by the build host; adapt those "
+        "paths on another workstation. Flutter builds/tests do not invoke this script. "
+        "Run the root verify_handover.py for portable payload/APK verification.\n"
+    ).encode("utf-8")
+    for name in ("gesture_mlp_production.onnx", "gesture_mlp_onnx_metadata.json",
+                 "gesture_mobile_runtime_config.json", "gesture_artifact_manifest.json"):
+        payload["source_model/" + name] = (ROOT / "models" / name).read_bytes()
+    payload["source_model/README.md"] = (
+        "# Production classifier source snapshot\n\n"
+        "These exact ONNX/configuration/metadata files identify the source used for "
+        "the FP32 TFLite conversion. The Flutter runtime loads the converted model "
+        "under static_gesture_runtime/flutter/assets/models/.\n\n"
+        "The source JSON includes desktop controller settings. For Flutter timing, "
+        "retain the supplied Dart controller: immediate strong predictions, two of "
+        "three ordinary confirmation and no fixed action cooldown. Use the source "
+        "JSON's current scalar gates (.75 confidence, .10 margin, .70 known mass) "
+        "with the matching feature and geometry code.\n"
+    ).encode("utf-8")
 
     for name in ('GestureFalseHandGuard.kt', 'GestureHandLandmarker.kt', 'GestureFrameAnalyzer.kt'):
         payload['native_false_hand_update/android/kotlin/' + name] = (ROOT/'android_handover_src/kotlin'/name).read_bytes()
@@ -100,9 +142,15 @@ def main() -> None:
     for relative, expected in checks.get("source_sha256", {}).items():
         if relative not in payload or digest(payload[relative]) != expected:
             raise ValueError(f"Source differs from the host-checked revision: {relative}")
-    apk_data = payload["flutter_gesture_tester/" + APK]
+    model_manifest = json.loads(payload["static_gesture_runtime/flutter/assets/models/gesture_static_float32_manifest.json"])
+    source_sha = digest(payload["source_model/gesture_mlp_production.onnx"])
+    if model_manifest["source_onnx_sha256"] != source_sha:
+        raise ValueError("Static classifier was not converted from the current production ONNX")
+    if not model_manifest["qualification"]["passed"]:
+        raise ValueError("The default FP32 model is not qualified")
+    apk_data = payload["flutter_gesture_tester/" + apk_relative]
     apk_sha = digest(apk_data)
-    expected = (TESTER / (APK + ".sha256")).read_text(encoding="utf-8").split()[0].lower()
+    expected = (TESTER / (apk_relative + ".sha256")).read_text(encoding="utf-8").split()[0].lower()
     if apk_sha != expected:
         raise ValueError("APK differs from the previously verified release checksum")
     runtime_sums = {
@@ -112,21 +160,24 @@ def main() -> None:
     payload["static_gesture_runtime/SHA256SUMS.json"] = encoded(runtime_sums)
     payload["release_manifest.json"] = encoded({
         "schema_version": 1,
-        "release": BUNDLE,
-        "release_revision": "false_hand_filters_20261031",
+        "release": bundle,
+        "release_revision": args.release_revision,
         "assembled_at_utc": datetime.now(timezone.utc).isoformat(),
         "primary_target": "Existing Flutter iOS application; owning team builds/signs on Mac",
         "default_classifier": "gesture_static_float32.tflite",
         "default_classifier_sha256": digest(payload["static_gesture_runtime/flutter/assets/models/gesture_static_float32.tflite"]),
-        "int8_qualified": False,
-        "retrained": False,
+        "int8_qualified": json.loads(payload["static_gesture_runtime/flutter/assets/models/gesture_static_int8_manifest.json"])["qualification"]["passed"],
+        "source_onnx_sha256": source_sha,
+        "runtime_config_sha256": digest(payload["source_model/gesture_mobile_runtime_config.json"]),
+        "retrained": args.retrained,
         "dynamic_detector_content_version": "dynamic_gesture_runtime_api_v10_3",
         "toolchain": {"flutter": "3.47.8", "dart": "3.13.7", "android_build_jdk": "17"},
-        "android_test_apk": {"path": "flutter_gesture_tester/" + APK, "sha256": apk_sha, "bytes": len(apk_data), "version_name": checks["android_artifact"]["version_name"], "version_code": checks["android_artifact"]["version_code"], "abi": "arm64-v8a", "minimum_api": 24, "mode": "release", "signing": "Android Debug certificate (test distribution)"},
+        "android_test_apk": {"path": "flutter_gesture_tester/" + apk_relative, "sha256": apk_sha, "bytes": len(apk_data), "version_name": checks["android_artifact"]["version_name"], "version_code": checks["android_artifact"]["version_code"], "abi": "arm64-v8a", "minimum_api": 24, "mode": "release", "signing": "Android Debug certificate (test distribution)"},
+        "latency_policy": {"target_fps": 10, "pending_frames": 1, "strong_prediction": "immediate after scalar and geometry checks", "ordinary_prediction": "two matching observations among the latest three", "fixed_action_cooldown_ms": 0, "physical_latency_measured": False},
         "host_checks": checks,
         "physical_ios_tested": False,
         "physical_ncm_tested": False,
-        "supersedes": ["static_gesture_runtime_20261029_candidate.zip", "static_gesture_runtime_20261029_overlay.zip", "Boss_Static_Gesture_Handover_20261029_fix1.zip"],
+        "supersedes": args.supersedes or ["Boss_Static_Gesture_Handover_20261031_false_hands.zip"],
     })
     payload["SHA256SUMS.json"] = encoded({name: digest(data) for name, data in sorted(payload.items())})
 
@@ -144,7 +195,7 @@ def main() -> None:
         pending = temporary_path / "delivery.zip"
         with zipfile.ZipFile(pending, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=7) as archive:
             for name, data in sorted(payload.items()):
-                info = zipfile.ZipInfo(BUNDLE + "/" + name)
+                info = zipfile.ZipInfo(bundle + "/" + name)
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = (0o100755 if name.endswith("/gradlew") else 0o100644) << 16
                 archive.writestr(info, data, compresslevel=7)
@@ -152,7 +203,7 @@ def main() -> None:
             if archive.testzip() is not None:
                 raise ValueError("Archive CRC verification failed")
             archive.extractall(temporary_path / "extracted")
-        extracted = temporary_path / "extracted" / BUNDLE
+        extracted = temporary_path / "extracted" / bundle
         spec = importlib.util.spec_from_file_location("boss_verify", DOCS / "verify_handover.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -160,16 +211,15 @@ def main() -> None:
         pending.replace(output)
     archive_sha = digest(output.read_bytes())
     output.with_suffix(output.suffix + ".sha256").write_text(archive_sha + "  " + output.name + "\n", encoding="utf-8")
-    native_output = output.parent / 'Native_Gesture_FalseHand_Update_20261031.zip'
-    if native_output.exists() and not args.replace:
-        raise FileExistsError('Native update already exists; choose --replace for an intentional regeneration')
-    with zipfile.ZipFile(native_output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=7) as archive:
-        for name,data in sorted(native_payload.items()):
-            archive.writestr('Native_Gesture_FalseHand_Update_20261031/'+name,data)
-    native_sha=digest(native_output.read_bytes())
-    native_output.with_suffix('.zip.sha256').write_text(native_sha+'  '+native_output.name+'\n',encoding='utf-8')
     print(json.dumps({"archive": str(output.relative_to(ROOT)), "bytes": output.stat().st_size, "sha256": archive_sha, "files": len(payload), "extracted_verification": verification}, indent=2))
-    print(json.dumps({'native_update':str(native_output.relative_to(ROOT)),'sha256':native_sha,'files':len(native_payload)},indent=2))
+    if native_output is not None:
+        native_output.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(native_output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=7) as archive:
+            for name,data in sorted(native_payload.items()):
+                archive.writestr(native_output.stem+'/'+name,data)
+        native_sha=digest(native_output.read_bytes())
+        native_output.with_suffix('.zip.sha256').write_text(native_sha+'  '+native_output.name+'\n',encoding='utf-8')
+        print(json.dumps({'native_update':str(native_output.relative_to(ROOT)),'sha256':native_sha,'files':len(native_payload)},indent=2))
 
 
 if __name__ == "__main__":

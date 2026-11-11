@@ -4,6 +4,7 @@ import 'command_controller.dart';
 import 'feature_extractor.dart';
 import 'frame_scheduler.dart';
 import 'geometry_policy.dart';
+import 'direction_stability.dart';
 
 enum StaticPhysicalHand { left, right }
 
@@ -174,11 +175,14 @@ class StaticGestureRuntimeApi {
                 _policy.missingHandResetMs) {
           state.controller.handLost();
           state.preferredDirection = null;
+          state.direction.reset();
           state.version++;
         }
         state.present = true;
         state.lastSeenMs = frame.timestampMs;
       } else {
+        state.direction.reset();
+        state.preferredDirection = null;
         if (state.present) state.version++;
         state.present = false;
         if (state.lastSeenMs != null &&
@@ -237,16 +241,18 @@ class StaticGestureRuntimeApi {
       } on FormatException {
         state.controller.handLost();
         state.preferredDirection = null;
+        state.direction.reset();
         continue;
       } on ArgumentError {
         state.controller.handLost();
         state.preferredDirection = null;
+        state.direction.reset();
         continue;
       }
       final output = await classifier.predict(features);
       if (!_current(submitted, hand.hand)) continue;
       _validateOutput(output);
-      final geometry = _geometry(
+      var geometry = _geometry(
         probabilities: output.probabilities,
         knownMass: output.knownMass,
         normalizedLandmarks: hand.normalizedLandmarks,
@@ -255,15 +261,24 @@ class StaticGestureRuntimeApi {
         handednessConfidence: hand.handednessConfidence,
         width: frame.frameWidth,
         height: frame.frameHeight,
-        preferredDirection: state.preferredDirection,
+        preferredDirection:
+            frame.timestampMs - state.direction.confirmedAtMs <= 1000.001
+                ? state.preferredDirection
+                : null,
       );
       final order = List<int>.generate(13, (i) => i)
         ..sort((a, b) =>
             output.probabilities[b].compareTo(output.probabilities[a]));
       final rawConfidence = output.probabilities[order[0]];
       final rawMargin = rawConfidence - output.probabilities[order[1]];
+      final directional = Map<String, Object?>.from(
+          geometry.diagnostics['directional'] as Map? ?? const {});
+      final neutralBoundary = state.direction
+          .boundaryCandidate(geometry.label, geometry.accepted, directional);
       var control = state.controller.process(
-        label: geometry.accepted ? geometry.label : 'no_gesture',
+        label: !neutralBoundary && geometry.accepted
+            ? geometry.label
+            : 'no_gesture',
         confidence: geometry.confidence,
         margin: geometry.margin,
         timestampMs: frame.timestampMs,
@@ -274,11 +289,44 @@ class StaticGestureRuntimeApi {
             rawMargin >= _policy.strongMargin,
         dispatch: false,
       );
-      if (geometry.accepted &&
-          <String>{'left', 'right', 'up', 'down'}.contains(geometry.label)) {
-        state.preferredDirection = geometry.label;
-      } else {
-        state.preferredDirection = null;
+      final shape = geometry.diagnostics['hand_shape'] as Map? ?? const {};
+      final override = state.direction.update(
+          candidate: geometry.label,
+          qualified: geometry.accepted,
+          confirmed: control.confirmed,
+          nowMs: frame.timestampMs,
+          directional: directional,
+          hardRejection:
+              geometry.diagnostics['resolved_label'] == 'no_gesture' ||
+                  shape['open_hand_lower_arc'] == true ||
+                  shape['reverse_closed_fist'] == true ||
+                  shape['downward_closed_fist'] == true,
+          confidence: rawConfidence,
+          margin: rawMargin,
+          knownMass: output.knownMass,
+          rawLabel: staticGestureLabels[order[0]]);
+      state.preferredDirection = state.direction.label;
+      if (override != null) {
+        final grace = override != 'no_gesture';
+        geometry = StaticGeometryDecision(
+            label: override,
+            accepted: grace,
+            confidence: geometry.confidence,
+            margin: geometry.margin,
+            minimumHoldMs: 0,
+            reason: grace
+                ? 'direction continuation grace'
+                : 'direction continuation released',
+            probabilities: geometry.probabilities,
+            knownMass: geometry.knownMass,
+            recovery: geometry.recovery,
+            diagnostics: geometry.diagnostics);
+        control = StaticControllerResult(
+            label: override,
+            confirmed: grace,
+            emit: false,
+            reason: geometry.reason,
+            matches: control.matches);
       }
       if (control.commandReady &&
           command == null &&
@@ -335,6 +383,7 @@ class StaticGestureRuntimeApi {
       state.present = false;
       state.lastSeenMs = null;
       state.preferredDirection = null;
+      state.direction.reset();
       state.controller.reset();
     }
   }
@@ -348,6 +397,7 @@ class StaticGestureRuntimeApi {
       state.version++;
       state.present = false;
       state.preferredDirection = null;
+      state.direction.reset();
       state.controller.handLost();
     }
   }
@@ -365,6 +415,7 @@ class StaticGestureRuntimeApi {
 class _HandState {
   _HandState(this.controller);
   final StaticCommandController controller;
+  final DirectionStability direction = DirectionStability();
   int version = 0;
   bool present = false;
   double? lastSeenMs;

@@ -41,6 +41,7 @@ class PhoneStaticGestureEngine {
   StaticGestureRuntimeApi? _runtime;
   Future<void>? _initializing;
   bool _closed = false;
+  int _generation = 0;
   double _lastTimestampMs = -1;
 
   String get detectorBackend => _detector?.backend ?? 'initializing';
@@ -84,6 +85,10 @@ class PhoneStaticGestureEngine {
   }) async {
     await initialize();
     if (_closed) throw StateError('Phone gesture engine is closed.');
+    final generation = _generation;
+    var timestampMs = _clock.elapsedMicroseconds / 1000;
+    if (timestampMs <= _lastTimestampMs) timestampMs = _lastTimestampMs + .001;
+    _lastTimestampMs = timestampMs;
     final detector = _detector!;
     final rotation = _rotation(rotationDegrees);
     final direct = directCameraFrame(
@@ -101,12 +106,12 @@ class PhoneStaticGestureEngine {
             isBgra: Platform.isIOS,
           );
     final detectorMs = watch.elapsedMicroseconds / 1000;
+    if (_closed || generation != _generation) {
+      throw StateError('Phone camera frame was invalidated.');
+    }
     final quarterTurn = rotationDegrees == 90 || rotationDegrees == 270;
     final width = quarterTurn ? image.height : image.width;
     final height = quarterTurn ? image.width : image.height;
-    var timestampMs = _clock.elapsedMicroseconds / 1000;
-    if (timestampMs <= _lastTimestampMs) timestampMs = _lastTimestampMs + .001;
-    _lastTimestampMs = timestampMs;
     final frame = _adapter.frame(
       timestampMs: timestampMs,
       width: width,
@@ -115,7 +120,9 @@ class PhoneStaticGestureEngine {
       modelInputMirrored: modelInputMirrored,
     );
     final result = await _runtime!.processFrame(frame);
-    if (result == null) throw StateError('Phone camera frame was superseded.');
+    if (result == null || _closed || generation != _generation) {
+      throw StateError('Phone camera frame was superseded.');
+    }
     return PhoneStaticGestureFrame(
       detections: List<Hand>.unmodifiable(timed.hands.take(2)),
       result: result,
@@ -127,12 +134,14 @@ class PhoneStaticGestureEngine {
   }
 
   Future<void> invalidateFrame() async {
+    _generation++;
     _runtime?.invalidateEvidence();
     _adapter.reset();
     await _detector?.detector.resetTracking();
   }
 
   Future<void> reset() async {
+    _generation++;
     _adapter.reset();
     _lastTimestampMs = -1;
     _runtime?.reset();
@@ -142,6 +151,7 @@ class PhoneStaticGestureEngine {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    _generation++;
     try {
       await _initializing;
     } catch (_) {

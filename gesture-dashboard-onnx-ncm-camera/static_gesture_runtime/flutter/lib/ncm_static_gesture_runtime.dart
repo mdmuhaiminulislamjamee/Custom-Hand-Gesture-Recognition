@@ -37,6 +37,7 @@ class NcmStaticPreviewFrame {
     required this.height,
     required List<Hand> detections,
     required this.result,
+    this.receiveToResultMs,
   }) : detections = List<Hand>.unmodifiable(detections.take(2));
 
   final NcmJpegFrame source;
@@ -44,6 +45,9 @@ class NcmStaticPreviewFrame {
   final int height;
   final List<Hand> detections;
   final StaticGestureFrameResult result;
+  /// Local complete-JPEG receipt to this result, including pending-frame wait.
+  /// The board's unsynchronized clock cannot measure capture-to-receipt time.
+  final double? receiveToResultMs;
 }
 
 class _BundledDetector implements NcmStaticDetector {
@@ -231,14 +235,16 @@ class NcmStaticGestureRuntime {
           result == null) return;
       telemetry.classificationAndDecision
           .add(watch.elapsedMicroseconds / 1000 - detectedMs);
-      telemetry.endToEnd.add(client.monotonicMs - frame.receivedTimestampMs);
+      final receiveToResultMs = client.monotonicMs - frame.receivedTimestampMs;
+      telemetry.endToEnd.add(receiveToResultMs);
       telemetry.processedFrames++;
       onPreview?.call(NcmStaticPreviewFrame(
           source: frame,
           width: dimensions.width,
           height: dimensions.height,
           detections: hands,
-          result: result));
+          result: result,
+          receiveToResultMs: receiveToResultMs));
       onFrame?.call(frame, result);
       onTelemetry?.call({
         ...telemetry.snapshot,

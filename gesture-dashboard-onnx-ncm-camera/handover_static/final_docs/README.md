@@ -1,14 +1,20 @@
 # How to use the static gesture handover
 
-Use `Boss_Static_Gesture_Handover_20261031_false_hands.zip` as a complete Flutter
+Use `Boss_Static_Gesture_Handover_20261111_direction_stability.zip` as a complete Flutter
 integration package. Extract it and start from the folder
-`Boss_Static_Gesture_Handover_20261031/`.
+`Boss_Static_Gesture_Handover_20261111_direction_stability/`.
 
-This revision adds cached face/ear rejection, source-pixel and collapsed-joint
-checks in the shared phone/NCM detector worker. Rejected candidates never reach
-classification, hand overlays or subsequent tracking. `native_false_hand_update/`
-supplies the matching native Android/iOS source patches and face model. Small
-real hands directly over a face can also be rejected; keep them separated.
+This revision retrains from the saved reviewed feedback and converts the
+qualified ONNX model to FP32 LiteRT. Confidence .75, margin .10 and known mass
+.70 remain the normal entry gates. Bounded continuation stabilizes all four
+directions without delaying clear entry or adding new prediction panels.
+The previous fast confirmation and newest-frame scheduling are retained.
+GestureLab 2.0.9 includes the later USB-NCM transport
+and preview fixes, monotonic camera admission and stale-session suppression.
+Cached face/ear rejection and the thumb/surface corrections remain included.
+`source_model/` contains the exact ONNX, metadata, runtime JSON and artifact
+manifest used for this release. The direction release evidence records training
+counts, JPEG replay, baseline comparisons and the exact remaining limitations.
 
 **The `.tflite` model alone is insufficient to reproduce this handover's
 recognition and command behavior.** Integrate the supplied runtime code with
@@ -55,7 +61,7 @@ does not require a different static classifier.
 | Model / version | When to use it | Status in this handover |
 |---|---|---|
 | `gesture_static_float32.tflite` — FP32, 78,960 bytes | All current static gesture recognition; use with the complete runtime | Qualified default; used by the supplied tester |
-| `gesture_static_int8.tflite` — INT8 dense-layer candidate, 23,240 bytes | Inspect quantization results or develop a future improved candidate | Failed qualification; blocked from loading. Do not select it for the current app |
+| `gesture_static_int8.tflite` — INT8 dense-layer candidate, 23,240 bytes | Inspect quantization results or develop a future improved candidate | Conversion gates pass, but precision-specific runtime/device qualification remains pending; blocked from loading |
 | `hand_detection.tflite` + `hand_landmark_full.tflite` — FP16 detector weights | Convert camera images into hand landmarks before static classification | Bundled detector pair; use together, or reuse the compatible detector already running in the app |
 
 The two `gesture_static_*` files and their manifests are in
@@ -73,19 +79,18 @@ StaticTfliteClassifier(model: StaticTfliteModel.float32)
 ```
 
 `StaticTfliteClassifier()` makes the same choice. The INT8 candidate is smaller,
-but missed the required 99.5% validation label agreement and increased unknown
-false acceptance beyond its allowed limit. It also retains floating-point
-normalization/output operations. A future INT8 release must pass model
-qualification and target-device acceptance with matching manifests before it
-can replace FP32; changing its qualification flag is not validation.
+and passes the current model's offline conversion gates. Its precision-specific
+geometry, controller and mobile acceptance remain pending, so it remains blocked.
+It retains floating-point normalization/output operations. A future INT8 release
+must pass full qualification with matching manifests before it can replace FP32.
 
 Keep the classifier's matching manifest beside its model. Keep both detector
 assets and the required BlazeFace asset with the bundled detector package.
-The `false_hands` handover includes the candidate filters plus the earlier
+This handover includes the candidate filters plus the earlier
 thumb/surface corrections in runtime code, so retain that code with the models.
 
 The inference dependency version is **`flutter_litert` 3.9.4**, as recorded in
-the supplied pubspec/lockfiles. **GestureLab 2.0.2** identifies the Android
+the supplied pubspec/lockfiles. **GestureLab 2.0.9** identifies the Android
 tester release; **FP32/FP16/INT8** identify model precision and are separate
 from the dependency/app version numbers.
 
@@ -100,7 +105,8 @@ from the dependency/app version numbers.
 | `static_gesture_runtime/flutter/assets/models/gesture_static_int8*` | Unqualified quantization experiment | Retained for inspection; the runtime blocks it from loading |
 | `static_gesture_runtime/flutter/example/` | NCM integration example with a two-hand preview | Use as a reference or create its iOS host on a Mac |
 | `flutter_gesture_tester/` | Android diagnostic app source using the same static runtime | Use to inspect phone-camera/NCM recognition |
-| `flutter_gesture_tester/releases/GestureLab-v2.0.2-litert-ncm-arm64-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
+| `flutter_gesture_tester/releases/GestureLab-v2.0.9-litert-ncm-arm64-diagnostic-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
+| `source_model/` | Exact current ONNX model and matching configuration/metadata | Reference for conversion and source identity; the Flutter app loads FP32 TFLite |
 | `static_gesture_runtime/IOS_INTEGRATION.md` | Detailed app integration and coordinate contract | Read when connecting the runtime to the existing iOS app |
 | `static_gesture_runtime/validation/` and `flutter/test/` within the runtime | Model/geometry fixtures, reports and automated tests | Use to check a port or a later change |
 | `contracts/detector_provenance.json` within the runtime | Provenance and hashes of the supplied detector | Identifies the exact detector delivery |
@@ -314,10 +320,10 @@ both physical hands, upright coordinates, reconnects and these corrected poses:
 - Extended upward thumb above folded fingertips: **Like**.
 - Extended downward thumb below folded fingertips: **Thumb Down**.
 
-The handover passed 48 runtime tests, 2 tester tests, 1,142 canonical geometry
-cases and 400 additional held-out landmark cases. These are host/landmark
-checks. Physical iPhone/NCM accuracy, iOS compilation and sustained performance
-remain checks for the consuming app team.
+The exact current test counts and source fingerprints are recorded in
+`HOST_CHECKS.json`. Refreshed geometry and model evidence is in the runtime's
+`validation/` folder. These are host/landmark checks. Physical iPhone/NCM
+accuracy, iOS compilation and sustained performance remain device checks.
 
 ## Common integration mistakes
 

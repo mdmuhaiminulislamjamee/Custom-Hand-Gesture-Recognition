@@ -18,6 +18,38 @@ REPORT = ROOT / '.runtime/false_hand_apk_build'
 FLUTTER = [r'C:\src\flutter\bin\cache\dart-sdk\bin\dart.exe','--old_gen_heap_size=192',r'C:\src\flutter\bin\cache\flutter_tools.snapshot','--no-version-check']
 TOOLCHAIN = Path(tempfile.gettempdir())/'gesture-apk-toolchain'
 
+def refresh_build_inputs(stage):
+    """Refresh every project input while retaining generated native caches."""
+    stage = Path(stage).resolve()
+    if stage == ROOT.resolve() or stage in ROOT.resolve().parents:
+        raise ValueError('Build stage must be separate from the source checkout')
+    ignored = shutil.ignore_patterns('build', '.dart_tool', '.gradle', '.git',
+                                     '__pycache__', '.cxx', 'releases', 'local.properties')
+    for name in ('static_gesture_runtime', 'flutter_gesture_tester'):
+        shutil.copytree(ROOT/name, stage/name, dirs_exist_ok=True, ignore=ignored)
+    # copytree also preserves removed files. Prune obsolete files only in the
+    # dedicated input trees, with the resolved destination constrained to stage.
+    # Generated native build directories above remain intact.
+    for name in ('static_gesture_runtime/flutter/lib',
+                 'static_gesture_runtime/flutter/assets',
+                 'static_gesture_runtime/flutter/test',
+                 'static_gesture_runtime/flutter/third_party/hand_detection/lib',
+                 'static_gesture_runtime/flutter/third_party/hand_detection/assets',
+                 'static_gesture_runtime/flutter/third_party/hand_detection/test',
+                 'static_gesture_runtime/flutter/third_party/hand_detection/hook',
+                 'flutter_gesture_tester/lib', 'flutter_gesture_tester/test'):
+        destination = (stage/name).resolve()
+        if not destination.is_relative_to(stage):
+            raise ValueError('Build input escaped stage: '+str(destination))
+        source = ROOT/name
+        if destination.is_dir():
+            for existing in destination.rglob('*'):
+                if existing.is_file() and not (source/existing.relative_to(destination)).is_file():
+                    resolved = existing.resolve()
+                    if not resolved.is_relative_to(destination):
+                        raise ValueError('Stale build input escaped its destination')
+                    existing.unlink()
+
 def main():
     global REPORT
     parser=argparse.ArgumentParser(description=__doc__)
@@ -33,13 +65,10 @@ def main():
     context=REPORT/'context.json'
     if args.resume or args.stage:
         stage=args.stage or Path(json.loads(context.read_text())['stage'])
-        # Refresh the source while retaining the expensive native build cache.
-        for name in ('static_gesture_runtime/flutter/lib','static_gesture_runtime/flutter/third_party/hand_detection/lib','flutter_gesture_tester/lib'):
-            shutil.copytree(ROOT/name,stage/name,dirs_exist_ok=True)
-        shutil.copytree(ROOT/'flutter_gesture_tester/android',stage/'flutter_gesture_tester/android',
-            dirs_exist_ok=True,ignore=shutil.ignore_patterns('.gradle','build','.cxx','local.properties'))
-        for name in ('pubspec.yaml','pubspec.lock'):
-            shutil.copyfile(ROOT/'flutter_gesture_tester'/name,stage/'flutter_gesture_tester'/name)
+        # Include model binaries/manifests, detector assets, hooks and dependency
+        # locks on resume as well as Dart/Kotlin source. A source-only refresh
+        # could otherwise package yesterday's model in a newly versioned APK.
+        refresh_build_inputs(stage)
     else:
         stage=Path(tempfile.mkdtemp(prefix='gesture-filter-apk-'))
         ignored=shutil.ignore_patterns('build','.dart_tool','.gradle','.git','__pycache__','.cxx','releases','local.properties')

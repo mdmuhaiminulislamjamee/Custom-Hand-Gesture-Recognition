@@ -33,6 +33,9 @@ class StaticGeometryDecision {
 abstract final class StaticGeometryPolicy {
   static const _names = StaticFeatureExtractor.classNames;
   static const _directions = <String>{'left', 'right', 'up', 'down'};
+  // Match the current production model's scalar qualification contract.
+  static const confidenceFloor = .75;
+  static const probabilityMarginFloor = .10;
 
   static StaticGeometryDecision evaluate({
     required List<double> probabilities,
@@ -103,6 +106,28 @@ abstract final class StaticGeometryPolicy {
       ]) {
         if (_flag(d, key)) row = _floor(row, d['gesture'] as String, .98);
       }
+      final modelLabel = _top(model);
+      var modelBackedIndex = <String>{'left', 'right'}.contains(modelLabel) &&
+          worldLandmarks != null &&
+          d['gesture'] == modelLabel &&
+          _flag(d, 'valid') &&
+          _flag(d, 'strong_geometry') &&
+          !_flag(d, 'world_pointing_contradiction') &&
+          maxValue(model) >= .95 &&
+          _number(d, 'axis_dominance') >= .86 &&
+          _number(d, 'index_extension') >= .85 &&
+          _number(d, 'index_straightness') >= .92 &&
+          _number(d, 'index_lead_ratio') >= .30 &&
+          _number(d, 'relative_index_reach') >= .30 &&
+          _number(d, 'maximum_other_projected_reach') <= .50;
+      final existingSingleIndex = _flag(d, 'prominent_index_down') ||
+          _flag(d, 'reverse_palm_edge_down') ||
+          _flag(d, 'horizontal_pointing');
+      modelBackedIndex = modelBackedIndex &&
+          (_top(row) != modelLabel ||
+              (_flag(s, 'dorsal_hard_negative') && !existingSingleIndex));
+      d['model_backed_single_index'] = modelBackedIndex;
+      if (modelBackedIndex) row = _floor(row, modelLabel, .98);
       var resolved = _top(row);
       var valid = _flag(s, 'valid');
       var reason = s['reason'] as String;
@@ -123,7 +148,8 @@ abstract final class StaticGeometryPolicy {
       }
       final singleIndex = _flag(d, 'prominent_index_down') ||
           _flag(d, 'reverse_palm_edge_down') ||
-          _flag(d, 'horizontal_pointing');
+          _flag(d, 'horizontal_pointing') ||
+          modelBackedIndex;
       final hardNegative = (_flag(s, 'dorsal_hard_negative') && !singleIndex) ||
           resolved == 'dorsal';
       if (hardNegative) {
@@ -153,7 +179,9 @@ abstract final class StaticGeometryPolicy {
               (resolved == 'thumb_down' &&
                   _flag(s, 'thumb_down_geometry_supported')) ||
               (resolved == 'peace' && _flag(s, 'peace_geometry_supported')) ||
-              (_directions.contains(resolved) && _flag(d, 'strong_geometry')));
+              (_directions.contains(resolved) &&
+                  _flag(d, 'strong_geometry') &&
+                  !modelBackedIndex));
       final expanded =
           supported && _flag(d, 'expanded_thumb_pointing') && knownMass >= .005;
       final horizontal = supported && _flag(d, 'horizontal_pointing');
@@ -197,11 +225,11 @@ abstract final class StaticGeometryPolicy {
         if (supportedHand || stopRecovery) hold = math.max(hold, 450);
         if (peaceRecovery) hold = math.max(hold, 500);
       }
-      if (confidence < .70) {
+      if (confidence < confidenceFloor) {
         valid = false;
         reason = 'below confidence floor';
       }
-      if (margin < .08) {
+      if (margin < probabilityMarginFloor) {
         valid = false;
         reason = 'ambiguous probability margin';
       }
@@ -322,7 +350,10 @@ abstract final class StaticGeometryPolicy {
       for (final m in <int>[9, 13, 17]) extension(p, m),
     ];
     final indexExt = extension(p, 5);
-    if (_directions.contains(raw) && !worldIndex) {
+    if (_directions.contains(raw) &&
+        !worldIndex &&
+        !horizontal &&
+        !worldFolded) {
       final peace = indexExt >= .65 &&
           others[0] >= .65 &&
           maxValue(others.sublist(1)) <= .55 &&
@@ -343,17 +374,20 @@ abstract final class StaticGeometryPolicy {
                 'strong_geometry': false,
               },
             );
-          if (support >= .08)
+          if (support >= .08 || worldContradiction) {
             return _Resolution(probabilities, <String, Object?>{
               'valid': false,
               'reason': 'more than one finger extended',
               'strong_geometry': false,
+              'multi_finger_conflict': true,
             });
+          }
         }
       }
     }
     final screen = <double>[vector[0] * width, vector[1] * height];
-    final dominance = maxValue(screen.map((x) => x.abs())) / norm(screen);
+    final screenLength = norm(screen);
+    final dominance = maxValue(screen.map((x) => x.abs())) / screenLength;
     final palm = math.max(distance(p[9], p[0]), 1e-6),
         axis = divide(vector, reach);
     final indexStraightness = reach / math.max(_path(p, 5), epsilon);
@@ -478,8 +512,8 @@ abstract final class StaticGeometryPolicy {
         edgeAdv >= 1.40;
     final sorted = List<double>.of(probabilities)..sort();
     final agrees = raw == gesture &&
-        sorted.last >= .70 &&
-        sorted.last - sorted[sorted.length - 2] >= .08;
+        sorted.last >= confidenceFloor &&
+        sorted.last - sorted[sorted.length - 2] >= probabilityMarginFloor;
     final shortIndex = indexStraightness >= .88 &&
         indexReach >= .27 &&
         math.max(indexLead, relative) >= .12 &&
@@ -543,6 +577,17 @@ abstract final class StaticGeometryPolicy {
     final details = <String, Object?>{
       'valid': _directions.contains(raw) ? directional : true,
       'gesture': gesture,
+      'axis_alignment': <String, double>{
+        'left': screen[0] / screenLength,
+        'right': -screen[0] / screenLength,
+        'up': -screen[1] / screenLength,
+        'down': screen[1] / screenLength,
+      },
+      'continuation_safe': indexExt >= .40 &&
+          indexStraightness >= .65 &&
+          indexLead >= .02 &&
+          maxValue(others) <= .65 &&
+          !worldContradiction,
       'strong_geometry': strong,
       'model_supported_pose': supported,
       'expanded_thumb_pointing': expanded,
@@ -550,6 +595,10 @@ abstract final class StaticGeometryPolicy {
       'horizontal_pointing': horizontal,
       'continued_direction': continued,
       'world_index_only': worldIndex,
+      'world_pointing_contradiction': worldContradiction,
+      'index_lead_ratio': indexLead,
+      'relative_index_reach': relative,
+      'maximum_other_projected_reach': otherProjected,
       'prominent_index_down': prominent,
       'reverse_palm_edge_down': reverse,
       'pose_score': poseScore,
@@ -658,7 +707,7 @@ abstract final class StaticGeometryPolicy {
     final surfaceActive = <String>{'left', 'right'}.contains(side);
     final openSupport =
         <String>{'open_palm', 'stop_inverted'}.contains(modelRaw) &&
-            maxValue(model) >= .70;
+            maxValue(model) >= confidenceFloor;
     final stopDepth = _stopDepth(w);
     final stopGeometry = _flag(stop, 'strong_geometry') && dorsal && stopDepth;
     final stopValid = (openSupport || stopGeometry) &&
@@ -796,13 +845,22 @@ abstract final class StaticGeometryPolicy {
             raised == 0 &&
             mean(non) <= .72) ||
         (_number(fist, 'maximum_tip_radius_ratio') <= 1.50 && worldFolded);
+    final sideViewLike =
+        (raw == 'like' || modelRaw == 'like' || exts[0] >= .60) &&
+            compactLike &&
+            (thumbUp >= .55 || screenThumbUp >= .50) &&
+            (thumbLead >= .18 || screenThumbLead >= .12) &&
+            _number(fist, 'thumb_radius_ratio') >= .90 &&
+            palmUp >= -.55 &&
+            raised == 0;
     final likeGeometry = (exts[0] >= .70 &&
             _number(fist, 'thumb_radius_ratio') >= 1.10 &&
             compactLike &&
             thumbUp >= .70 &&
             thumbLead >= .25 &&
             palmUp >= -.35) ||
-        rotatedThumbUp;
+        rotatedThumbUp ||
+        sideViewLike;
     likeValid = likeValid || likeGeometry;
     final downLead =
         minValue(<int>[8, 12, 16, 20].map((t) => p[4][1] - p[t][1])) / palm;
@@ -822,8 +880,11 @@ abstract final class StaticGeometryPolicy {
             thumbDown >= .70 &&
             downLead >= .25) ||
         rotatedThumbDown;
-    final compactFist =
-        maxValue(non) <= .55 && mean(non) <= .38 && exts[0] <= .85;
+    final compactFist = maxValue(non) <= .55 &&
+        mean(non) <= .38 &&
+        exts[0] <= .85 &&
+        _number(fist, 'thumb_radius_ratio') <= .85 &&
+        _number(fist, 'maximum_pip_overshoot_ratio') <= .65;
     final worldCompact = compactFist &&
         worldClosed &&
         exts[0] <= .45 &&
@@ -884,7 +945,11 @@ abstract final class StaticGeometryPolicy {
             reportedGeometry ||
             sideGeometry ||
             _flag(fist, 'strong_geometry') ||
-            (fistValid && maxValue(non) <= .42 && mean(non) <= .28));
+            (fistValid &&
+                _number(fist, 'thumb_radius_ratio') <= .85 &&
+                _number(fist, 'maximum_pip_overshoot_ratio') <= .65 &&
+                maxValue(non) <= .42 &&
+                mean(non) <= .28));
     final tucked = fistGeometry &&
         _flag(fist, 'strong_geometry') &&
         _number(fist, 'thumb_radius_ratio') <= .85 &&
@@ -1242,10 +1307,10 @@ abstract final class StaticGeometryPolicy {
     final lead = minValue(
       <int>[12, 16, 20].map((t) => dot(subtract(p[8], p[t]), axis) / scale),
     );
-    final folded = maxValue(reaches) <= .75 &&
-        maxValue(exts) <= .55 &&
-        maxValue(returns) <= -.04 &&
-        lead >= .55;
+    final folded = maxValue(reaches) <= .80 &&
+        maxValue(exts) <= .65 &&
+        maxValue(returns) <= .05 &&
+        lead >= .35;
     final bases = <double>[
       for (final m in <int>[9, 13, 17])
         dot(subtract(p[m], p[5]), normal) / scale,
@@ -1272,10 +1337,10 @@ abstract final class StaticGeometryPolicy {
         exts.where((x) => x <= .45).length >= 2 &&
         maxValue(reaches) * scale <= .90 * reach &&
         lead >= .20;
-    final valid = axis[0].abs() >= .94 &&
-        reach / scale >= .70 &&
-        extension(p, 5) >= .90 &&
-        reach / math.max(_path(p, 5), epsilon) >= .97 &&
+    final valid = axis[0].abs() >= .88 &&
+        reach / scale >= .65 &&
+        extension(p, 5) >= .82 &&
+        reach / math.max(_path(p, 5), epsilon) >= .88 &&
         (folded || converging || collapsed);
     final clear = valid &&
         folded &&
@@ -1415,6 +1480,7 @@ abstract final class StaticGeometryPolicy {
         'strong_geometry': false,
         'maximum_tip_radius_ratio': double.infinity,
         'thumb_radius_ratio': double.infinity,
+        'maximum_pip_overshoot_ratio': double.infinity,
       };
     final axis = divide(vector, scale);
     final curl = <double>[
@@ -1427,13 +1493,19 @@ abstract final class StaticGeometryPolicy {
       for (final t in <int>[8, 12, 16, 20]) distance(p[t], center) / scale,
     ];
     final thumb = distance(p[4], center) / scale;
+    final pipOvershoot = maxValue(<double>[
+      for (final m in <int>[5, 9, 13, 17])
+        dot(subtract(p[m + 1], p[m]), axis) / scale,
+    ]);
     return <String, Object?>{
       'strong_geometry': curl.where((x) => x >= .05).length == 4 &&
           mean(curl) >= .16 &&
           maxValue(radii) <= .85 &&
-          thumb <= .85,
+          thumb <= .85 &&
+          pipOvershoot <= .65,
       'maximum_tip_radius_ratio': maxValue(radii),
       'thumb_radius_ratio': thumb,
+      'maximum_pip_overshoot_ratio': pipOvershoot,
     };
   }
 

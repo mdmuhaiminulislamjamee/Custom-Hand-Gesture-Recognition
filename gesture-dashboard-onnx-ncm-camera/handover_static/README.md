@@ -2,7 +2,7 @@
 
 Give the Boss app developer this complete archive:
 
-[Boss_Static_Gesture_Handover_20261031_false_hands.zip](Boss_Static_Gesture_Handover_20261031_false_hands.zip)
+[Boss_Static_Gesture_Handover_20261111_direction_stability.zip](Boss_Static_Gesture_Handover_20261111_direction_stability.zip)
 
 Its root `README.md` explains how to integrate the full pipeline, why the
 model alone is insufficient, and which file does what. `START_HERE.md` covers
@@ -15,11 +15,14 @@ qualified with the supported iPhone/NCM board.
 Verify the adjacent archive `.sha256` before transfer, and run the extracted
 `verify_handover.py` with Python 3.10+ to check the complete payload.
 
-This revision includes cached face/ear candidate rejection and background
-candidate checks before tracking, classification and preview. It contains
-GestureLab 2.0.2 source, the rebuilt Android APK, and the native Android/iOS
-filter source update. The thumb-direction and Open Palm/Stop Inverted fixes
-are retained.
+This revision retrains from saved feedback, adds bounded Left/Right/Up/Down
+continuation and fixes a model/geometry conflict on clear Left/Right poses.
+It uses .75 confidence/.10 margin gates and preserves fast confirmation and
+latest-frame behavior. It contains GestureLab 2.0.9 source
+and a rebuilt diagnostic release APK with the later USB-NCM and preview fixes.
+Face/ear filtering, thumb-direction and Open Palm/Stop Inverted fixes are
+retained. The exact ONNX/configuration are included under `source_model/`.
 
-The older `candidate`, `overlay` and `final` archives remain here for history.
-The `false_hands` archive supersedes them, including the older `fix1` bundle.
+The older archives remain unchanged for history. This delivery supersedes the
+earlier 11 November `current_model` bundle. [START_HERE.md](final_docs/START_HERE.md) and
+[RELEASE_NOTES.md](final_docs/RELEASE_NOTES.md) describe integration and changes.

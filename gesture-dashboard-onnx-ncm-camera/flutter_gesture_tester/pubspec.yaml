@@ -1,7 +1,7 @@
 name: gesture_model_tester
 description: Two-hand LiteRT gesture tester for phone and USB-NCM cameras.
 publish_to: 'none'
-version: 2.0.7+9
+version: 2.0.9+11
 
 environment:
   sdk: ^3.13.7

@@ -91,6 +91,7 @@ class StaticCommandController {
   String? _currentLabel;
   double? _currentSinceMs;
   double? _lastTimestampMs;
+  int _neutralFrames = 0;
 
   String? get lastEmitted => _lastEmitted;
 
@@ -114,6 +115,7 @@ class StaticCommandController {
           'Invalid command evidence or non-increasing timestamp.');
     }
     _lastTimestampMs = timestampMs;
+    _neutralFrames = label == 'no_gesture' ? _neutralFrames + 1 : 0;
     if (_currentLabel != label) {
       _currentLabel = label;
       _currentSinceMs = timestampMs;
@@ -126,7 +128,12 @@ class StaticCommandController {
         confidence >= policy.strongConfidence &&
         margin >= policy.strongMargin;
     final held = timestampMs - _currentSinceMs! >= minimumHoldMs;
-    final confirmed = held && (strong || matches >= policy.requiredMatches);
+    final directionalRelease = label == 'no_gesture' &&
+        <String>{'left', 'right', 'up', 'down'}.contains(_lastEmitted);
+    final confirmed = held &&
+        (directionalRelease
+            ? _neutralFrames >= 2
+            : strong || matches >= policy.requiredMatches);
     if (!confirmed) {
       return StaticControllerResult(
           label: label,
@@ -176,6 +183,7 @@ class StaticCommandController {
     _currentLabel = null;
     _currentSinceMs = null;
     _lastTimestampMs = null;
+    _neutralFrames = 0;
   }
 
   void reset() {

@@ -146,13 +146,13 @@
     "test": 1019
   },
   "feedback": {
-    "sha256": "98dd11b159a6322ec978a3ecd2b136c2f3cdbcc152dc109887daa12746461823",
-    "rows": 2335,
+    "sha256": "26ddb8ab0a3b2a500639270c874d78558fbc9817f67d8b658da5b9fade582b3b",
+    "rows": 3416,
     "class_counts": {
-      "left": 180,
+      "left": 270,
       "right": 138,
       "up": 0,
-      "down": 270,
+      "down": 959,
       "open_palm": 0,
       "like": 90,
       "dorsal": 0,
@@ -162,7 +162,7 @@
       "peace": 102,
       "rock": 0,
       "stop_inverted": 0,
-      "no_gesture": 1396
+      "no_gesture": 1698
     },
     "skipped": [
       {
@@ -230,10 +230,10 @@
   },
   "counts": {
     "train": {
-      "left": 10600,
+      "left": 10780,
       "right": 10516,
       "up": 6144,
-      "down": 6684,
+      "down": 8062,
       "open_palm": 8195,
       "like": 8372,
       "dorsal": 4096,
@@ -243,7 +243,7 @@
       "peace": 4300,
       "rock": 4096,
       "stop_inverted": 10271,
-      "no_gesture": 19178
+      "no_gesture": 19782
     },
     "val": {
       "left": 710,

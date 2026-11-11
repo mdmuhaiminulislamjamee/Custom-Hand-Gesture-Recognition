@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "model_name": "StopInvertedDirectionalFeedbackMLP",
-  "source_onnx_sha256": "11d6991cc555dfd5f490a647270c4f326dd9dfb14ce4ad1cf503300aea29c331",
+  "source_onnx_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
   "model_file": "gesture_static_int8.tflite",
-  "model_sha256": "02cecca35294fa7e62d9551a98bba285816b81c5c780d07a0150a133f2aaa208",
+  "model_sha256": "999480a42a1ef5f34a2100414dae0624988ffdb8b11bcae20542475c326d2a55",
   "model_bytes": 23240,
   "labels": [
     "left",
@@ -140,13 +140,17 @@
   "precision": "int8_dense_float32_normalization_and_tail",
   "qualification": {
     "passed": false,
-    "conversion_passed": false,
+    "conversion_passed": true,
     "recommended_default": false,
-    "physical_ios_tested": false
+    "physical_ios_tested": false,
+    "pending": [
+      "precision-specific geometry/controller qualification",
+      "target-device acceptance"
+    ]
   },
   "calibration": {
     "source": "models\\gesture_online_replay_cache.npz",
-    "sha256": "351a59f4d64e0db69b3575fc21da59a3e68179d6054814c1cd141c0b461b8245",
+    "sha256": "4ba5a8e310b2fa73d0a38412d2c9b7c0db656e744c9d13cfa0bbad61778e9c47",
     "rows": 1391,
     "indices_sha256": "6a6f556e49d175498bebb3d5edcd4dfc30b572bcff577ad9a08eb3a36ba95945",
     "test_used_for_calibration": false

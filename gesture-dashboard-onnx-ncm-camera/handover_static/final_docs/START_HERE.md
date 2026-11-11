@@ -1,116 +1,58 @@
-# Boss static gesture handover - 31 October 2026
+﻿# Boss static gesture handover - 11 November 2026
 
-Read [README.md](README.md) for the step-by-step integration guide, why the
-model alone is insufficient, and the responsibility of every main component.
+Use `Boss_Static_Gesture_Handover_20261111_direction_stability.zip`. It supersedes
+the earlier 11 November model handover and includes the retrained model, shared
+Flutter runtime, iOS integration source, GestureLab 2.0.9 Android source and test APK.
+Previous archives remain unchanged.
 
-Use this bundle for the latest static gesture integration. It supersedes
-`static_gesture_runtime_20261029_candidate.zip` and
-`static_gesture_runtime_20261029_overlay.zip` and the earlier
-`Boss_Static_Gesture_Handover_20261029_final.zip`.
+Read [README.md](README.md) for integration and [RELEASE_NOTES.md](RELEASE_NOTES.md)
+for this revision. Keep the complete runtime and detector together: copying the
+model alone omits feature extraction, geometry, rejection and command state.
 
-The `false_hands` revision filters compact face/ear, incomplete, undersized and
-collapsed candidates before classification, overlays and continued tracking.
-The Android tester is now version 2.0.2. The earlier thumb-direction and
-Open Palm/Stop Inverted corrections remain included. The separate
-`native_false_hand_update/` contains Android/iOS integration-source patches,
-the required face asset, policy fixtures and integration notes.
+The classifier was retrained using the saved reviewed landmark feedback.
+Its qualified production ONNX is converted to TFLite without further training. FP32 remains the
+default. The release manifest binds the converted model, fixtures, source ONNX
+and APK to their SHA-256 identities. `source_model/` contains the matching ONNX,
+metadata, runtime JSON and artifact manifest.
 
-The delivery preserves the learned static gestures, copies the hand detector
-from the supplied dynamic runtime v10.3, and supplies the feature extraction,
-geometry, two-hand command controller and preview together. No retraining was
-performed. The default is the qualified FP32 TFLite model.
+The previous speed policy is retained: a persistent classifier, one active and
+one replaceable pending frame, up to 10 FPS, immediate confirmation of strong
+valid predictions and two of three confirmation otherwise. Strict geometry
+recoveries retain their hold requirements. There is no fixed action cooldown.
+See `static_gesture_runtime/validation/latency_comparison.json` for the same-host
+classifier comparison. Physical camera-to-command latency still needs measurement
+on the intended phone and NCM camera.
 
-## Start with the iOS integration
+Left/Right/Up/Down retain strict entry. A confirmed direction can survive one
+marginal visible-hand frame within 200 ms, with continuation alignment >= .65.
+Two consecutive invalid observations release the direction; missing hands,
+opposite axes and competing gestures cannot use that grace. Existing positive
+3-D single-index turn support is preserved separately. A strict model-backed
+3-D check corrects the Left/Right versus Dorsal conflict and requires full known
+mass. No additional prediction panels are introduced.
 
-1. Read `static_gesture_runtime/IOS_INTEGRATION.md`.
-2. Keep `static_gesture_runtime/flutter` and its bundled `third_party` directory
-   together. Add the documented path dependencies to the existing Flutter app.
-3. Use the updated bundled detector for both static and dynamic recognition.
-   If reusing another detector, port the filtering before passing accepted hand
-   results to `StaticDetectorAdapter` and `StaticGestureRuntimeApi`.
-   Initialize the static classifier once per active session. Feed each fresh
-   detector result, including empty results, and use monotonic timestamps.
-4. Connect `onCommand` to the app's existing action handler. The example/tester
-   displays commands; it does not implement the product's action transport.
-5. Build a release version on a Mac and complete `DEVICE_ACCEPTANCE.md` on the
-   supported physical iPhone and NCM board.
+`static_gesture_runtime/validation/direction_stability_release.json` records the
+training, JPEG replay, baseline comparison, timing and regression results.
 
-The runtime is Flutter/Dart source. A Swift-only app must embed a Flutter module
-or port the contracts and pass the fixtures. An iOS binary/IPA is not included;
-the iOS host must be built and signed by the app owner on a Mac.
+## Integrate
 
-## Included files
+1. Extract the complete ZIP, keeping the sibling runtime/tester directories.
+2. Run `python verify_handover.py` from `Boss_Static_Gesture_Handover_20261111_direction_stability/`.
+3. Follow `static_gesture_runtime/IOS_INTEGRATION.md` and the root README.
+4. Reuse the existing compatible detector where available. Initialize the static
+   runtime once, feed fresh results with monotonic timestamps and dispatch only
+   through `onCommand`. Reset it after reconnect/orientation changes.
+5. Build/sign the iOS host on a Mac and complete `DEVICE_ACCEPTANCE.md`.
 
-| Path | Use |
-|---|---|
-| `static_gesture_runtime/flutter/` | Main integration package, detector, models, controller, tests |
-| `static_gesture_runtime/flutter/example/` | iOS NCM diagnostic example with matching two-hand overlay |
-| `static_gesture_runtime/IOS_INTEGRATION.md` | Dependencies, existing-detector adapter, lifecycle, coordinates |
-| `static_gesture_runtime/README.md` | Gesture/action mapping and runtime contract |
-| `static_gesture_runtime/VALIDATION.md` | Model and geometry parity evidence and qualification limits |
-| `static_gesture_runtime/validation/` | Conversion results and shared fixtures |
-| `flutter_gesture_tester/` | Current Android Flutter source using the same static runtime |
-| `flutter_gesture_tester/releases/GestureLab-v2.0.2-litert-ncm-arm64-release.apk` | Optional Android test app; Android 7/API 24+, 64-bit ARM |
-| `RELEASE_NOTES.md` | Final delivery changes and retained behavior |
-| `DEVICE_ACCEPTANCE.md` | iPhone/NCM checks and aggregate timing template |
-| `release_manifest.json` | Model/APK identifiers, payload metadata and test evidence |
-| `SHA256SUMS.json`, `verify_handover.py` | Complete payload integrity verification |
+The Android tester is
+`flutter_gesture_tester/releases/GestureLab-v2.0.9-litert-ncm-arm64-diagnostic-release.apk`.
+It targets ARM64 Android API 24+, uses release Dart code, disables Android
+shrinking for this diagnostic build and is signed with the Android debug key.
+It displays commands; the consuming app supplies product actions. Its direct
+USB fallback is board-specific and requires physical acceptance.
 
-The Android APK is optimized in release mode and signed with an Android debug
-certificate for testing. It cannot be installed on an iPhone. The source
-contains no production signing keys or machine-specific SDK paths.
-For Windows Android builds, extract into a short directory to avoid native
-toolchain path-length limits.
-
-## Verify the extracted delivery
-
-Use Python 3.10+; the first check needs only the standard library:
-
-```sh
-cd Boss_Static_Gesture_Handover_20261031
-python verify_handover.py
-```
-
-To execute native model fixtures as well, create an isolated Python environment
-and follow `static_gesture_runtime/HOST_TESTING.md`. Flutter 3.47.8 / Dart 3.13.7
-was used for the supplied checks; retain the lockfiles. On Mac, create the iOS
-host as described in `static_gesture_runtime/flutter/example/README.md`.
-
-## Model and gesture behavior
-
-`gesture_static_float32.tflite` is the production integration default. It
-preserves the original model's top labels and scalar gates on all 18,073
-validation/test rows. This is conversion parity, not a measurement of new
-camera accuracy or iPhone speed.
-
-The INT8 experiment is retained with its failed qualification manifest for
-traceability. The runtime refuses to load it. Do not change its manifest to
-force it into production.
-
-The twelve command labels and actions are listed in the runtime README.
-`dorsal` remains rejection evidence, and `no_gesture` releases/rearms command
-state. Both physical hands have independent state; at most one product command
-is dispatched from a source frame. Boxes and landmarks display accepted hand
-candidates, including real hands with rejected gestures. Face/background
-candidates rejected by the detector are omitted; a visible hand box does not
-imply an accepted command.
-
-## NCM setup
-
-The default is TCP `192.168.50.2:5000` with JLIP v1 framed JPEGs. Networking uses
-the operating system's route table and does not require an app-level check for
-exactly `192.168.50.1/30`. The host/port are configurable in the runtime.
-Include `NSLocalNetworkUsageDescription` in the iOS host and grant local network
-permission. The phone/board firmware must expose a usable network route.
-
-Keep NCM images upright and unmirrored throughout detection, gesture geometry
-and preview. Reset adapter and runtime after reconnect or orientation changes.
-Newest pending frames replace stale ones; inference admissions are capped at
-10 FPS. The selected detector backend and receiver-to-result timing are
-observable. GPU is requested with CPU fallback; device selection and sustained
-performance must be checked on the target iPhone.
-
-This delivery has host validation and a verified Android build. Physical iOS
-compilation, NCM routing and real camera performance remain device acceptance
-steps. No zero-latency or identical end-to-end dynamic-model performance is
-claimed.
+`HOST_CHECKS.json` records current host checks and their limits. The iOS example
+is source for the app team to build and sign. An IPA and physical iPhone/NCM
+qualification are not included. The retained `native_false_hand_update/` is a
+native filtering reference, not a complete native replacement for the Flutter
+pipeline.

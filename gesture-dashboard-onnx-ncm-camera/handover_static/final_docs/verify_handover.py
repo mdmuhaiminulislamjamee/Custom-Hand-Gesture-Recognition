@@ -38,6 +38,8 @@ def verify(root: Path) -> dict:
             raise ValueError(f"Missing or changed payload: {relative}")
     manifest = json.loads((root / "release_manifest.json").read_text(encoding="utf-8"))
     checks = json.loads((root / "HOST_CHECKS.json").read_text(encoding="utf-8"))
+    if checks.get("status") != "passed":
+        raise ValueError("Host qualification is not passed")
     for key in ("version_name", "version_code", "sha256"):
         if manifest["android_test_apk"][key] != checks["android_artifact"][key]:
             raise ValueError(f"APK metadata differs from checked artifact: {key}")
@@ -56,12 +58,26 @@ def verify(root: Path) -> dict:
             raise ValueError(f"Detector differs from supplied dynamic source: {relative}")
 
     models = package / "flutter/assets/models"
+    source_sha = sha256(root / "source_model/gesture_mlp_production.onnx")
+    if source_sha != manifest["source_onnx_sha256"]:
+        raise ValueError("Source ONNX differs from the release manifest")
+    if sha256(root / "source_model/gesture_mobile_runtime_config.json") != manifest["runtime_config_sha256"]:
+        raise ValueError("Runtime configuration differs from the release manifest")
+    reference = json.loads((package / "validation/model_parity.json").read_text(encoding="utf-8"))
+    conversion = json.loads((package / "validation/conversion_report.json").read_text(encoding="utf-8"))
+    if reference["model_sha256"] != source_sha or conversion["source_onnx_sha256"] != source_sha:
+        raise ValueError("Fixtures or conversion report belong to a different source model")
+    if conversion["runtime_config_sha256"] != manifest["runtime_config_sha256"]:
+        raise ValueError("Conversion used another runtime configuration")
     for name in ("float32", "int8"):
         model_manifest = json.loads((models / f"gesture_static_{name}_manifest.json").read_text(encoding="utf-8"))
         model = checked_path(models, model_manifest["model_file"])
         if sha256(model) != model_manifest["model_sha256"] or model.stat().st_size != model_manifest["model_bytes"]:
             raise ValueError(f"Invalid {name} model")
-        if bool(model_manifest["qualification"]["passed"]) != (name == "float32"):
+        if model_manifest["source_onnx_sha256"] != source_sha:
+            raise ValueError(f"The {name} model belongs to a different ONNX source")
+        expected_qualified = True if name == "float32" else manifest["int8_qualified"]
+        if bool(model_manifest["qualification"]["passed"]) != expected_qualified:
             raise ValueError("Unexpected model qualification; FP32 must be the qualified default")
 
     apk = checked_path(root, manifest["android_test_apk"]["path"])
@@ -86,6 +102,11 @@ def verify(root: Path) -> dict:
         for asset, source in asset_sources.items():
             if hashlib.sha256(archive.read(asset)).hexdigest() != sha256(source):
                 raise ValueError(f"APK and runtime model differ: {asset}")
+        for name in ("float32", "int8"):
+            filename = f"gesture_static_{name}_manifest.json"
+            asset = "assets/flutter_assets/packages/static_gesture_runtime/assets/models/" + filename
+            if archive.read(asset) != (models / filename).read_bytes():
+                raise ValueError(f"APK and runtime manifest differ: {filename}")
 
     api = (package / "flutter/lib/static_gesture_runtime_api.dart").read_text(encoding="utf-8")
     if "export 'src/detector_adapter.dart';" not in api:

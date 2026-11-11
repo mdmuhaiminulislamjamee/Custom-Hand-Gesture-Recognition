@@ -1,11 +1,11 @@
 {
   "schema_version": 4,
-  "created_utc": "2026-11-10T04:30:50.300840+00:00",
+  "created_utc": "2026-11-11T05:47:27.209948+00:00",
   "format": "ONNX",
   "model_name": "StopInvertedDirectionalFeedbackMLP",
   "onnx_file": "gesture_mlp_production.onnx",
   "onnx_bytes": 77797,
-  "onnx_sha256": "bb1df78e02ec0aaf8d55fe9edb78503d2ca5b473245a15c0cc3f7c37c91de2b2",
+  "onnx_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
   "input": {
     "name": "landmark_features",
     "dtype": "float32",
@@ -149,16 +149,16 @@
   "parity": {
     "passed": true,
     "prediction_agreement": 1.0,
-    "maximum_absolute_probability_error": 1.7881393432617188e-06,
-    "maximum_absolute_mass_error": 1.6093254089355469e-06
+    "maximum_absolute_probability_error": 1.9073486328125e-06,
+    "maximum_absolute_mass_error": 1.7881393432617188e-06
   },
   "quality": {
-    "macro_f1": 0.9892387790166107,
-    "accepted_precision": 0.9942849885699772,
-    "unknown_false_acceptance_rate": 0.010676156583629894,
-    "old_command_correct_accept_rate": 0.9876811594202899,
+    "macro_f1": 0.9910724152481021,
+    "accepted_precision": 0.9958095238095238,
+    "unknown_false_acceptance_rate": 0.00800711743772242,
+    "old_command_correct_accept_rate": 0.9892753623188406,
     "new_command_recall": {
-      "stop_inverted": 0.9960707269155207
+      "stop_inverted": 0.9980353634577603
     }
   },
   "qualification": {
@@ -180,6 +180,7 @@
       "runtime_stop_recall": true,
       "horizontal_feedback_matches_model": true,
       "horizontal_feedback_matches_dataset": true,
+      "feedback_replay_matches_runtime_sources": true,
       "reviewed_left_classified_and_executed": true,
       "reviewed_left_angle_mirror_aspect_variants": true,
       "reviewed_right_classified_and_executed": true,
@@ -334,13 +335,13 @@
         "test": 1019
       },
       "feedback": {
-        "sha256": "98dd11b159a6322ec978a3ecd2b136c2f3cdbcc152dc109887daa12746461823",
-        "rows": 2335,
+        "sha256": "26ddb8ab0a3b2a500639270c874d78558fbc9817f67d8b658da5b9fade582b3b",
+        "rows": 3416,
         "class_counts": {
-          "left": 180,
+          "left": 270,
           "right": 138,
           "up": 0,
-          "down": 270,
+          "down": 959,
           "open_palm": 0,
           "like": 90,
           "dorsal": 0,
@@ -350,7 +351,7 @@
           "peace": 102,
           "rock": 0,
           "stop_inverted": 0,
-          "no_gesture": 1396
+          "no_gesture": 1698
         },
         "skipped": [
           {
@@ -418,10 +419,10 @@
       },
       "counts": {
         "train": {
-          "left": 10600,
+          "left": 10780,
           "right": 10516,
           "up": 6144,
-          "down": 6684,
+          "down": 8062,
           "open_palm": 8195,
           "like": 8372,
           "dorsal": 4096,
@@ -431,7 +432,7 @@
           "peace": 4300,
           "rock": 4096,
           "stop_inverted": 10271,
-          "no_gesture": 19178
+          "no_gesture": 19782
         },
         "val": {
           "left": 710,
@@ -475,7 +476,7 @@
       ]
     },
     "selection": {
-      "model_sha256": "bb1df78e02ec0aaf8d55fe9edb78503d2ca5b473245a15c0cc3f7c37c91de2b2",
+      "model_sha256": "7e3dbcd61b55d2ba386059d2634ef4a737747b454c28cf200d1f117d976064ed",
       "known_mass_floor": 0.7,
       "confidence_floor": 0.75,
       "probability_margin_floor": 0.1
