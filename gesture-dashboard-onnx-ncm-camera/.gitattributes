@@ -2,3 +2,4 @@
 # across Windows and Linux checkouts instead of converting their line endings.
 /models/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 /models/*.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/feedback/gesture_feedback_snapshot_*.zip filter=lfs diff=lfs merge=lfs -text

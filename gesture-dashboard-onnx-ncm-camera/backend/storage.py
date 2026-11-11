@@ -4,9 +4,10 @@ import base64
 import csv
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from io import BytesIO
+from io import BytesIO, StringIO
 import hashlib
 import json
+import os
 from pathlib import Path
 import threading
 from typing import Any
@@ -43,8 +44,12 @@ class FeedbackStore:
         self.directory = directory
         self.images_directory = directory / "images"
         self.csv_path = directory / "misclassification_log.csv"
+        self.pending_directory = directory / "pending_feedback"
+        self.exports_directory = directory / "exports"
         self._lock = threading.Lock()
         self.images_directory.mkdir(parents=True, exist_ok=True)
+        self.pending_directory.mkdir(parents=True, exist_ok=True)
+        self.exports_directory.mkdir(parents=True, exist_ok=True)
 
     def save(self, feedback: FeedbackRecord) -> dict[str, Any]:
         if feedback.actual_label in DISABLED_GESTURES:
@@ -80,6 +85,9 @@ class FeedbackStore:
             f"{timestamp.isoformat()}:{feedback.actual_label}:{feedback.predicted_label}".encode()
         ).hexdigest()[:16]
         image_path = ""
+        image_bytes: bytes | None = None
+        saved_image: Path | None = None
+        temporary_image: Path | None = None
         if feedback.snapshot_data_url:
             prefix, separator, payload = feedback.snapshot_data_url.partition(",")
             if separator and "base64" in prefix:
@@ -99,7 +107,7 @@ class FeedbackStore:
                 except (OSError, Image.DecompressionBombError) as error:
                     raise ValueError("Feedback snapshot is not a safe image.") from error
                 saved_image = self.images_directory / f"{fingerprint}.jpg"
-                saved_image.write_bytes(image_bytes)
+                temporary_image = self.images_directory / f".{fingerprint}.jpg.tmp"
                 image_path = str(saved_image)
         row = {
             "feedback_id": fingerprint,
@@ -116,20 +124,106 @@ class FeedbackStore:
             "landmarks_json": json.dumps(feedback.landmarks or [], separators=(",", ":")),
         }
         with self._lock:
-            write_header = not self.csv_path.exists()
-            with self.csv_path.open("a", newline="", encoding="utf-8") as handle:
-                writer = csv.DictWriter(handle, fieldnames=self.fields)
-                if write_header:
-                    writer.writeheader()
-                writer.writerow(row)
-        return {"status": "saved", "feedback_id": fingerprint, "image_saved": bool(image_path)}
+            pending_record = self.pending_directory / f"{fingerprint}.json"
+            temporary_record = self.pending_directory / f".{fingerprint}.json.tmp"
+            image_committed = False
+            record_committed = False
+            try:
+                # Keep live capture writes separate from the CSV editors open
+                # in VS Code. Export merges these per-record journals into a new CSV.
+                if image_bytes is not None and temporary_image is not None:
+                    with temporary_image.open("wb") as image_handle:
+                        image_handle.write(image_bytes)
+                        image_handle.flush()
+                        os.fsync(image_handle.fileno())
+                if pending_record.exists():
+                    raise FileExistsError(f"Feedback record already exists: {fingerprint}")
+                with temporary_record.open("w", encoding="utf-8", newline="") as handle:
+                    json.dump(row, handle, separators=(",", ":"), ensure_ascii=False)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                temporary_record.replace(pending_record)
+                record_committed = True
+                if temporary_image is not None and saved_image is not None:
+                    temporary_image.replace(saved_image)
+                    image_committed = True
+            except Exception:
+                # Roll back every artifact created by this save so a failed
+                # request cannot leave an image without a matching feedback record.
+                if temporary_image is not None:
+                    temporary_image.unlink(missing_ok=True)
+                temporary_record.unlink(missing_ok=True)
+                if record_committed:
+                    pending_record.unlink(missing_ok=True)
+                if image_committed and saved_image is not None:
+                    saved_image.unlink(missing_ok=True)
+                raise
+        return {
+            "status": "saved",
+            "feedback_id": fingerprint,
+            "image_saved": bool(image_path),
+            "csv_export_pending": True,
+        }
+
+    def _combined_rows(self) -> tuple[list[dict[str, str]], int]:
+        rows: list[dict[str, str]] = []
+        exports = sorted(self.exports_directory.glob("misclassification_log_approved_*.csv"))
+        if self.csv_path.exists():
+            with self.csv_path.open("r", newline="", encoding="utf-8-sig") as handle:
+                rows.extend(csv.DictReader(handle))
+        known_ids = {row.get("feedback_id", "") for row in rows}
+        if exports:
+            with exports[-1].open("r", newline="", encoding="utf-8-sig") as handle:
+                for row in csv.DictReader(handle):
+                    feedback_id = row.get("feedback_id", "")
+                    if feedback_id and feedback_id not in known_ids:
+                        rows.append(row)
+                        known_ids.add(feedback_id)
+        pending_count = 0
+        for record_path in sorted(self.pending_directory.glob("*.json")):
+            with record_path.open("r", encoding="utf-8") as handle:
+                row = json.load(handle)
+            feedback_id = str(row.get("feedback_id", ""))
+            if not feedback_id or feedback_id in known_ids:
+                continue
+            rows.append(row)
+            known_ids.add(feedback_id)
+            pending_count += 1
+        rows.sort(key=lambda row: row.get("created_at_utc", ""))
+        return rows, pending_count
+
+    def export_csv(self) -> str:
+        with self._lock:
+            rows, _ = self._combined_rows()
+            output = StringIO(newline="")
+            writer = csv.DictWriter(output, fieldnames=self.fields, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+            return output.getvalue()
+
+    def create_export(self) -> Path:
+        content = self.export_csv().encode("utf-8-sig")
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        target = self.exports_directory / f"misclassification_log_approved_{stamp}.csv"
+        temporary = self.exports_directory / f".{target.name}.tmp"
+        with temporary.open("xb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(target)
+        return target
 
     def summary(self) -> dict[str, Any]:
-        if not self.csv_path.exists():
-            return {"count": 0, "recent": [], "path": str(self.csv_path)}
-        with self._lock, self.csv_path.open("r", newline="", encoding="utf-8") as handle:
-            rows = list(csv.DictReader(handle))
-        return {"count": len(rows), "recent": rows[-20:][::-1], "path": str(self.csv_path)}
+        with self._lock:
+            rows, pending_count = self._combined_rows()
+            exports = sorted(self.exports_directory.glob("misclassification_log_approved_*.csv"))
+            active_path = exports[-1] if exports else self.csv_path
+        return {
+            "count": len(rows),
+            "recent": rows[-20:][::-1],
+            "path": str(active_path),
+            "pending_export_count": pending_count,
+        }
 
 
 def artifact_status(models_directory: Path = MODELS_DIRECTORY) -> list[dict[str, Any]]:

@@ -309,6 +309,7 @@ export default function Dashboard() {
   const [streamRevision, setStreamRevision] = useState(0);
   const [selectedModel, setSelectedModel] = useState('');
   const [feedbackCount, setFeedbackCount] = useState(0);
+  const [pendingCsvRows, setPendingCsvRows] = useState(0);
   const [actualLabel, setActualLabel] = useState('no_gesture');
   const [learningMode, setLearningMode] = useState<LearningMode>('safe');
   const [feedbackNote, setFeedbackNote] = useState('');
@@ -414,8 +415,9 @@ export default function Dashboard() {
         setActions(canonicalActions);
       }
       if (feedbackResponse.ok) {
-        const feedbackData = await feedbackResponse.json() as { count?: number };
+        const feedbackData = await feedbackResponse.json() as { count?: number; pending_export_count?: number };
         setFeedbackCount(feedbackData.count ?? 0);
+        setPendingCsvRows(feedbackData.pending_export_count ?? 0);
       }
     } catch {
       setHealth(null);
@@ -1231,11 +1233,19 @@ export default function Dashboard() {
           learning_mode: learningMode,
         }),
       });
-      const payload = await response.json() as { detail?: string; online_update?: { message?: string } };
+      const payload = await response.json() as {
+        detail?: string;
+        csv_export_pending?: boolean;
+        online_update?: { message?: string };
+      };
       if (!response.ok) throw new Error(payload.detail ?? 'Feedback failed.');
-      setFeedbackMessage(payload.online_update?.message ?? 'Feedback saved.');
+      const savedMessage = payload.online_update?.message ?? 'Feedback saved.';
+      setFeedbackMessage(payload.csv_export_pending
+        ? `${savedMessage} Download the latest CSV after collecting to include this reviewed sample.`
+        : savedMessage);
       setFeedbackNote('');
       setFeedbackCount((count) => count + 1);
+      if (payload.csv_export_pending) setPendingCsvRows((count) => count + 1);
       if (learningMode !== 'audit') await refreshServerData();
     } catch (error) {
       setFeedbackMessage(error instanceof Error ? error.message : 'Feedback could not be saved.');
@@ -1566,12 +1576,17 @@ export default function Dashboard() {
             <div><p className="eyebrow">GUARDED ONLINE LEARNING</p><h2>Correct, capture, and safely learn</h2></div>
             <div className="feedback-heading-actions">
               <span className="count-pill">{feedbackCount} reviewed samples</span>
+              {pendingCsvRows > 0 && <span className="count-pill">{pendingCsvRows} ready to export</span>}
+              <a className="secondary-button lab-download" href={`${API_URL}/api/feedback/export`} onClick={() => {
+                window.setTimeout(() => { void refreshServerData(); }, 800);
+              }}>Download latest CSV</a>
               <label className="camera-source-control">Camera source<select aria-label="Feedback camera source" value={cameraSource} disabled={cameraActive || connection === 'connecting'} onChange={event => changeCameraSource(event.target.value as CameraSource)}><option value="ncm">NCM board camera</option><option value="webcam">PC webcam</option></select></label>
               <button className="primary-button" type="button" onClick={toggleCamera} disabled={!serverReady || connection === 'connecting'}>
                 {connection === 'connecting' ? 'Connecting…' : cameraActive ? `Disconnect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}` : `Connect ${cameraSource === 'webcam' ? 'webcam' : 'board camera'}`}
               </button>
             </div>
           </div>
+          <p className="empty-note">Download the latest CSV after collecting reviewed samples; live captures won’t change a CSV that is open in an editor.</p>
           <div className="feedback-layout">
             <article className="panel feedback-preview">
               <div className="panel-header"><div><span className={`live-dot ${cameraActive ? 'is-online' : ''}`} /> LIVE FEEDBACK CAMERA</div><span>{cameraActive ? `${fps(cameraFps)} FPS` : 'OFFLINE'}</span></div>

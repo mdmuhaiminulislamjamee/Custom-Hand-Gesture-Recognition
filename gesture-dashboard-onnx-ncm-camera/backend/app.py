@@ -486,6 +486,19 @@ def feedback_summary() -> dict[str, Any]:
     return feedback_store.summary()
 
 
+@app.get("/api/feedback/export")
+def export_feedback_csv() -> Response:
+    export_path = feedback_store.create_export()
+    return FileResponse(
+        path=export_path,
+        media_type="text/csv",
+        filename=export_path.name,
+        headers={
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 class CollectionParticipantPayload(BaseModel):
     participant_id: str = Field(min_length=1, max_length=48)
 
