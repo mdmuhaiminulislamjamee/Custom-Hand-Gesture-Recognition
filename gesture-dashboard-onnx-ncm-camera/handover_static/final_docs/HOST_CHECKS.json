@@ -1,8 +1,8 @@
 {
   "status": "passed",
   "date": "2026-11-11",
-  "release_revision": "right_stability_20261111",
-  "generated_at_utc": "2026-11-11T07:27:03.219596+00:00",
+  "release_revision": "feedback_refresh_20261111",
+  "generated_at_utc": "2026-11-11T11:58:28.165191+00:00",
   "scope": "Current-model conversion and geometry parity, fresh Flutter host tests, native Android filter and USB-NCM checks, newly compiled Android APK",
   "toolchain": {
     "flutter": "3.47.8",
@@ -67,7 +67,7 @@
     "source_sha256": {
       "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmProtocol.kt": "243f66f8c5b3ca9691f1f7acccdcc35667c5a94049db1c82858ffdcead56adc1",
       "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmStream.kt": "486bf40148981cba46b70b72f33165f204db6acbee541a85fe2531d2bb22237e",
-      "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "1e9ea3ff333343e5bd3bdfccefa4131616d1fab42ecd3f8eae282495abb16a2b"
+      "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "c4e3c36766bdf17eafac14764d2a8fe7bb50ba2c474cfa5ad143ca9ac9284945"
     },
     "physical_usb_tested": false
   },
@@ -79,23 +79,23 @@
         "qualified_for_loading": true,
         "fixture_rows": 26,
         "top1_agreement": 1.0,
-        "maximum_probability_error": 8.304032047823373e-07,
-        "maximum_mass_error": 6.556510925292969e-07
+        "maximum_probability_error": 8.493661880493164e-07,
+        "maximum_mass_error": 4.76837158203125e-07
       },
       "int8": {
         "qualified_for_loading": false,
         "fixture_rows": 26,
         "top1_agreement": 1.0,
-        "maximum_probability_error": 0.1038767464727971,
-        "maximum_mass_error": 0.03973984718322754
+        "maximum_probability_error": 0.06514507532119751,
+        "maximum_mass_error": 0.16509582102298737
       }
     },
     "physical_ios_tested": false
   },
   "conversion": {
     "schema_version": 1,
-    "source_onnx_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
-    "runtime_config_sha256": "d9dc97419d483917dc1e756e08a4c222493dd35830dc0708c3e1d28108451ef7",
+    "source_onnx_sha256": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
+    "runtime_config_sha256": "82e4341c9c22a3e1b1139e6db7a464187f80cb8622d96dca90de3ffd0de1528e",
     "scalar_gates": {
       "known_mass_floor": 0.7,
       "confidence_floor": 0.75,
@@ -105,38 +105,38 @@
     "converter": "explicit_builtin_flatbuffer_graph",
     "calibration": {
       "source": "models\\gesture_online_replay_cache.npz",
-      "sha256": "4ba5a8e310b2fa73d0a38412d2c9b7c0db656e744c9d13cfa0bbad61778e9c47",
+      "sha256": "0143a7d09f53942acceddcf7acf00139be581a5bf6a8c2ca5ec76d324ebac259",
       "rows": 1391,
-      "indices_sha256": "6a6f556e49d175498bebb3d5edcd4dfc30b572bcff577ad9a08eb3a36ba95945",
+      "indices_sha256": "1de85faf79341e9718f6b67be8e13549fb9e3f4a26ed2db71a01028bdff1b45c",
       "test_used_for_calibration": false
     },
     "models": {
       "float32": {
         "passed": true,
-        "model_sha256": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
+        "model_sha256": "cbd53a5c6874172ec8b16cb07c96c228a3063252f0156a7ee9232b4861d3f192",
         "bytes": 78960,
         "evaluation": {
           "validation": {
             "rows": 9031,
             "source_sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a",
             "top1_agreement": 1.0,
-            "maximum_probability_error": 2.3245811462402344e-06,
-            "mean_probability_error": 3.176634733037531e-09,
-            "maximum_mass_error": 9.834766387939453e-07,
+            "maximum_probability_error": 1.9073486328125e-06,
+            "mean_probability_error": 3.286412253444837e-09,
+            "maximum_mass_error": 1.7285346984863281e-06,
             "scalar_gate_agreement": 1.0,
             "source_scalar_metrics": {
-              "accepted_precision": 0.9947282540479477,
+              "accepted_precision": 0.9947289156626506,
               "unknown_false_accept_rate": 0.018199233716475097,
-              "acceptance_rate": 0.8821835898571587
+              "acceptance_rate": 0.8822943195659395
             },
             "tflite_scalar_metrics": {
-              "accepted_precision": 0.9947282540479477,
+              "accepted_precision": 0.9947289156626506,
               "unknown_false_accept_rate": 0.018199233716475097,
-              "acceptance_rate": 0.8821835898571587
+              "acceptance_rate": 0.8822943195659395
             },
             "host_invoke": {
               "p50_ms": 0.0035,
-              "p95_ms": 0.0063,
+              "p95_ms": 0.0041,
               "scope": "warm host CPU invoke only; not iPhone or camera latency"
             },
             "geometry_and_temporal_not_included": true
@@ -145,9 +145,9 @@
             "rows": 9042,
             "source_sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd",
             "top1_agreement": 1.0,
-            "maximum_probability_error": 1.9073486328125e-06,
-            "mean_probability_error": 3.2020044393732405e-09,
-            "maximum_mass_error": 1.9073486328125e-06,
+            "maximum_probability_error": 2.1457672119140625e-06,
+            "mean_probability_error": 3.1861979721270473e-09,
+            "maximum_mass_error": 1.7285346984863281e-06,
             "scalar_gate_agreement": 1.0,
             "source_scalar_metrics": {
               "accepted_precision": 0.9958095238095238,
@@ -160,8 +160,8 @@
               "acceptance_rate": 0.8709356337093563
             },
             "host_invoke": {
-              "p50_ms": 0.0035,
-              "p95_ms": 0.0063,
+              "p50_ms": 0.0034,
+              "p95_ms": 0.0035,
               "scope": "warm host CPU invoke only; not iPhone or camera latency"
             },
             "geometry_and_temporal_not_included": true
@@ -170,30 +170,30 @@
       },
       "int8": {
         "passed": true,
-        "model_sha256": "53ef43b3caa1a83aa52eb2466f3f3ea453b281274c4244885d19f86b5b137495",
+        "model_sha256": "3d066d70e5dbf94d0ebc5fc8c8963043bb5e62d8c6f3194d8c7c7ac868495fdc",
         "bytes": 23240,
         "evaluation": {
           "validation": {
             "rows": 9031,
             "source_sha256": "fdd6700f0c2aa12bca95e330df7d77533fed4b55279afce1255bbd82b02e289a",
-            "top1_agreement": 0.995903000775108,
-            "maximum_probability_error": 0.2914661467075348,
-            "mean_probability_error": 0.0005403639515861869,
-            "maximum_mass_error": 0.3272443413734436,
-            "scalar_gate_agreement": 0.9993356217473148,
+            "top1_agreement": 0.9951278928136419,
+            "maximum_probability_error": 0.3315277397632599,
+            "mean_probability_error": 0.0005298553733155131,
+            "maximum_mass_error": 0.23488762974739075,
+            "scalar_gate_agreement": 0.9987819732034104,
             "source_scalar_metrics": {
-              "accepted_precision": 0.9947282540479477,
+              "accepted_precision": 0.9947289156626506,
               "unknown_false_accept_rate": 0.018199233716475097,
-              "acceptance_rate": 0.8821835898571587
+              "acceptance_rate": 0.8822943195659395
             },
             "tflite_scalar_metrics": {
-              "accepted_precision": 0.9949780288763339,
-              "unknown_false_accept_rate": 0.016283524904214558,
-              "acceptance_rate": 0.8819621304395969
+              "accepted_precision": 0.9943531183335425,
+              "unknown_false_accept_rate": 0.019157088122605363,
+              "acceptance_rate": 0.8824050492747204
             },
             "host_invoke": {
-              "p50_ms": 0.0029,
-              "p95_ms": 0.0051,
+              "p50_ms": 0.0028,
+              "p95_ms": 0.0033,
               "scope": "warm host CPU invoke only; not iPhone or camera latency"
             },
             "geometry_and_temporal_not_included": true
@@ -201,24 +201,24 @@
           "untouched_test": {
             "rows": 9042,
             "source_sha256": "ec5560e383e4e4c6366b90d01dd72e82bc5eedb8b7edeb6acba0a14dbad098dd",
-            "top1_agreement": 0.995576199955762,
-            "maximum_probability_error": 0.3013608455657959,
-            "mean_probability_error": 0.000552009791135788,
-            "maximum_mass_error": 0.2631264328956604,
-            "scalar_gate_agreement": 0.9991152399911524,
+            "top1_agreement": 0.9953550099535501,
+            "maximum_probability_error": 0.28745755553245544,
+            "mean_probability_error": 0.000523444265127182,
+            "maximum_mass_error": 0.3726254999637604,
+            "scalar_gate_agreement": 0.9995576199955762,
             "source_scalar_metrics": {
               "accepted_precision": 0.9958095238095238,
               "unknown_false_accept_rate": 0.00800711743772242,
               "acceptance_rate": 0.8709356337093563
             },
             "tflite_scalar_metrics": {
-              "accepted_precision": 0.9955566840167577,
-              "unknown_false_accept_rate": 0.0071174377224199285,
-              "acceptance_rate": 0.8711568237115682
+              "accepted_precision": 0.9956847315649194,
+              "unknown_false_accept_rate": 0.00800711743772242,
+              "acceptance_rate": 0.8713780137137801
             },
             "host_invoke": {
               "p50_ms": 0.0029,
-              "p95_ms": 0.00624499999999989,
+              "p95_ms": 0.0032,
               "scope": "warm host CPU invoke only; not iPhone or camera latency"
             },
             "geometry_and_temporal_not_included": true
@@ -260,14 +260,14 @@
       "failures": []
     }
   },
-  "source_model_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
-  "runtime_config_sha256": "d9dc97419d483917dc1e756e08a4c222493dd35830dc0708c3e1d28108451ef7",
+  "source_model_sha256": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
+  "runtime_config_sha256": "82e4341c9c22a3e1b1139e6db7a464187f80cb8622d96dca90de3ffd0de1528e",
   "android_artifact": {
     "passed": true,
-    "sha256": "35da9b9f2fb785eba0f9ca7806a83a6f92d76581bbb3962baf6025f2973d3661",
+    "sha256": "12e52310a94cec1f32d7bb7d5374c42a18f5f07270332e4c5162534f360b4a0e",
     "bytes": 30172630,
-    "version_name": "2.0.10",
-    "version_code": 12,
+    "version_name": "2.0.11",
+    "version_code": 13,
     "mode": "release",
     "abi": "arm64-v8a",
     "minimum_api": 24,
@@ -280,7 +280,7 @@
   },
   "source_sha256": {
     "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/MainActivity.kt": "81e0137e86bf7a9cd3b112617e91919d86b0d11360ad6fff5357510bb96481db",
-    "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "1e9ea3ff333343e5bd3bdfccefa4131616d1fab42ecd3f8eae282495abb16a2b",
+    "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "c4e3c36766bdf17eafac14764d2a8fe7bb50ba2c474cfa5ad143ca9ac9284945",
     "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmProtocol.kt": "243f66f8c5b3ca9691f1f7acccdcc35667c5a94049db1c82858ffdcead56adc1",
     "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmStream.kt": "486bf40148981cba46b70b72f33165f204db6acbee541a85fe2531d2bb22237e",
     "flutter_gesture_tester/lib/main.dart": "924e1cf175d69020d08158d77c8723df6431b5f7bbdd664a9b2c5b2a61bb2c22",
@@ -289,18 +289,18 @@
     "flutter_gesture_tester/lib/services/phone_frame_gate.dart": "61bcc5b9598db891ca595eee74996f48122083f9613c162a4fc9a956f8786abe",
     "flutter_gesture_tester/lib/services/phone_static_gesture_engine.dart": "b22f6eec5c7b7fd62484273fcddd3e53f1ef35ffc0898d316ec31fb8c8e0b3b2",
     "flutter_gesture_tester/pubspec.lock": "507558c83e77dfa68b41a1f4bce366a20d466165a825f73070d088d97a61fb4f",
-    "flutter_gesture_tester/pubspec.yaml": "d0aad9e6c49797da272c5f54541e14432941b6d02c9bf23c4690ecf7c926c02d",
+    "flutter_gesture_tester/pubspec.yaml": "a451f61f39d9719c5b9c1d65f978e822b8e51e2d0f28540a07ea3ec698d7310d",
     "flutter_gesture_tester/test/android_ncm_transport_test.dart": "cdd92451b149f00e7060a4c9c9f079c29f6a198072e92b6ac14a7943f7877843",
     "flutter_gesture_tester/test/gesture_result_test.dart": "ec71e0709bee7fcb1013dd3c83d9f5e16c03d6bcf4e5d6ac12dc587a2abeb81f",
     "flutter_gesture_tester/test/phone_frame_gate_test.dart": "d2a3c12bc3a0b14aec92a3a96972b8109d46bfabe8dd4d8db17aadc6ce66919f",
-    "source_model/gesture_artifact_manifest.json": "0e55be90ec3331bc30c8cccafe6eb0258c5c3fed132a48f50bf9d0996638d696",
-    "source_model/gesture_mlp_onnx_metadata.json": "a6c77c01b673d500dffa6c19c10d95a0e1747f428d7845f0d21dc4a85c497bf2",
-    "source_model/gesture_mlp_production.onnx": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
-    "source_model/gesture_mobile_runtime_config.json": "d9dc97419d483917dc1e756e08a4c222493dd35830dc0708c3e1d28108451ef7",
-    "static_gesture_runtime/flutter/assets/models/gesture_static_float32.tflite": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
-    "static_gesture_runtime/flutter/assets/models/gesture_static_float32_manifest.json": "55017c9c2343fbbbd67821ee183f8e2271c4727d6f41386905be72d707220a1d",
-    "static_gesture_runtime/flutter/assets/models/gesture_static_int8.tflite": "53ef43b3caa1a83aa52eb2466f3f3ea453b281274c4244885d19f86b5b137495",
-    "static_gesture_runtime/flutter/assets/models/gesture_static_int8_manifest.json": "147ef9592a0179aba62f64eb2711f3b31d1fcb5dc9cd3984215ad8492f0d01dd",
+    "source_model/gesture_artifact_manifest.json": "548aea57cf1809976eb24c7e43f833ccf8f1bdc6cff3b44814e49b6a388d430a",
+    "source_model/gesture_mlp_onnx_metadata.json": "cd66c26c1e504fdbd0fc9b098598ec48a9d8519d62aff42fac2f03b016f85725",
+    "source_model/gesture_mlp_production.onnx": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
+    "source_model/gesture_mobile_runtime_config.json": "82e4341c9c22a3e1b1139e6db7a464187f80cb8622d96dca90de3ffd0de1528e",
+    "static_gesture_runtime/flutter/assets/models/gesture_static_float32.tflite": "cbd53a5c6874172ec8b16cb07c96c228a3063252f0156a7ee9232b4861d3f192",
+    "static_gesture_runtime/flutter/assets/models/gesture_static_float32_manifest.json": "d8cf020f5a9c444f6fc2f48801261f4cc9da4540019a0d6467d4c576eb0e61f4",
+    "static_gesture_runtime/flutter/assets/models/gesture_static_int8.tflite": "3d066d70e5dbf94d0ebc5fc8c8963043bb5e62d8c6f3194d8c7c7ac868495fdc",
+    "static_gesture_runtime/flutter/assets/models/gesture_static_int8_manifest.json": "3982506b754d467dd23800f16608329b41bf9ab32ff4692109b4fbb40578f172",
     "static_gesture_runtime/flutter/lib/detector/camera_frame_adapter.dart": "c55ff8b2038b17c4b6ebae8fff4511985ca511e49133b464a2b0a8a197ce9e56",
     "static_gesture_runtime/flutter/lib/detector/hand_detector_factory.dart": "ed388f2cc1a506e389dae5c982746845484776e1de80eeec344e7f3a6ec0252a",
     "static_gesture_runtime/flutter/lib/ncm_static_gesture_runtime.dart": "ed4d2e27343734ad4777496875c0b87c07e68393a6d024b1622b40a22d9b2da2",
@@ -369,18 +369,20 @@
     "static_gesture_runtime/flutter/third_party/hand_detection/lib/src/web/models/palm_detector_web.dart": "d1f6ec61c5767baa6227e464d6a764bab774de025ce0160701a5da58e43186e5",
     "static_gesture_runtime/flutter/third_party/hand_detection/pubspec.yaml": "7c7a6e241491a15245210ad21f030987b92c68fa60b9a971896b6fbbf29ef7fc",
     "static_gesture_runtime/validation/cache_geometry_reference.json": "37abc30e045386e2174ff5b22034a388d984cfdb37b09673d35238f86e3cf357",
-    "static_gesture_runtime/validation/conversion_report.json": "d719cf5102374badbf8f96873551524c0b195ad35f6b7d846b7a066c19fee92b",
+    "static_gesture_runtime/validation/conversion_report.json": "61e547daab8c2966d251cba6be08341eacdc637663b16200b13448537c9d8a5d",
     "static_gesture_runtime/validation/dart_cache_geometry_parity.json": "1de2af9870e8da87acff619c16e243a0f6138440c960354e82ee85b46a7188d3",
     "static_gesture_runtime/validation/dart_geometry_parity.json": "ad3aeda184642b67d6f23ad70a629202f3b12bff0d5ab14b1871ea618b4704ef",
     "static_gesture_runtime/validation/direction_pose_reference.json": "5ebfb398231e442fc72f785675578b06761a9e670f1bc0b607951000f5a7be0a",
-    "static_gesture_runtime/validation/direction_rule_latency.json": "259954f538418e3151f38f492645e29fbed839d11da1f962eec3a1656ec987de",
+    "static_gesture_runtime/validation/direction_rule_latency.json": "df0ea24a8fb630eed98fe22459e2ed97bd66a640acbc4eb6f3b5597edc3a41b4",
     "static_gesture_runtime/validation/direction_stability_release.json": "1f7a59ecc97296d58e5d05b00641bc05fe86db5d6bca534975ccd3688debe2a7",
     "static_gesture_runtime/validation/false_hand_policy.json": "1ba46bfe037894267edf1c0b3b17e38b140c896e89b218b2ef7c07333284dbed",
-    "static_gesture_runtime/validation/latency_comparison.json": "37fc15cb6b09afb8c7507ecba56ab0f636c820a6f1cccc72cf79c6136655b3f0",
-    "static_gesture_runtime/validation/model_parity.json": "2ee1145102fa007fe68e4e48a01ca7b9ade01fd2b7310640c0735ca8a0181678",
-    "static_gesture_runtime/validation/model_reference.json": "2ee1145102fa007fe68e4e48a01ca7b9ade01fd2b7310640c0735ca8a0181678",
+    "static_gesture_runtime/validation/feedback_refresh_release.json": "280e93479570d8d6452f493371338bad58e5b285e71ed2899386f9f4efc7ea03",
+    "static_gesture_runtime/validation/latency_comparison.json": "248665d8d7a278a7d7fb6ab5595238f8169c30691ba2f25e1fd075d1f8910df9",
+    "static_gesture_runtime/validation/model_parity.json": "b6dacf102358068c663166eee6585eae79a18dad583dbd9b645a51fb6dea2b02",
+    "static_gesture_runtime/validation/model_reference.json": "b6dacf102358068c663166eee6585eae79a18dad583dbd9b645a51fb6dea2b02",
+    "static_gesture_runtime/validation/onnx_latency.json": "624d24d67df7a8c40d6daef95e568091d46f924e01bf69dc9d316cd9faef9c2e",
     "static_gesture_runtime/validation/overlay_checks.json": "832a18f6eaf07cf6c2ca51bfd7ba6ad1071db0b5104856f1e72200f675519180",
-    "static_gesture_runtime/validation/python_reference.json": "7195c1da1d5e3636b913da7b34be44dc42a630f2031859ab68bb62142d52f62a",
+    "static_gesture_runtime/validation/python_reference.json": "57f8846e8e04b2b4bad4abd901968753b3dfad89ef9f14f0a7f3291b201cfbda",
     "static_gesture_runtime/validation/right_pose_reference.json": "bde63b278b196ee4c91fb45d23d9b03297cf6c5208e0c918098983dd3683423b",
     "static_gesture_runtime/validation/right_stability_release.json": "75d82faf4cb0ea127901b43d3a2cecabe86559a995852f46c352c710ddb72d89",
     "static_gesture_runtime/validation/thumb_surface_checks.json": "847536baaac3f1a41c4be04d61265ef963abc069e9af8684afa0a3651c6e78e9"

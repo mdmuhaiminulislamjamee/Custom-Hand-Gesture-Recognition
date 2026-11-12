@@ -284,9 +284,21 @@
     "above_limit": "no_gesture"
   },
   "stop_inverted_release": {
-    "model_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+    "model_sha256": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
     "offline_checks": {
+      "frozen_encoder_and_other_heads": true,
+      "same_graph": true,
+      "same_model_bytes": true,
+      "scalar_test_per_class_preserved": true,
+      "scalar_test_accepted_precision_preserved": true,
+      "scalar_test_unknown_false_accept_preserved": true,
+      "runtime_test_per_class_preserved": true,
+      "runtime_test_accepted_precision_preserved": true,
+      "runtime_test_unknown_false_accept_preserved": true,
       "onnx_parity": true,
+      "heldout_files_unchanged": true,
+      "saved_image_holds_preserved": true,
+      "host_onnx_latency_preserved": true,
       "offline_macro_f1_at_least_0_97": true,
       "offline_accepted_precision_at_least_0_99": true,
       "offline_unknown_false_accept_at_most_0_02": true,
@@ -298,21 +310,9 @@
       "runtime_unknown_false_accept_at_most_0_02": true,
       "stop_precision": true,
       "runtime_stop_precision": true,
-      "runtime_stop_recall": true,
-      "right_only_weights_preserved": true,
-      "right_preservation_matches_model": true,
-      "right_non_right_decisions_preserved": true,
-      "horizontal_feedback_matches_model": true,
-      "horizontal_feedback_matches_dataset": true,
-      "feedback_replay_matches_runtime_sources": true,
-      "reviewed_left_classified_and_executed": true,
-      "reviewed_left_angle_mirror_aspect_variants": true,
-      "left_stress_baseline_bound": true,
-      "reviewed_right_classified_and_executed": true,
-      "reviewed_right_angle_mirror_aspect_variants": true,
-      "reviewed_directional_jpeg_detection_and_actions": true
+      "runtime_stop_recall": true
     },
-    "evaluation": "artifacts/right_stability_20261111/evaluation.json",
+    "evaluation": "artifacts/feedback_refresh_20261111/evaluation.json",
     "live_camera_validation_pending": true
   },
   "open_palm_rotation_validation": {
@@ -323,5 +323,38 @@
     "endpoints_inclusive": true,
     "symmetric_about_up": true,
     "outside_range": "no_gesture"
+  },
+  "feedback_refresh_release": {
+    "model_sha256": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
+    "evaluation": "artifacts/feedback_refresh_20261111/evaluation.json",
+    "unused_records": 990,
+    "offline_checks": {
+      "frozen_encoder_and_other_heads": true,
+      "same_graph": true,
+      "same_model_bytes": true,
+      "scalar_test_per_class_preserved": true,
+      "scalar_test_accepted_precision_preserved": true,
+      "scalar_test_unknown_false_accept_preserved": true,
+      "runtime_test_per_class_preserved": true,
+      "runtime_test_accepted_precision_preserved": true,
+      "runtime_test_unknown_false_accept_preserved": true,
+      "onnx_parity": true,
+      "heldout_files_unchanged": true,
+      "saved_image_holds_preserved": true,
+      "host_onnx_latency_preserved": true,
+      "offline_macro_f1_at_least_0_97": true,
+      "offline_accepted_precision_at_least_0_99": true,
+      "offline_unknown_false_accept_at_most_0_02": true,
+      "old_command_correct_accept_at_least_0_98": true,
+      "new_command_recall_at_least_0_97": true,
+      "retired_call_false_accept_at_most_0_02": true,
+      "runtime_peace_recall_at_least_0_95": true,
+      "runtime_rock_recall_at_least_0_97": true,
+      "runtime_unknown_false_accept_at_most_0_02": true,
+      "stop_precision": true,
+      "runtime_stop_precision": true,
+      "runtime_stop_recall": true
+    },
+    "live_camera_validation_pending": true
   }
 }

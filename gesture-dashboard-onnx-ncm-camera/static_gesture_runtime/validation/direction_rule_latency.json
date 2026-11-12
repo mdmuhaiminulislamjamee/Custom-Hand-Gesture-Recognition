@@ -1,24 +1,24 @@
 {
   "scope": "Alternating same-host CPU landmark geometry; excludes camera, detector, Flutter and physical-phone latency",
-  "baseline_source_sha256": "0964a683fa352c743a37037d3af32428dfe93a4bd2067cd9251e1d332ae944f8",
+  "baseline_source_sha256": "6dd7cd38c26268562254c071184eaca4547e3ab9054ac5070a80108a84724a5f",
   "current_source_sha256": "6dd7cd38c26268562254c071184eaca4547e3ab9054ac5070a80108a84724a5f",
   "rules": {
     "previous": {
       "samples": 1640,
-      "p50_ms": 3.3034499999999998,
-      "p95_ms": 5.38437
+      "p50_ms": 2.81475,
+      "p95_ms": 2.940715
     },
     "current": {
       "samples": 1640,
-      "p50_ms": 3.27895,
-      "p95_ms": 5.4154
+      "p50_ms": 2.8185,
+      "p95_ms": 2.985175
     }
   },
   "state_update": {
-    "p50_ms": 0.0012,
-    "p95_ms": 0.0015
+    "p50_ms": 0.0007,
+    "p95_ms": 0.0008
   },
-  "p95_delta_ms": 0.031030000000000335,
+  "p95_delta_ms": 0.044459999999999944,
   "frame_budget_ms": 100,
   "additional_p95_below_one_ms": true,
   "scheduling_changed": false,

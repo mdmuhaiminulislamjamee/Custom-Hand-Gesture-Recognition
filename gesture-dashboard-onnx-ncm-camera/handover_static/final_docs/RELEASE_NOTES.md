@@ -1,64 +1,46 @@
-﻿# Current model delivery - 11 November 2026
+# Feedback refresh - 11 November 2026
 
-- Retrained only the 65 Right output parameters using 3,837 usable feedback
-  landmarks, including 331 new Right poses and 90 new hard negatives. Eleven
-  invalid rows were excluded. Normalization, hidden layers and all other output
-  columns remain bit-identical. The installed ONNX is
-  `aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992`.
-  The previous production bundle is backed up in the source repository.
-- Retained strict entry and bounded continuation for Left/Right/Up/Down. One
-  marginal frame may retain a confirmed direction within 200 ms; two invalid
-  observations release it. Clear opposite directions and other gestures can
-  enter immediately. Missing hands and multi-finger contradictions cannot
-  retain a direction. Existing positive 3-D single-index turns are preserved.
-- Retained the strict model/3-D single-index exception to incorrect generic Dorsal
-  rejection on Left/Right. It requires full known mass and cannot grant a new
-  low-mass recovery. No extra prediction panels were added.
-- Added a Right side-view correction for folded fingers wrongly triggering the
-  generic open-palm angle veto. Entry requires metric world landmarks, no
-  competing-finger contradiction, a strongly isolated straight index, confidence
-  >= .95 and full known mass. Missing depth cannot use this new entry path.
-  Existing one-frame/200 ms grace bridges a marginal result without authorizing
-  a new command. Global thresholds and other gesture rules are unchanged.
-- Replayed all 739 saved Left/Right JPEGs. Per-class final-direction and action
-  counts are in `validation/right_stability_release.json` inside the runtime.
-  Saved images and transformed poses are training regression evidence.
-- Matched current scalar gates: confidence .75, margin .10, known mass .70.
-  Regenerated conversion, model and geometry fixtures for this source.
-- Retained the previous speed policy: 100 ms minimum admission spacing,
-  newest pending frame replacement, persistent one-thread classifier,
-  immediate strong valid predictions, ordinary two of three confirmation,
-  independent hand state and no fixed action cooldown. Geometry recoveries
-  keep their existing hold requirements.
-- GestureLab 2.0.10 retains the continuous NCM preview, USB descriptor
-  diagnostics and board-specific USB-NCM fallback with forced interface claims.
-  Camera admission uses monotonic time; paused or replaced sessions discard
-  in-flight results. Repeated commands after a valid release appear in history.
-- Retained face/ear/background filtering before classification and overlays,
-  Open Palm/Stop Inverted surface correction and Like/Thumb Down direction
-  correction. The same detector/runtime serves phone and NCM sources.
-- Included current Android source and a rebuilt ARM64 diagnostic release APK,
-  matching runtime assets and manifests, exact source ONNX/configuration,
-  integration guides and extracted-payload verification.
-- FP32 remains the only integration default. The refreshed INT8 candidate
-  passes offline conversion gates but remains blocked pending its own geometry,
-  controller and mobile qualification.
+- Used all 990 new valid reviewed records absent from the previous training
+  snapshot: 480 Down, 240 Thumb Down, 150 Stop Inverted, 90 Like and 30 rejection
+  examples. One existing duplicate ID was deduplicated for fitting; 11 older
+  rows without finite 21x2 landmarks were excluded. Forty-two new JPEGs had been
+  deleted, so those records train from their saved landmarks only.
+- Fitted output corrections on the released 76/128/64/14 MLP. The installed
+  ONNX is `d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044`.
+  Normalization, hidden layers, unaffected output columns, 17 operations and the
+  77,797-byte ONNX size are retained. Runtime rules and scheduling are retained.
+- Larger joint, coordinate and hidden-layer fits were retained as experiments
+  and rejected when preservation gates failed. The accepted conservative step
+  improves accepted correctness on the 990 new training rows from 628 to 630.
+  This is a training-fit result, not independent camera accuracy.
+- Every scalar and geometry-resolved per-class metric on the 9,042-row fixed
+  regression test split is preserved. Scalar macro F1 remains 0.9910724152 and
+  accepted precision 0.9958095238. The 9,031-row validation split and earlier
+  reviewed corrections were also checked. These reused benchmarks support
+  regression acceptance, not a new blind generalization estimate.
+- A deterministic 48-image, 12-frame hold replay retains 38 correct final
+  classifications and improves observed expected actions from 37 to 38.
+  The sample includes existing Left/Right and new positive gesture captures.
+  Saved training images cannot establish new-person or physical-camera accuracy.
+- Retained .75 confidence, .10 margin, .70 known mass, bounded directional
+  continuation, the metric-world Right correction, existing ghost/face/body
+  rejection, independent hand state and all twelve command mappings.
+- Retained persistent inference, 100 ms minimum frame admission, latest pending
+  frame replacement, immediate strong confirmation, ordinary two-of-three
+  confirmation and no fixed action cooldown. No extra inference pass is used.
+- Regenerated FP32/INT8 assets, model fixtures and integrity records from the
+  selected ONNX. FP32 remains the qualified default; INT8 stays blocked pending
+  precision-specific geometry/controller and target-device acceptance.
+- Included GestureLab 2.0.11 source, current USB-NCM/preview behavior and a newly
+  built ARM64 diagnostic release APK. Existing archives remain immutable.
 
-`HOST_CHECKS.json` records fresh checks and source hashes.
-`static_gesture_runtime/validation/right_stability_release.json` includes exact
-non-Right preservation checks on both held-out splits, old feedback and new hard
-negatives, per-class comparisons, backend failures and current Flutter counts.
-The six existing backend failures were reproduced before this change; they
-remain explicit rather than being presented as a fully passing backend suite.
-The extra Right fixtures check 96 mass/shape combinations and confidence-dip,
-release and rearming behavior. The v2.0.9 direction report is historical.
-`static_gesture_runtime/validation/latency_comparison.json` compares old/current
-classifier invocation on the same host. It excludes detection, camera transport,
-rendering and action confirmation and does not establish mobile latency.
-Current measured medians and percentiles are retained in the timing JSON.
-No extra inference pass was added; the FP32 model remains 78,960 bytes.
+Fresh evidence is in `static_gesture_runtime/validation/feedback_refresh_release.json`,
+`validation/conversion_report.json`, `validation/onnx_latency.json`,
+`validation/latency_comparison.json` and root `HOST_CHECKS.json`.
+The six existing fist-orientation/hand-ownership backend failures were reproduced
+before training and remain explicit. Ghost detection work is deferred.
 
-The APK uses release Dart code with Android shrinking disabled and the Android
-debug signing key for testing. iOS build/signing and physical iPhone/NCM tests
-remain app-team acceptance steps. The native filter update is retained as a
-reference; the complete integration path in this delivery is Flutter/LiteRT.
+Same-host classifier timing excludes camera capture, transport, detector,
+rendering and confirmation. Physical iPhone/NCM speed and accuracy, iOS builds
+and signing remain device acceptance work. The Android APK uses release Dart,
+disabled shrinking and a debug signing key for test distribution.

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "model_name": "StopInvertedRightFeedbackMLP",
-  "source_onnx_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+  "model_name": "StaticFeedbackRefreshMLP",
+  "source_onnx_sha256": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
   "model_file": "gesture_static_float32.tflite",
-  "model_sha256": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
+  "model_sha256": "cbd53a5c6874172ec8b16cb07c96c228a3063252f0156a7ee9232b4861d3f192",
   "model_bytes": 78960,
   "labels": [
     "left",

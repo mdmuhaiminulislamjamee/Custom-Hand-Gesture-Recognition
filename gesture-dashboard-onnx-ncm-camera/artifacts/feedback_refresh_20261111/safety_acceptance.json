@@ -1,0 +1,65 @@
+{
+  "protocol": "Validation-fitted weights; fixed test benchmark used as release acceptance for predefined reduced steps. No independent generalization claim.",
+  "test_used_for_acceptance": true,
+  "test_used_for_gradient": false,
+  "baseline_new_correct": 628,
+  "selected_factor": 0.0625,
+  "selected_new_correct": 630,
+  "trials": [
+    {
+      "factor": 0.5,
+      "checks": {
+        "val": false,
+        "test": false,
+        "old_feedback": true,
+        "new_correct_retained": true
+      },
+      "new_feedback_correct": 654,
+      "model_sha256": "7df73da79ac79c3804162e1d2887dedad145e0aea47e0801b2f2a8c86b5d8514"
+    },
+    {
+      "factor": 0.25,
+      "checks": {
+        "val": true,
+        "test": false,
+        "old_feedback": true,
+        "new_correct_retained": true
+      },
+      "new_feedback_correct": 643,
+      "model_sha256": "72f2966a19caf7155a994561cd3daffc48c59810c376f52154555503fef99a1e"
+    },
+    {
+      "factor": 0.125,
+      "checks": {
+        "val": false,
+        "test": false,
+        "old_feedback": true,
+        "new_correct_retained": true
+      },
+      "new_feedback_correct": 638,
+      "model_sha256": "91521c347549121f09b31841f7ac1881ef5a734cd3b226d06a0faa66e103de62"
+    },
+    {
+      "factor": 0.0625,
+      "checks": {
+        "val": true,
+        "test": true,
+        "old_feedback": true,
+        "new_correct_retained": true
+      },
+      "new_feedback_correct": 630,
+      "model_sha256": "961909407fbe9ac424a814ce467de26f37d530abc26cde2026aca3fcd483d3f5"
+    },
+    {
+      "factor": 0.03125,
+      "checks": {
+        "val": true,
+        "test": true,
+        "old_feedback": true,
+        "new_correct_retained": true
+      },
+      "new_feedback_correct": 629,
+      "model_sha256": "9509cbf0f0312205ff85f7608107db7f8e23dc93140dea56a815305852eed5d1"
+    }
+  ]
+}

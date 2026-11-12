@@ -50,10 +50,17 @@ Install `build/app/outputs/flutter-apk/app-release.apk` on a 64-bit Android API
 screen but are not connected to Boss app actions.
 
 The current NCM tester build is
-`releases/GestureLab-v2.0.10-litert-ncm-arm64-diagnostic-release.apk`. It is a
+`releases/GestureLab-v2.0.11-litert-ncm-arm64-diagnostic-release.apk`. It is a
 release-optimized test build signed with the Android debug certificate; replace
 that signing configuration with the owner's production key before store or Boss
 app distribution.
+
+Version 2.0.11 includes the preservation-qualified feedback refresh. Training
+uses 990 additional reviewed landmark records. Larger fits were rejected when
+existing performance regressed; the accepted update is conservative. The graph,
+frame scheduling, geometry, direction stability and ghost filters are retained.
+Current evidence is `static_gesture_runtime/validation/feedback_refresh_release.json`
+in the complete handover. Physical camera/phone acceptance remains pending.
 
 Version 2.0.10 adds Right-only feedback training and corrects a Right side-view
 conflict with the generic open-palm angle veto. The new entry exception requires
@@ -118,7 +125,7 @@ network routing or general socket service. It is not qualified as a general TCP
 stack. Physical Realme 9/camera acceptance and sustained throughput measurement
 are still required. The gesture pipeline remains the shared qualified FP32 path.
 
-Install v2.0.10, connect the powered camera with OTG enabled, select NCM and choose
+Install v2.0.11, connect the powered camera with OTG enabled, select NCM and choose
 **Allow** in Android's USB access dialog. After a denial, tap Reconnect to request
 permission again. If streaming fails, use **USB diagnostics → Copy report**;
 the report now includes recent native initialization/link/TCP errors. Logcat tag

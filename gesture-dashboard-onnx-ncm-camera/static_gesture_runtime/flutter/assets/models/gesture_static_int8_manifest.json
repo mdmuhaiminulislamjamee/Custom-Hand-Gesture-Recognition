@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "model_name": "StopInvertedRightFeedbackMLP",
-  "source_onnx_sha256": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+  "model_name": "StaticFeedbackRefreshMLP",
+  "source_onnx_sha256": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044",
   "model_file": "gesture_static_int8.tflite",
-  "model_sha256": "53ef43b3caa1a83aa52eb2466f3f3ea453b281274c4244885d19f86b5b137495",
+  "model_sha256": "3d066d70e5dbf94d0ebc5fc8c8963043bb5e62d8c6f3194d8c7c7ac868495fdc",
   "model_bytes": 23240,
   "labels": [
     "left",
@@ -150,9 +150,9 @@
   },
   "calibration": {
     "source": "models\\gesture_online_replay_cache.npz",
-    "sha256": "4ba5a8e310b2fa73d0a38412d2c9b7c0db656e744c9d13cfa0bbad61778e9c47",
+    "sha256": "0143a7d09f53942acceddcf7acf00139be581a5bf6a8c2ca5ec76d324ebac259",
     "rows": 1391,
-    "indices_sha256": "6a6f556e49d175498bebb3d5edcd4dfc30b572bcff577ad9a08eb3a36ba95945",
+    "indices_sha256": "1de85faf79341e9718f6b67be8e13549fb9e3f4a26ed2db71a01028bdff1b45c",
     "test_used_for_calibration": false
   }
 }

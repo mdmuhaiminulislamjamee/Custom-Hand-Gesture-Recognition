@@ -1,0 +1,24 @@
+{
+  "scope": "Same-host alternating one-thread warm ONNX CPU calls; camera and physical device latency excluded",
+  "models": {
+    "baseline": {
+      "samples": 4000,
+      "p50_ms": 0.0285,
+      "p95_ms": 0.0299
+    },
+    "candidate": {
+      "samples": 4000,
+      "p50_ms": 0.0284,
+      "p95_ms": 0.0298
+    }
+  },
+  "model_sha256": {
+    "baseline": "aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992",
+    "candidate": "d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044"
+  },
+  "p95_added_ms": -9.99999999999994e-05,
+  "same_graph": true,
+  "extra_model_passes": 0,
+  "frame_budget_ms": 100,
+  "passed": true
+}

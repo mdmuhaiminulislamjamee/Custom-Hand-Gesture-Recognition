@@ -2,7 +2,7 @@
 
 Give the Boss app developer this complete archive:
 
-[Boss_Static_Gesture_Handover_20261111_right_stability.zip](Boss_Static_Gesture_Handover_20261111_right_stability.zip)
+[Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip](Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip)
 
 Its root `README.md` explains how to integrate the full pipeline, why the
 model alone is insufficient, and which file does what. `START_HERE.md` covers
@@ -15,15 +15,17 @@ qualified with the supported iPhone/NCM board.
 Verify the adjacent archive `.sha256` before transfer, and run the extracted
 `verify_handover.py` with Python 3.10+ to check the complete payload.
 
-This revision trains only the Right output using the 331 new Right poses and
-90 new hard-negative landmark records alongside the previous training data.
-It corrects the Right side-view/open-palm conflict with metric-world corroboration.
-It uses .75 confidence/.10 margin gates and preserves fast confirmation and
-latest-frame behavior. It contains GestureLab 2.0.10 source
-and a rebuilt diagnostic release APK with the later USB-NCM and preview fixes.
-Face/ear filtering, thumb-direction and Open Palm/Stop Inverted fixes are
-retained. The exact ONNX/configuration are included under `source_model/`.
+This revision fits 990 reviewed records absent from the previous training
+snapshot: 480 Down, 240 Thumb Down, 150 Stop Inverted, 90 Like and 30 rejection
+examples. Larger fits regressed existing examples and were rejected. The
+accepted update preserves fixed test class metrics; its training-fit improvement
+is modest and is not a live accuracy claim. The model graph, scalar gates,
+detector, geometry and frame scheduling are retained. GestureLab 2.0.11 source
+and a rebuilt diagnostic APK are included. The exact model/configuration are
+under `source_model/`; current evidence is in
+`static_gesture_runtime/validation/feedback_refresh_release.json`.
+Ghost policy tuning is deferred; physical device acceptance is pending.
 
 The older archives remain unchanged for history. This delivery supersedes the
-earlier 11 November `direction_stability` bundle. [START_HERE.md](final_docs/START_HERE.md) and
+earlier 11 November `right_stability` bundle. [START_HERE.md](final_docs/START_HERE.md) and
 [RELEASE_NOTES.md](final_docs/RELEASE_NOTES.md) describe integration and changes.

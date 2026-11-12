@@ -1,21 +1,18 @@
 # How to use the static gesture handover
 
-Use `Boss_Static_Gesture_Handover_20261111_right_stability.zip` as a complete Flutter
+Use `Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip` as a complete Flutter
 integration package. Extract it and start from the folder
-`Boss_Static_Gesture_Handover_20261111_right_stability/`.
+`Boss_Static_Gesture_Handover_20261111_feedback_refresh/`.
 
-This revision retrains only the Right output from the saved reviewed feedback,
-adds a metric-world Right side-view correction, and converts the qualified
-ONNX model to FP32 LiteRT. Confidence .75, margin .10 and known mass
-.70 remain the normal entry gates. Bounded continuation stabilizes all four
-directions without delaying clear entry or adding new prediction panels.
-The previous fast confirmation and newest-frame scheduling are retained.
-GestureLab 2.0.10 includes the later USB-NCM transport
-and preview fixes, monotonic camera admission and stale-session suppression.
-Cached face/ear rejection and the thumb/surface corrections remain included.
-`source_model/` contains the exact ONNX, metadata, runtime JSON and artifact
-manifest used for this release. The direction release evidence records training
-counts, JPEG replay, baseline comparisons and the exact remaining limitations.
+This revision fits 990 previously unused reviewed landmark records and selects
+a conservative update that preserves fixed regression class metrics. Larger
+fits were rejected for regressions. The graph, detector, strict directional
+entry, bounded continuation, geometry and frame scheduling are retained.
+GestureLab 2.0.11 contains the matching model and existing USB-NCM/preview fixes.
+`source_model/` contains the exact ONNX, metadata, runtime JSON and integrity
+manifest. `validation/feedback_refresh_release.json` in the runtime records
+training fit, per-class comparisons, image holds, timing and limitations.
+Ghost detection tuning is deferred; physical iOS/NCM acceptance remains pending.
 
 **The `.tflite` model alone is insufficient to reproduce this handover's
 recognition and command behavior.** Integrate the supplied runtime code with
@@ -91,7 +88,7 @@ This handover includes the candidate filters plus the earlier
 thumb/surface corrections in runtime code, so retain that code with the models.
 
 The inference dependency version is **`flutter_litert` 3.9.4**, as recorded in
-the supplied pubspec/lockfiles. **GestureLab 2.0.10** identifies the Android
+the supplied pubspec/lockfiles. **GestureLab 2.0.11** identifies the Android
 tester release; **FP32/FP16/INT8** identify model precision and are separate
 from the dependency/app version numbers.
 
@@ -106,7 +103,7 @@ from the dependency/app version numbers.
 | `static_gesture_runtime/flutter/assets/models/gesture_static_int8*` | Unqualified quantization experiment | Retained for inspection; the runtime blocks it from loading |
 | `static_gesture_runtime/flutter/example/` | NCM integration example with a two-hand preview | Use as a reference or create its iOS host on a Mac |
 | `flutter_gesture_tester/` | Android diagnostic app source using the same static runtime | Use to inspect phone-camera/NCM recognition |
-| `flutter_gesture_tester/releases/GestureLab-v2.0.10-litert-ncm-arm64-diagnostic-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
+| `flutter_gesture_tester/releases/GestureLab-v2.0.11-litert-ncm-arm64-diagnostic-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
 | `source_model/` | Exact current ONNX model and matching configuration/metadata | Reference for conversion and source identity; the Flutter app loads FP32 TFLite |
 | `static_gesture_runtime/IOS_INTEGRATION.md` | Detailed app integration and coordinate contract | Read when connecting the runtime to the existing iOS app |
 | `static_gesture_runtime/validation/` and `flutter/test/` within the runtime | Model/geometry fixtures, reports and automated tests | Use to check a port or a later change |

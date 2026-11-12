@@ -1,0 +1,333 @@
+{
+  "steps": 1800,
+  "history": [
+    {
+      "step": 50,
+      "new_correct": 639,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 100,
+      "new_correct": 651,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 150,
+      "new_correct": 655,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 200,
+      "new_correct": 670,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 250,
+      "new_correct": 689,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 300,
+      "new_correct": 712,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 350,
+      "new_correct": 723,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 400,
+      "new_correct": 737,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 450,
+      "new_correct": 749,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 500,
+      "new_correct": 768,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 550,
+      "new_correct": 778,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 600,
+      "new_correct": 790,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 650,
+      "new_correct": 794,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 700,
+      "new_correct": 804,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 750,
+      "new_correct": 813,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 800,
+      "new_correct": 815,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 850,
+      "new_correct": 816,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 900,
+      "new_correct": 820,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 950,
+      "new_correct": 826,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1000,
+      "new_correct": 830,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1050,
+      "new_correct": 833,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1100,
+      "new_correct": 833,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1150,
+      "new_correct": 830,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1200,
+      "new_correct": 837,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1250,
+      "new_correct": 838,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1300,
+      "new_correct": 836,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1350,
+      "new_correct": 836,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1400,
+      "new_correct": 836,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1450,
+      "new_correct": 836,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1500,
+      "new_correct": 837,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1550,
+      "new_correct": 836,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1600,
+      "new_correct": 837,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1650,
+      "new_correct": 836,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1700,
+      "new_correct": 837,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1750,
+      "new_correct": 838,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    },
+    {
+      "step": 1800,
+      "new_correct": 839,
+      "checks": {
+        "old": false,
+        "val": false,
+        "new_correct_retained": false
+      }
+    }
+  ],
+  "accepted_checkpoints": [],
+  "baseline_new_correct": 628,
+  "selected_new_correct": 628,
+  "test_used_for_selection": false
+}

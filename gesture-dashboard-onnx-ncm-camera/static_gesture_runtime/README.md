@@ -6,7 +6,7 @@ The production ONNX model and Windows reference use the matching qualified model
 No training or Boss-app data is required to integrate this runtime.
 
 The complete Boss handover is generated as
-`handover_static/Boss_Static_Gesture_Handover_20261111_right_stability.zip`. Start with
+`handover_static/Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip`. Start with
 its `START_HERE.md`. It includes this latest runtime, the iOS example, current
 Flutter tester source, the verified Android test APK and integrity checks.
 Earlier `candidate`, `overlay`, and `fix1` archives are superseded by that bundle.
@@ -20,7 +20,7 @@ rejected, and stricter acquisition can reduce range. The bundle also includes a
 native Android/iOS filter source update in `native_false_hand_update/`.
 
 The 11 November FP32 TFLite conversion now uses the current production ONNX
-`aa3846307c53ee4e64f0a9734b2eefce21b7bf819f43f145a5095a26706f0992`.
+`d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044`.
 It preserves the current learned model: all 18,073
 validation/test rows keep the same top label and scalar accept/reject result.
 Exact numerical errors are retained in `validation/conversion_report.json`. This measures
@@ -60,7 +60,7 @@ code, including the thumb-direction and hand-surface fixes.
 INT8 can replace FP32 only in a future release that passes qualification and
 target-device acceptance with updated matching manifests. The supplied
 inference plugin is `flutter_litert` 3.9.4. That dependency version, model
-precision and the Android tester's 2.0.10 release number describe different things.
+precision and the Android tester's 2.0.11 release number describe different things.
 
 ## Package contents
 
@@ -126,16 +126,17 @@ camera transport, detector, UI and phone performance. NCM preview results
 expose each frame's local `receiveToResultMs`, including pending-frame wait;
 it does not measure capture-to-receipt time.
 
-Only the Right output was retrained, using 3,837 usable saved landmark records
-(11 invalid rows excluded), including 331 new Right and 90 new hard negatives.
-Normalization, both hidden layers and every other output column remain identical.
-The additional Right side-view exception requires metric world landmarks and
-full known mass; missing depth and competing fingers cannot acquire Right through
-it. This corrects folded fingers falsely triggering the open-palm angle veto.
-JPEG replay, exact preservation checks and limits are recorded in
-`validation/right_stability_release.json`. Saved corrections are training
-regressions, not independent camera accuracy. The earlier
-`validation/direction_stability_release.json` is historical evidence for v2.0.9.
+This feedback refresh uses all 990 previously unused reviewed landmark records:
+480 Down, 240 Thumb Down, 150 Stop Inverted, 90 Like and 30 rejection examples.
+The accepted conservative update preserves normalization, hidden layers,
+unaffected output columns and the exact inference graph. Larger fits failed
+preservation checks and were rejected. All fixed test class metrics remain at
+the baseline; accepted correctness on the new training records changes from
+628 to 630. These fits do not establish new-camera accuracy.
+`validation/feedback_refresh_release.json` records the current comparisons,
+training scope and limitations. The earlier Right/direction release JSON files
+remain historical evidence. Their strict metric-world Right correction and
+bounded continuation are retained. Ghost policy tuning is deferred.
 
 Directions retain strict entry. A confirmed direction can survive one marginal
 visible-hand observation within 200 ms, using signed axis alignment >= .65 and

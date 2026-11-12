@@ -2,23 +2,23 @@
   "schema_version": 1,
   "scope": "Same-host one-thread warm native CPU invoke only; excludes camera, transport, detector, isolate, display and confirmation.",
   "physical_device_tested": false,
-  "baseline_archive": "handover_static\\static_gesture_runtime_20261111_direction_stability.zip",
-  "baseline_archive_sha256": "733e409fc78886ee2c41f7d8a9fc1eb37787a230d46904d8069bf2fda76e4491",
-  "previous_model_sha256": "a0d8d4df9c55ae68e21e90733253a365862ae89ceb666975d0e0e69655ed12d2",
-  "current_model_sha256": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
+  "baseline_archive": "handover_static\\static_gesture_runtime_20261111_right_stability.zip",
+  "baseline_archive_sha256": "c04af731dc1885370034cf67871fb9800cf577bdcfee05c81eef1bd1f68836fe",
+  "previous_model_sha256": "aba38e92c74e4417c65fb214970e7e45d4c9c7859172fde4662d6ddc4e7142d6",
+  "current_model_sha256": "cbd53a5c6874172ec8b16cb07c96c228a3063252f0156a7ee9232b4861d3f192",
   "previous_model_bytes": 78960,
   "current_model_bytes": 78960,
   "methodology": "100 warmup invokes each; 40 alternating-order rounds of the same 100 feature rows; set_tensor excluded from invoke timer.",
   "models": {
     "previous": {
       "samples": 4000,
-      "p50_ms": 0.0033,
-      "p95_ms": 0.006
+      "p50_ms": 0.003,
+      "p95_ms": 0.0032
     },
     "current": {
       "samples": 4000,
-      "p50_ms": 0.0033,
-      "p95_ms": 0.006
+      "p50_ms": 0.003,
+      "p95_ms": 0.0032
     }
   },
   "retained_runtime_policy": {
