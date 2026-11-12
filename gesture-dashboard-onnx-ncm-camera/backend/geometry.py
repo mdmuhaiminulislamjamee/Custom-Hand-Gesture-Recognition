@@ -781,6 +781,7 @@ class GeometryResolver:
         raw = self.config.class_names[int(np.argmax(probabilities))]
         world_index_only = False
         world_folded_pointing = False
+        world_other_fingers_curled = False
         world_pointing_contradiction = world_landmarks is not None
         world_projection_fraction = 0.0
         if world_landmarks is not None:
@@ -798,6 +799,7 @@ class GeometryResolver:
                                           for m in (9, 13, 17)]
                 other_world_reaches = [float(np.linalg.norm(world[m + 3] - world[m])) / world_palm
                                        for m in (9, 13, 17)]
+                world_other_fingers_curled = bool(max(other_world_extensions) <= .45)
                 world_index_only = bool(
                     world_index_extension >= .75
                     and world_index_straightness >= .88
@@ -1131,6 +1133,25 @@ class GeometryResolver:
         index_only = bool(index_only or short_straight_index)
         supported_pose = bool(model_agrees and index_extension >= .45
                               and index_straightness >= .80 and index_lead >= .20)
+        settings = (self.config.raw.get("directional_resolution") or {})
+        minimum_axis_dominance = float(settings.get("minimum_axis_dominance", 0.73))
+        # From a low upward-tilted camera, a downward point projects curled
+        # middle/ring/pinky fingers nearly straight in 2-D and compresses
+        # index lead. When ONNX strongly outputs down and 3-D world joints
+        # verify those three fingers are curled, accept the straight index.
+        world_folded_down = bool(
+            gesture == "down"
+            and raw == "down"
+            and model_agrees
+            and float(ordered[-1]) >= .85
+            and dy > 0
+            and dominance >= minimum_axis_dominance
+            and world_other_fingers_curled
+            and index_extension >= .70
+            and index_straightness >= .88
+            and index_reach >= .55
+            and index_lead > 0.0
+        )
         supported_pose = bool(
             supported_pose
             or (model_agrees and short_straight_index)
@@ -1142,10 +1163,9 @@ class GeometryResolver:
             or expanded_thumb_pointing
             or horizontal_pointing
             or world_directional
+            or world_folded_down
             or continued_direction
         )
-        settings = (self.config.raw.get("directional_resolution") or {})
-        minimum_axis_dominance = float(settings.get("minimum_axis_dominance", 0.73))
         directional = bool(
             (dominance >= minimum_axis_dominance or horizontal_pointing)
             and (not world_index_only or world_projection_fraction >= .20
@@ -1160,6 +1180,7 @@ class GeometryResolver:
                 or prominent_index_down
                 or horizontal_pointing
                 or world_directional
+                or world_folded_down
                 or continued_direction
             )
         )
@@ -1206,6 +1227,7 @@ class GeometryResolver:
             "world_folded_pointing": world_folded_pointing,
             "world_pointing_contradiction": world_pointing_contradiction,
             "world_directional": world_directional,
+            "world_folded_down": world_folded_down,
             "continued_direction": continued_direction,
             "world_projection_fraction": world_projection_fraction,
             "projected_index_reach_ratio": projected_reach,
@@ -1468,6 +1490,30 @@ class GeometryResolver:
         )
         spread_dorsal = together_dorsal
         deliberate_dorsal = bool(together_dorsal or spread_dorsal)
+        # In an edge-on fist or low-camera downward point, folded fingers can
+        # look straight in 2-D. Check world joints before palm_geometry_supported
+        # so curled fingers cannot overwrite a downward point as open_palm.
+        world_folded_fingers = False
+        world_closed_fingers = False
+        world_other_fingers_curled = False
+        if world_landmarks is not None:
+            world_points = np.asarray(world_landmarks, dtype=np.float32)
+            if world_points.shape == (21, 3) and np.isfinite(world_points).all():
+                world_non_thumb = np.asarray([
+                    finger_extension_score(world_points, mcp, mcp + 1, mcp + 2, mcp + 3)
+                    for mcp in (5, 9, 13, 17)
+                ])
+                world_folded_fingers = bool(
+                    float(world_non_thumb.max()) <= .80
+                    and float(world_non_thumb.mean()) <= .55
+                )
+                world_closed_fingers = bool(
+                    float(world_non_thumb.max()) <= .55
+                    and float(world_non_thumb.mean()) <= .38
+                )
+                world_other_fingers_curled = bool(
+                    float(world_non_thumb[1:].max()) <= .45
+                )
         open_palm_valid = bool(
             extended_non_thumb_count == 4
             and float(non_thumb.mean()) >= 0.78
@@ -1480,6 +1526,8 @@ class GeometryResolver:
         palm_geometry_supported = bool(
             open_palm_valid
             and palm_visible
+            and not world_folded_fingers
+            and not world_other_fingers_curled
             and float(non_thumb.min()) >= .65
             and float(non_thumb.mean()) >= .82
             and extensions[0] >= .45
@@ -1489,7 +1537,9 @@ class GeometryResolver:
         # separates the two trained open-hand commands, even with a close thumb.
         palm_geometry_supported = bool(palm_geometry_supported or (
             open_pair_model_support and model_raw == "stop_inverted"
-            and open_palm_valid and palm_visible and stop_shape["extended_fingers"]
+            and open_palm_valid and palm_visible
+            and not world_folded_fingers and not world_other_fingers_curled
+            and stop_shape["extended_fingers"]
             and open_palm_allowed_direction))
         # Only a strongly verified palmar hand within the permitted band may
         # recover low classifier mass at an oblique camera angle.
@@ -1575,26 +1625,6 @@ class GeometryResolver:
             )
         )
         like_valid = like_valid or rotated_thumb_up_support
-        # In an edge-on fist, folded fingers can look straight in the image.
-        # Their tips still cluster around the palm; when available, the world
-        # joints provide an independent check of the actual finger bends.
-        world_folded_fingers = False
-        world_closed_fingers = False
-        if world_landmarks is not None:
-            world_points = np.asarray(world_landmarks, dtype=np.float32)
-            if world_points.shape == (21, 3) and np.isfinite(world_points).all():
-                world_non_thumb = np.asarray([
-                    finger_extension_score(world_points, mcp, mcp + 1, mcp + 2, mcp + 3)
-                    for mcp in (5, 9, 13, 17)
-                ])
-                world_folded_fingers = bool(
-                    float(world_non_thumb.max()) <= .80
-                    and float(world_non_thumb.mean()) <= .55
-                )
-                world_closed_fingers = bool(
-                    float(world_non_thumb.max()) <= .55
-                    and float(world_non_thumb.mean()) <= .38
-                )
         compact_like_fingers = bool(
             (float(non_thumb.max()) <= .50 and float(non_thumb.mean()) <= .38)
             or (
@@ -1639,7 +1669,7 @@ class GeometryResolver:
         # not rescue an upward thumb in an edge-on Like view.
         rotated_thumb_down_support = bool(
             rotated_thumb_model_support
-            and -screen_thumb_up_score >= .25 and screen_thumb_down_lead >= .15
+            and -screen_thumb_up_score >= .15 and screen_thumb_down_lead >= .15
         )
         thumb_down_valid = bool(
             extensions[0] >= .55
@@ -1652,6 +1682,17 @@ class GeometryResolver:
             and extensions[0] >= .40
             and thumb_down_score >= .25
             and thumb_down_lead >= .15
+        )
+        # An upward-tilted low camera flattens a downward thumb toward the
+        # horizontal. Accept 0.15..0.25 slope when ONNX strongly outputs
+        # thumb_down and the thumb is clearly extended below folded fingers.
+        thumb_down_valid = thumb_down_valid or bool(
+            raw == "thumb_down" and float(adjusted.max()) >= .85
+            and extensions[0] >= .60
+            and float(non_thumb.mean()) <= .65
+            and raised_non_thumb_count == 0
+            and thumb_down_score >= .15
+            and thumb_down_lead >= .20
         )
         thumb_down_valid = thumb_down_valid or rotated_thumb_down_support
         thumb_down_geometry_supported = bool(
@@ -1997,6 +2038,7 @@ class GeometryResolver:
             "sideways_palm_recovery": sideways_palm_recovery,
             "like_compact_fingers": compact_like_fingers,
             "like_world_folded_fingers": world_folded_fingers,
+            "world_other_fingers_curled": world_other_fingers_curled,
             "like_geometry_supported": like_geometry_supported,
             "rotated_thumb_up_support": rotated_thumb_up_support,
             "fist_geometry_supported": fist_geometry_supported,
@@ -2148,7 +2190,7 @@ class GeometryResolver:
         elif shape.get("downward_closed_fist", False):
             valid = False
             reason = "fist points below the horizontal"
-        if shape.get("open_hand_lower_arc", False) and not right_retracted_index:
+        if shape.get("open_hand_lower_arc", False) and not right_retracted_index and not directional.get("world_folded_down", False):
             # Four extended fingers cannot become a different command simply
             # because the classifier changes its top label during rotation.
             valid = False
@@ -2157,7 +2199,9 @@ class GeometryResolver:
         # hand, even when their projected joint angles look locally straight.
         single_index = bool(directional.get("prominent_index_down", False)
                             or directional.get("reverse_palm_edge_down", False)
-                            or directional.get("horizontal_pointing", False) or model_backed_index
+                            or directional.get("horizontal_pointing", False)
+                            or directional.get("world_folded_down", False)
+                            or model_backed_index
                             or right_retracted_index)
         hard_negative = bool((shape.get("dorsal_hard_negative", False) and not single_index)
                              or resolved in DISABLED_GESTURES)

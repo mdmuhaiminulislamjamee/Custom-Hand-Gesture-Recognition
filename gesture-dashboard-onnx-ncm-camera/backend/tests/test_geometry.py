@@ -1852,3 +1852,148 @@ def test_intended_right_pose_tolerates_moderate_camera_perspective():
     assert direction['gesture'] == 'right'
     assert direction['valid'] is True
     assert config.class_names[int(np.argmax(resolved))] == 'right'
+
+
+def test_low_camera_curled_down_pose_uses_world_curl_and_blocks_open_palm_override():
+    config = RuntimeConfig()
+    # 2D projection from a low, upward-tilted camera: fingertips hang downward
+    # with straight 2D joints so middle/ring/pinky appear extended in 2D and
+    # the index finger barely leads vertically.
+    points = np.zeros((21, 2), dtype=np.float32)
+    points[0] = [0.30, 0.45]
+    points[1:5] = [
+        [0.44, 0.46],
+        [0.46, 0.49],
+        [0.45, 0.52],
+        [0.43, 0.53],
+    ]
+    points[5:9] = [
+        [0.42, 0.40],
+        [0.42, 0.48],
+        [0.42, 0.56],
+        [0.42, 0.63],
+    ]
+    points[9:13] = [
+        [0.35, 0.40],
+        [0.35, 0.47],
+        [0.35, 0.54],
+        [0.35, 0.60],
+    ]
+    points[13:17] = [
+        [0.28, 0.40],
+        [0.28, 0.47],
+        [0.28, 0.54],
+        [0.28, 0.60],
+    ]
+    points[17:21] = [
+        [0.21, 0.40],
+        [0.21, 0.46],
+        [0.21, 0.52],
+        [0.21, 0.57],
+    ]
+
+    curled_world = np.zeros((21, 3), dtype=np.float32)
+    curled_world[0] = [0.0, 0.0, 0.0]
+    curled_world[1:5] = [
+        [0.04, -0.02, -0.01],
+        [0.05, 0.01, -0.02],
+        [0.03, 0.02, -0.04],
+        [0.01, 0.01, -0.05],
+    ]
+    curled_world[5:9] = [
+        [0.03, -0.05, 0.0],
+        [0.03, 0.00, 0.02],
+        [0.03, 0.05, 0.04],
+        [0.03, 0.10, 0.06],
+    ]
+    for base_idx, mx in ((9, 0.01), (13, -0.01), (17, -0.03)):
+        curled_world[base_idx : base_idx + 4] = [
+            [mx, -0.05, 0.0],
+            [mx, -0.01, 0.0],
+            [mx, -0.01, -0.03],
+            [mx, -0.04, -0.03],
+        ]
+
+    probabilities = np.full(len(config.class_names), 0.005, dtype=np.float32)
+    probabilities[config.class_to_idx['down']] = 0.94
+
+    resolved, details = GeometryResolver(config).resolve(
+        probabilities,
+        points,
+        handedness='Right',
+        handedness_confidence=0.99,
+        world_landmarks=curled_world,
+    )
+    assert details['hand_shape']['world_other_fingers_curled'] is True
+    assert details['hand_shape']['palm_geometry_supported'] is False
+    assert details['directional']['world_folded_down'] is True
+    assert details['pose_validation']['valid'] is True
+    assert details['pose_validation']['gesture'] == 'down'
+    assert config.class_names[int(np.argmax(resolved))] == 'down'
+
+    # If those same 2D fingers are actually straight in 3D world coordinates,
+    # world_folded_down must stay False so an open palm is not misread as down.
+    straight_world = curled_world.copy()
+    for base_idx, mx in ((9, 0.01), (13, -0.01), (17, -0.03)):
+        straight_world[base_idx : base_idx + 4] = [
+            [mx, -0.05, 0.0],
+            [mx, 0.00, 0.0],
+            [mx, 0.05, 0.0],
+            [mx, 0.10, 0.0],
+        ]
+    straight_world[1:5] = [
+        [0.04, -0.02, 0.0],
+        [0.07, -0.01, 0.0],
+        [0.09, 0.01, 0.0],
+        [0.11, 0.03, 0.0],
+    ]
+    _, straight_details = GeometryResolver(config).resolve(
+        probabilities,
+        points,
+        handedness='Right',
+        handedness_confidence=0.99,
+        world_landmarks=straight_world,
+    )
+    assert straight_details['directional']['world_folded_down'] is False
+
+
+def test_shallow_thumb_down_accepts_low_camera_slope_and_rejects_flatter_angles():
+    config = RuntimeConfig()
+    base = closed_hand_pose(thumb_down=True)
+    probabilities = np.full(len(config.class_names), 0.005, dtype=np.float32)
+    probabilities[config.class_to_idx['thumb_down']] = 0.94
+
+    def rotate_pose(deg: float) -> np.ndarray:
+        rad = np.deg2rad(deg)
+        rot = np.asarray(
+            [
+                [np.cos(rad), -np.sin(rad)],
+                [np.sin(rad), np.cos(rad)],
+            ],
+            dtype=np.float32,
+        )
+        rotated = base.copy()
+        rotated[:, :2] = (base[:, :2] - base[0, :2]) @ rot.T + base[0, :2]
+        return rotated
+
+    # ~10 degrees below horizontal: shallow low-camera thumb_down should pass
+    # when model strongly predicts thumb_down and other fingers remain curled.
+    shallow_points = rotate_pose(-87.0)
+    resolved_shallow, details_shallow = GeometryResolver(config).resolve(
+        probabilities,
+        shallow_points,
+    )
+    assert 0.15 <= details_shallow['hand_shape']['thumb_down_score'] < 0.25
+    assert details_shallow['pose_validation']['valid'] is True
+    assert details_shallow['pose_validation']['gesture'] == 'thumb_down'
+    assert config.class_names[int(np.argmax(resolved_shallow))] == 'thumb_down'
+
+    # Flatter / nearly horizontal angle (< 0.15 thumb_down_score) must still reject.
+    flat_points = rotate_pose(-92.0)
+    _, details_flat = GeometryResolver(config).resolve(
+        probabilities,
+        flat_points,
+    )
+    assert 0.0 < details_flat['hand_shape']['thumb_down_score'] < 0.15
+    assert details_flat['pose_validation']['valid'] is False
+
