@@ -1,18 +1,22 @@
 # How to use the static gesture handover
 
-Use `Boss_Static_Gesture_Handover_20261114_two_hand_stability.zip` as a complete Flutter
+Use `Boss_Static_Gesture_Handover_20261114_ownership_preview.zip` as a complete Flutter
 integration package. Extract it and start from the folder
-`Boss_Static_Gesture_Handover_20261114_two_hand_stability/`.
+`Boss_Static_Gesture_Handover_20261114_ownership_preview/`.
 
-This revision keeps established two-hand identities through temporary low
-Left/Right confidence, using the existing spatial match and fresh landmarks.
-New identities retain the .75 confidence requirement, and overlap/reset/expiry
-behavior is unchanged. GestureLab 2.0.12 contains this shared adapter update.
-The previous mobile model assets, features, geometry, gates, detector settings
-and command timing are preserved. `source_model/` contains the matching mobile
-ONNX, metadata, runtime JSON and integrity manifest, rather than a newer desktop
-model. `validation/two_hand_stability_release.json` records preservation;
-earlier conversion/training reports remain historical evidence for these same
+This revision adds active-hand ownership to the shared phone/NCM runtime and
+GestureLab 2.0.13. The first qualified hand remains selected beside a second
+hand. A closer challenger or the only valid peer gesture requires three
+observations spanning at least 250 ms before handoff. Commands pause during
+confirmation and require fresh evidence after transfer. The NCM preview keeps
+each decoded image and its own overlay together while the next image loads,
+removing decode-time blinking. Earlier handedness tracking improvements remain.
+
+The previous mobile models, features, geometry, scalar gates, detector settings,
+single-hand confirmation and scheduling are preserved. Ear/ghost filtering and
+incidental-movement tuning are deferred. `source_model/` retains the matching
+mobile ONNX/configuration snapshot. `validation/ownership_preview_release.json`
+records preservation; earlier training/conversion reports apply to these same
 weights. Physical iOS/NCM acceptance remains pending.
 
 **The `.tflite` model alone is insufficient to reproduce this handover's
@@ -37,7 +41,8 @@ Phone camera or NCM JPEG
   -> feature extractor: the model's exact 76 input values
   -> FP32 TFLite classifier: probabilities + known-gesture mass
   -> geometry: validate shape, surface, direction and rejection
-  -> command controller: confirm, suppress duplicates and manage release
+  -> per-hand command controller: confirm, suppress duplicates and manage release
+  -> hand ownership: retain owner, confirm closer/valid peer, dispatch selected hand
   -> onCommand callback
   -> the consuming app's existing action/transport handler
 ```
@@ -89,7 +94,7 @@ This handover includes the candidate filters plus the earlier
 thumb/surface corrections in runtime code, so retain that code with the models.
 
 The inference dependency version is **`flutter_litert` 3.9.4**, as recorded in
-the supplied pubspec/lockfiles. **GestureLab 2.0.11** identifies the Android
+the supplied pubspec/lockfiles. **GestureLab 2.0.13** identifies the Android
 tester release; **FP32/FP16/INT8** identify model precision and are separate
 from the dependency/app version numbers.
 
@@ -104,7 +109,7 @@ from the dependency/app version numbers.
 | `static_gesture_runtime/flutter/assets/models/gesture_static_int8*` | Unqualified quantization experiment | Retained for inspection; the runtime blocks it from loading |
 | `static_gesture_runtime/flutter/example/` | NCM integration example with a two-hand preview | Use as a reference or create its iOS host on a Mac |
 | `flutter_gesture_tester/` | Android diagnostic app source using the same static runtime | Use to inspect phone-camera/NCM recognition |
-| `flutter_gesture_tester/releases/GestureLab-v2.0.11-litert-ncm-arm64-diagnostic-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
+| `flutter_gesture_tester/releases/GestureLab-v2.0.13-litert-ncm-arm64-diagnostic-release.apk` | Ready-built Android tester | Install on a compatible ARM64 Android API 24+ device; it displays commands |
 | `source_model/` | Exact current ONNX model and matching configuration/metadata | Reference for conversion and source identity; the Flutter app loads FP32 TFLite |
 | `static_gesture_runtime/IOS_INTEGRATION.md` | Detailed app integration and coordinate contract | Read when connecting the runtime to the existing iOS app |
 | `static_gesture_runtime/validation/` and `flutter/test/` within the runtime | Model/geometry fixtures, reports and automated tests | Use to check a port or a later change |
@@ -126,6 +131,7 @@ Paths in this table are relative to `static_gesture_runtime/flutter/lib/`.
 |---|---|
 | `static_gesture_runtime_api.dart` | Public entry point for an app that already has detector results |
 | `src/runtime_api.dart` | Runs feature extraction, classification, geometry and per-hand command state; exposes `processFrame`, `reset`, `close` and `onCommand` |
+| `src/hand_ownership.dart` | Retains the active hand and confirms closer/valid peers before handing over control; part of `runtime_api.dart` |
 | `src/detector_adapter.dart` | Converts bundled detector results into runtime frames; normalizes image/crop-world coordinates, mirror parity and physical hand identity |
 | `src/feature_extractor.dart` | Produces the exact 76-value input expected by the model |
 | `src/tflite_classifier.dart` | Loads the qualified model and keeps a persistent LiteRT worker/interpreter |
@@ -305,7 +311,15 @@ duplicate suppression.
 
 `no_gesture` produces no action. The retired `dorsal` output is retained only
 as rejection evidence. Both physical hands have independent state, and the
-runtime dispatches at most one command per source frame. Holding an emitted
+runtime dispatches at most one command per source frame from `selectedHand`.
+Display that hand's result rather than sorting both hands by confidence.
+`switchPending` pauses commands while ownership is confirmed, and
+`selectionReason` explains the decision. A confirmed transfer clears both
+gesture histories/latches; no command is emitted on the transfer frame.
+Closeness requires current and smoothed evidence: coherent image/world scale
+at 1.10 ratio or consistent palm size at 1.15 ratio. These are relative cues,
+not measured depth. A missing owner gets 350 ms to return. Simultaneous equal
+hands wait for a clear choice. Holding an emitted
 gesture does not repeatedly trigger it; a confirmed neutral/no-gesture release
 rearms it.
 

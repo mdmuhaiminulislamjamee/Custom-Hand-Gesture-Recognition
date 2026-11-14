@@ -14,8 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "static_gesture_runtime"
 TESTER = ROOT / "flutter_gesture_tester"
 DOCS = ROOT / "handover_static/final_docs"
-BUNDLE = "Boss_Static_Gesture_Handover_20261111"
-APK = "releases/GestureLab-v2.0.8-litert-ncm-arm64-diagnostic-release.apk"
+BUNDLE = "Boss_Static_Gesture_Handover_20261114_ownership_preview"
+APK = "releases/GestureLab-v2.0.13-litert-ncm-arm64-diagnostic-release.apk"
 IGNORED = {".dart_tool", "build", ".git", "__pycache__", ".idea", ".gradle", ".kotlin", ".cxx"}
 
 
@@ -63,9 +63,9 @@ def included(path: Path, base: Path) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / f"handover_static/{BUNDLE}_current_model.zip")
+    parser.add_argument("--output", type=Path, default=ROOT / f"handover_static/{BUNDLE}.zip")
     parser.add_argument("--bundle-name", default=BUNDLE)
-    parser.add_argument("--release-revision", default="current_model_20261111")
+    parser.add_argument("--release-revision", default="ownership_preview_20261114")
     parser.add_argument("--apk", default=APK, help="APK path relative to flutter_gesture_tester")
     parser.add_argument("--source-handover", type=Path, help="Preserve the matching source-model snapshot from this existing handover")
     parser.add_argument("--retrained", action="store_true", help="The source classifier was retrained for this release")
@@ -142,7 +142,10 @@ def main() -> None:
         "retain the supplied Dart controller: immediate strong predictions, two of "
         "three ordinary confirmation and no fixed action cooldown. Use the source "
         "JSON's current scalar gates (.75 confidence, .10 margin, .70 known mass) "
-        "with the matching feature and geometry code.\n"
+        "with the matching feature and geometry code. The shared ownership "
+        "selector additionally requires at least three observations spanning "
+        "250 ms before handoff, suppresses dispatch during confirmation/on the "
+        "transfer frame, and rebuilds gesture evidence after transfer.\n"
     ).encode("utf-8")
 
     for name in ('GestureFalseHandGuard.kt', 'GestureHandLandmarker.kt', 'GestureFrameAnalyzer.kt'):
@@ -198,6 +201,7 @@ def main() -> None:
         "toolchain": {"flutter": "3.47.8", "dart": "3.13.7", "android_build_jdk": "17"},
         "android_test_apk": {"path": "flutter_gesture_tester/" + apk_relative, "sha256": apk_sha, "bytes": len(apk_data), "version_name": checks["android_artifact"]["version_name"], "version_code": checks["android_artifact"]["version_code"], "abi": "arm64-v8a", "minimum_api": 24, "mode": "release", "signing": "Android Debug certificate (test distribution)"},
         "latency_policy": {"target_fps": 10, "pending_frames": 1, "strong_prediction": "immediate after scalar and geometry checks", "ordinary_prediction": "two matching observations among the latest three", "fixed_action_cooldown_ms": 0, "physical_latency_measured": False},
+        "hand_ownership": {"switch_minimum_observations": 3, "switch_minimum_ms": 250, "missing_owner_grace_ms": 350, "closer_projected_world_ratio": 1.10, "closer_palm_ratio": 1.15, "pending_switch_dispatch": False, "transfer_frame_dispatch": False, "fresh_gesture_evidence_after_transfer": True},
         "host_checks": checks,
         "physical_ios_tested": False,
         "physical_ncm_tested": False,

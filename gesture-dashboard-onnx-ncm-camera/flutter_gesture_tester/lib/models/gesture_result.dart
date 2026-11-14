@@ -100,15 +100,13 @@ class GestureResult {
         }
       }
     }
-    if (primary == null && frame.hands.isNotEmpty) {
-      final ordered = [...frame.hands]
-        ..sort((a, b) {
-          if (a.geometry.accepted != b.geometry.accepted) {
-            return a.geometry.accepted ? -1 : 1;
-          }
-          return b.geometry.confidence.compareTo(a.geometry.confidence);
-        });
-      primary = ordered.first;
+    if (primary == null && frame.selectedHand != null) {
+      for (final hand in frame.hands) {
+        if (hand.hand == frame.selectedHand) {
+          primary = hand;
+          break;
+        }
+      }
     }
 
     final classifier = primary?.classifier;
@@ -126,6 +124,8 @@ class GestureResult {
         ? 'Confirmed ${displayGesture(command.label)} command emitted'
         : detections.isEmpty
         ? 'No complete hand landmarks'
+        : frame.switchPending
+        ? 'Confirming hand switch; keep holding'
         : geometry?.reason ?? 'Hand detected; gesture not qualified';
     final first = detections.isEmpty ? null : detections.first;
     final sortedLandmarks = first == null

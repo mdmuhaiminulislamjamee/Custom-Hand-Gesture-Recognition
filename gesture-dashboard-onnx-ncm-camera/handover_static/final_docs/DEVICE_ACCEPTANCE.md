@@ -20,10 +20,21 @@ counts/timings locally; no Boss app images or recordings need to be shared.
    open hand is Stop Inverted. Check Like with an upward thumb and Thumb Down
    with a downward thumb, including the reported sideways-arm view. Repeat on
    phone/front/rear and NCM sources that the consuming app supports.
+   Check that the NCM skeleton/box remains visible during successive JPEG
+   decodes for every pose; genuine no-hand frames must remove it. Confirm image
+   and landmarks move together and disconnect/reset clears the saved preview.
 4. Verify event behavior: a deliberate pose confirms, holding does not repeatedly
    trigger the same action, and a confirmed neutral/no-gesture releases it for
    another trigger. Exercise transitions and independently held left/right
    poses. Expect at most one command from one source frame.
+   Establish one hand first, then introduce the other at a similar distance:
+   the first must remain selected regardless of detection order/confidence.
+   Move the other clearly forward and hold: switch only after at least three
+   observations spanning 250 ms. Repeat with the owner invalid and the peer
+   valid, including a farther valid peer. Brief closeness/invalidity must not
+   switch. Confirm no action on the transfer frame and fresh confirmation
+   afterwards. Test switching back, an absent owner returning within 350 ms,
+   both hands disappearing, crossed/overlapping hands and session reset.
 5. Check rejection with empty scene, partial hands and poses outside the source
    geometry restrictions. In particular, validate Open Palm/Stop inverted angle
    bands and Fist world-depth/surface rules. Do not loosen gates merely to hide a

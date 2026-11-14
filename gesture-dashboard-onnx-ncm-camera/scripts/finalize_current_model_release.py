@@ -38,6 +38,7 @@ def input_files(base: Path) -> dict[str, Path]:
     result = {}
     for folder in ('flutter_gesture_tester/lib', 'flutter_gesture_tester/test',
                    'static_gesture_runtime/flutter/lib', 'static_gesture_runtime/flutter/test',
+                   'static_gesture_runtime/flutter/example/lib',
                    'static_gesture_runtime/flutter/third_party/hand_detection/lib'):
         for path in sorted((base / folder).rglob('*.dart')):
             relative = path.relative_to(base).as_posix()

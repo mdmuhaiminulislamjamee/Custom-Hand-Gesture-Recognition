@@ -1,10 +1,13 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'command_controller.dart';
 import 'feature_extractor.dart';
 import 'frame_scheduler.dart';
 import 'geometry_policy.dart';
 import 'direction_stability.dart';
+
+part 'hand_ownership.dart';
 
 enum StaticPhysicalHand { left, right }
 
@@ -104,7 +107,10 @@ class StaticGestureFrameResult {
       required this.command,
       required this.runtimeMs,
       required this.queueWaitMs,
-      required this.replacedFrames})
+      required this.replacedFrames,
+      this.selectedHand,
+      this.switchPending = false,
+      this.selectionReason = 'waiting_for_gesture'})
       : hands = List<StaticHandResult>.unmodifiable(hands);
   final double timestampMs;
   final List<StaticHandResult> hands;
@@ -112,6 +118,11 @@ class StaticGestureFrameResult {
   final double runtimeMs;
   final double queueWaitMs;
   final int replacedFrames;
+
+  /// Only this hand supplies the public gesture and may dispatch a command.
+  final StaticPhysicalHand? selectedHand;
+  final bool switchPending;
+  final String selectionReason;
 }
 
 /// Landmarks-in runtime. The detector/camera adapter owns camera normalization;
@@ -144,6 +155,7 @@ class StaticGestureRuntimeApi {
   late final LatestFrameScheduler<_SubmittedFrame, StaticGestureFrameResult>
       _scheduler;
   final Stopwatch _clock = Stopwatch()..start();
+  final _HandOwnership _ownership = _HandOwnership();
   bool _closed = false;
   int _generation = 0;
   double? _lastTimestampMs;
@@ -328,41 +340,69 @@ class StaticGestureRuntimeApi {
             reason: geometry.reason,
             matches: control.matches);
       }
-      if (control.commandReady &&
-          command == null &&
-          _current(submitted, hand.hand)) {
-        state.controller.markEmitted(control.label);
-        control = StaticControllerResult(
-          label: control.label,
-          confirmed: true,
-          emit: true,
-          reason: 'confirmed command emitted',
-          matches: control.matches,
-          commandReady: true,
-        );
-        command = StaticGestureCommand(
-            label: control.label,
-            action: staticGestureActions[control.label]!,
-            hand: hand.hand,
-            timestampMs: frame.timestampMs,
-            confidence: geometry.confidence,
-            margin: geometry.margin,
-            knownMass: output.knownMass);
-        onCommand?.call(command);
-      }
       results.add(StaticHandResult(
           hand: hand.hand,
           geometry: geometry,
           controller: control,
           classifier: output));
     }
+    // Evaluate both hands before choosing an owner. Detection order, confidence
+    // ranking and a peer's independent duplicate latch must not choose control.
+    results.removeWhere((hand) => !_current(submitted, hand.hand));
+    final selection = submitted.generation == _generation && !_closed
+        ? _ownership.update(frame, results)
+        : const _OwnershipDecision(null, false, false, 'invalidated');
+    if (selection.changed) {
+      // A handoff never inherits the inactive hand's accumulated gesture hold.
+      // Rebuild evidence from a fresh observation after the confirmed transfer.
+      for (final state in _states.values) {
+        state.controller.reset();
+        state.direction.reset();
+        state.preferredDirection = null;
+      }
+    }
+    for (var i = 0; i < results.length; i++) {
+      final hand = results[i];
+      var control = hand.controller;
+      if (!selection.changed &&
+          selection.allowCommand &&
+          selection.hand == hand.hand &&
+          control.commandReady &&
+          _current(submitted, hand.hand)) {
+        _states[hand.hand]!.controller.markEmitted(control.label);
+        control = StaticControllerResult(
+            label: control.label,
+            confirmed: true,
+            emit: true,
+            reason: 'confirmed command emitted',
+            matches: control.matches,
+            commandReady: true);
+        command = StaticGestureCommand(
+            label: control.label,
+            action: staticGestureActions[control.label]!,
+            hand: hand.hand,
+            timestampMs: frame.timestampMs,
+            confidence: hand.geometry.confidence,
+            margin: hand.geometry.margin,
+            knownMass: hand.classifier.knownMass);
+      }
+      results[i] = StaticHandResult(
+          hand: hand.hand,
+          geometry: hand.geometry,
+          controller: control,
+          classifier: hand.classifier);
+    }
     final result = StaticGestureFrameResult(
         timestampMs: frame.timestampMs,
         hands: results,
         command: command,
+        selectedHand: selection.hand,
+        switchPending: selection.pending,
+        selectionReason: selection.reason,
         runtimeMs: (_clock.elapsedMicroseconds - startedUs) / 1000,
         queueWaitMs: (startedUs - submitted.queuedUs) / 1000,
         replacedFrames: _scheduler.replacedFrames);
+    if (command != null) onCommand?.call(command);
     if (!_closed && submitted.generation == _generation) onResult?.call(result);
     return result;
   }
@@ -378,6 +418,7 @@ class StaticGestureRuntimeApi {
     _generation++;
     _lastTimestampMs = null;
     _scheduler.reset();
+    _ownership.reset();
     for (final state in _states.values) {
       state.version++;
       state.present = false;
@@ -393,6 +434,7 @@ class StaticGestureRuntimeApi {
   void invalidateEvidence() {
     _generation++;
     _scheduler.reset();
+    _ownership.invalidateEvidence();
     for (final state in _states.values) {
       state.version++;
       state.present = false;

@@ -1,6 +1,29 @@
-# Feedback refresh validation - 11 November 2026
+# Ownership and preview validation - 14 November 2026
 
-Current evidence is `validation/feedback_refresh_release.json`. The historical
+`validation/ownership_preview_release.json` compares this release with the
+previous `two_hand_stability` archive. It verifies the deployed model assets,
+features, geometry, detector filters/settings, dependencies, frame scheduling
+and single-hand confirmation are preserved. Only ownership, selected-hand
+display, paired preview rendering, their regression tests and tester release
+identifiers change among the protected mobile inputs.
+
+Runtime regressions cover first-owner retention, changed detection order,
+closer-hand confirmation using world projection and palm fallback, short
+distance bursts, invalid-owner handoff, loss grace, returning ownership,
+duplicate prevention, and all twelve single-hand commands on either hand with
+strong and ordinary confirmation. Preview tests force uncached asynchronous
+decodes and check old-pair retention, new-pair replacement and genuine empty
+frames. The tester checks that a higher-confidence peer cannot take over the
+displayed gesture. Fresh suite counts, native checks, model fixture results,
+and exact APK/source identities are in delivery `HOST_CHECKS.json`.
+
+These are host tests, not physical phone/NCM measurements. Camera flicker,
+switching behavior, sustained latency and iOS builds still require device
+acceptance. Ear/ghost and incidental-movement tuning remain deferred.
+
+## Preserved model training evidence - 11 November 2026
+
+Model evidence is `validation/feedback_refresh_release.json`. The historical
 Right and direction stability JSON files describe previous models and policies.
 The deployed ONNX is
 `d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044`.

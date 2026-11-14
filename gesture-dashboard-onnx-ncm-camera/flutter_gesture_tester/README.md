@@ -50,10 +50,28 @@ Install `build/app/outputs/flutter-apk/app-release.apk` on a 64-bit Android API
 screen but are not connected to Boss app actions.
 
 The current NCM tester build is
-`releases/GestureLab-v2.0.12-litert-ncm-arm64-diagnostic-release.apk`. It is a
+`releases/GestureLab-v2.0.13-litert-ncm-arm64-diagnostic-release.apk`. It is a
 release-optimized test build signed with the Android debug certificate; replace
 that signing configuration with the owner's production key before store or Boss
 app distribution.
+
+Version 2.0.13 adds active-hand ownership shared by phone and NCM cameras.
+The first qualified hand remains active when another appears beside it.
+Switching requires three consistent processed observations spanning at least
+250 ms: a clearly closer challenger or the sole valid peer gesture. Distance
+uses smoothed coherent world/image projection with a palm-size fallback.
+Commands pause during confirmation; the transfer frame cannot emit, and fresh
+gesture evidence is required after transfer. Missing owners get 350 ms to
+return. With two equally distant simultaneous candidates, selection waits.
+The displayed label follows the selected hand, rather than confidence order.
+
+NCM preview rendering now retains the old image AND its matching overlay while
+the next JPEG decodes. Both update together, including removal on a genuine
+no-hand frame. The previous decode-time skeleton/box blink is removed.
+The models, scalar/geometry rules, detector/ear filters, frame admission and
+single-hand gesture confirmation are preserved. Incidental-motion and ghost
+detection tuning is deferred. `validation/ownership_preview_release.json` in
+the complete handover records preservation; device acceptance is still needed.
 
 Version 2.0.12 keeps established, spatially separated hand identities through
 temporary Left/Right confidence dips. It uses fresh landmarks and the existing
@@ -109,7 +127,8 @@ camera-to-screen latency and the direct USB fallback require physical acceptance
 
 Version 2.0.7 keeps the last decoded NCM picture visible while the next JPEG
 loads, removing the black gap caused by replacing the image widget every frame.
-Landmarks are hidden during that decode interval and return with their matching
+In that historical version landmarks were hidden during decoding; 2.0.13 now
+retains the old matching overlay instead. New landmarks arrive with their matching
 picture. Disconnects, pause/stop and inference errors still clear stale evidence.
 The USB transport retains the v2.0.6 forced interface claims.
 

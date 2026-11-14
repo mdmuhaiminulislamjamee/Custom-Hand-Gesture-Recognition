@@ -131,8 +131,11 @@ class _NcmTesterState extends State<NcmTester> with WidgetsBindingObserver {
         Text(_command, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
         for (final hand in _result?.hands ?? <StaticHandResult>[])
-          Text(
-              '${hand.hand.name}: ${hand.geometry.label} · ${hand.geometry.reason}'),
+          if (hand.hand == _result?.selectedHand)
+            Text(
+                '${hand.hand.name}: ${hand.geometry.label} · ${hand.geometry.reason}'),
+        if (_result?.switchPending == true)
+          const Text('Confirming hand switch; keep holding'),
         if (_error.isNotEmpty)
           Text(_error, style: const TextStyle(color: Colors.red)),
         const SizedBox(height: 12),

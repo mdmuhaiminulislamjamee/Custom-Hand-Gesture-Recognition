@@ -6,20 +6,40 @@ The production ONNX model and Windows reference use the matching qualified model
 No training or Boss-app data is required to integrate this runtime.
 
 The complete Boss handover is generated as
-`handover_static/Boss_Static_Gesture_Handover_20261114_two_hand_stability.zip`. Start with
+`handover_static/Boss_Static_Gesture_Handover_20261114_ownership_preview.zip`. Start with
 its `START_HERE.md`. It includes this latest runtime, the iOS example, current
 Flutter tester source, the verified Android test APK and integrity checks.
 Earlier `candidate`, `overlay`, and `fix1` archives are superseded by that bundle.
 
-The 14 November tracking update keeps established, spatially separated physical
+The 14 November ownership/preview update retains the first qualified hand when
+a second appears beside it. A handoff needs at least three consistent processed
+observations spanning 250 ms: either the challenger is clearly closer, or it
+has the only valid gesture. Distance uses coherent image/world projection
+(1.10 ratio), with an orientation-consistent palm-size fallback (1.15 ratio)
+and .50 smoothing. These are relative closeness cues, not metric camera depth.
+Pending handoffs pause commands; a confirmed handoff clears gesture evidence
+and requires a fresh observation before dispatch. A missing owner gets 350 ms
+to return. Equally distant simultaneous hands wait for a clear choice.
+Both phone and NCM paths share this selector. `selectedHand`, `switchPending`
+and `selectionReason` accompany each result; integrations display the selected
+hand and dispatch only `onCommand` events.
+
+The NCM preview retains its last decoded picture AND that picture's matching
+overlay until the next JPEG finishes decoding. A genuine empty-hand frame
+clears the overlay when its image arrives; disconnect/reset clears the preview.
+This removes the repeated decode-time overlay blinking for every gesture.
+
+The earlier 14 November tracking update keeps established, spatially separated physical
 hands through temporary low-confidence handedness observations. The adapter
 uses each matched track's confirmed side and fresh image/world landmarks.
 New identities still require .75 handedness confidence; overlapping hands
 abstain, and tracks still expire after 350 ms or clear on reset. The model,
 feature extraction, geometry, false-hand filters, detector configuration,
-10 FPS scheduling and command timing are unchanged from the 11 November mobile
-delivery. `validation/two_hand_stability_release.json` records the exact source
-and model preservation. This updates both the tester and iOS integration path.
+10 FPS scheduling and single-hand confirmation remain unchanged. The existing
+ear/ghost filters and incidental-motion behavior have not been tuned in this
+revision. `validation/ownership_preview_release.json` compares this update
+with the previous delivery; `validation/two_hand_stability_release.json`
+records the earlier tracking update. Both share the same mobile model assets.
 
 The 31 October detector revision adds cached BlazeFace rejection before hand
 tracking, classification and preview. Acquisition uses .55 detection confidence;
@@ -70,7 +90,7 @@ code, including the thumb-direction and hand-surface fixes.
 INT8 can replace FP32 only in a future release that passes qualification and
 target-device acceptance with updated matching manifests. The supplied
 inference plugin is `flutter_litert` 3.9.4. That dependency version, model
-precision and the Android tester's 2.0.12 release number describe different things.
+precision and the Android tester's 2.0.13 release number describe different things.
 
 ## Package contents
 
@@ -164,7 +184,10 @@ results among the latest three. A repeat of the same emitted command requires
 confirmed `no_gesture`; there is no fixed 800 ms action cooldown. A missing hand
 clears confirmation evidence after 350 ms without automatically rearming an
 emitted command. An application reset after reconnect/orientation change clears
-the session. At most one command is dispatched for a source frame.
+the session. At most one command is dispatched for a source frame, from the
+selected owner only. A confirmed handoff resets both hands' gesture histories
+and latches so that returning control can issue a fresh confirmed command.
+The handoff frame itself cannot dispatch an action.
 
 Strict geometry recoveries keep their longer hold requirements. A high
 confidence score does not override a forbidden surface, downward Fist or
@@ -233,9 +256,10 @@ both physical hands, all twelve commands, neutral release and repeat behavior,
 and record detector/processing latency. No images or private Boss-app recordings
 need to be shared.
 
-The new two-hand controller intentionally differs from the previous selected-
-owner desktop controller. Model conversion parity and geometry fixture parity
-do not mean the two controllers have identical event timing.
+The mobile selector now follows the desktop ownership principles while retaining
+the mobile gesture confirmation policy and 350 ms tracking/loss boundary.
+Model conversion and geometry parity do not establish identical desktop/mobile
+event timing or physical camera performance.
 
 The preview pairs each completed JPEG with its own raw detector results.
 Detected hands remain visible when geometry rejects a gesture; a drawn box

@@ -41,7 +41,7 @@ def main():
             text+='\nhooks:\n  user_defines:\n    dartcv4:\n      skip_build: true\n'
         pubspec.write_text(text,encoding='utf-8')
         for kind,command_args in [('dependencies',['pub','get','--offline','--enforce-lockfile']),
-                          ('analysis',['analyze','--no-pub','lib','test']),
+                          ('analysis',['analyze','--no-pub','lib','test', *(['example/lib'] if name=='runtime' else [])]),
                           ('tests',['test','--no-pub','--concurrency=1','--reporter=expanded'])]:
             log=REPORTS/f'{name}_{kind}.log'
             with log.open('w',encoding='utf-8') as stream:

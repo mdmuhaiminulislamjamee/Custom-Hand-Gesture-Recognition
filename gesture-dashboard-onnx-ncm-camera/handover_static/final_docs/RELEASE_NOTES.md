@@ -1,4 +1,29 @@
-# Two-hand stability - 14 November 2026
+# Hand ownership and preview flicker - 14 November 2026
+
+- Added an active-hand selector shared by phone and NCM camera paths. The
+  original qualified hand remains active when a second appears beside it;
+  detection order and confidence ranking cannot steal control.
+- A consistently closer challenger, or the only valid peer gesture, requires
+  at least three processed observations spanning 250 ms before switching.
+  Current and smoothed relative distance must agree (coherent world/image scale
+  1.10 ratio, orientation-consistent palm fallback 1.15 ratio). World Z is not
+  used as absolute camera depth. Missing owners get a 350 ms return grace.
+- Pending handoffs pause dispatch. Confirmed transfers clear gesture histories
+  and duplicate latches, suppress the transfer-frame command and require fresh
+  evidence afterwards. Equal simultaneous candidates wait for a clear choice.
+  The selected hand now supplies the tester's displayed gesture as well.
+- Retained each previous decoded NCM JPEG and its own landmark/box overlay
+  throughout the next JPEG decode. Both update together, including genuine
+  empty-hand frames. Resolution changes and disconnect clear obsolete previews.
+- Included GestureLab 2.0.13 source and a newly compiled diagnostic ARM64 APK.
+  Model assets, features, geometry, scalar gates, detector filters/settings,
+  dependencies, frame scheduling and single-hand confirmation are preserved.
+  Incidental-movement and ear/ghost-detection tuning remain deferred.
+- Preservation is recorded in `validation/ownership_preview_release.json`;
+  `HOST_CHECKS.json` binds fresh automated checks to the source and APK.
+  Physical phone/NCM and iOS build acceptance remain pending.
+
+## Earlier two-hand stability update - 14 November 2026
 
 - Retained both established, spatially separated hand identities during low
   Left/Right confidence observations. The existing spatial match now runs

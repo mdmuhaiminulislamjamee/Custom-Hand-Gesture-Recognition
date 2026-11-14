@@ -57,8 +57,9 @@ final engine = NcmStaticGestureRuntime(
 `Hand` results and the matching gesture result. Face/background candidates
 rejected by the updated worker never reach this callback. The widget reuses the dynamic
 package's original `MultiOverlayPainter` for boxes, 21 points and skeletons.
-It waits for that JPEG to decode before drawing, preserving unmirrored image
-alignment. Clear the saved preview on disconnect/errors and when stopping,
+It keeps the previous decoded JPEG with its own overlay during the next JPEG's
+decode, then swaps the picture and overlay together. This avoids blinking while
+preserving unmirrored alignment. Clear the saved preview on disconnect/errors and when stopping,
 as shown in the example. The existing two-argument `onFrame` callback remains
 available for integrations without an overlay.
 
@@ -82,6 +83,13 @@ final frame = adapter.frame(
 );
 await runtime.processFrame(frame);
 ```
+
+The runtime evaluates both hands and returns `selectedHand`, `switchPending`
+and `selectionReason`. Display only the selected hand's gesture and dispatch
+actions only through `onCommand`. The first qualified hand stays selected when
+another appears beside it. A consistently closer peer, or the only valid peer
+gesture, must confirm for at least 250 ms and three observations before handoff.
+The handoff clears gesture histories and requires fresh evidence before an action.
 
 Call `adapter.reset()` with `runtime.reset()` after reconnect or a coordinate
 system change. The adapter converts pixel landmarks and crop-space metric

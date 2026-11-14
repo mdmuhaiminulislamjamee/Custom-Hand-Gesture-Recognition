@@ -94,7 +94,7 @@ void main() {
     final lastPicture = tester.widget<RawImage>(rawImage).image;
     expect(lastPicture, isNotNull);
     // A fresh byte buffer forces an uncached asynchronous image decode. During
-    // that gap the old picture stays visible, but new landmarks must not paint.
+    // that gap the old picture AND its matching landmarks must stay visible.
     await show(frame([], 2, bytes: Uint8List.fromList(png)),
         waitForDecode: false);
     expect(tester.element(previewImage), same(imageElement));
@@ -103,8 +103,10 @@ void main() {
         tester
             .widgetList<CustomPaint>(find.byType(CustomPaint))
             .map((w) => w.foregroundPainter)
-            .whereType<MultiOverlayPainter>(),
-        isEmpty);
+            .whereType<MultiOverlayPainter>()
+            .single
+            .results,
+        same(painter.results));
     await tester
         .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
     await tester.pumpAndSettle();
@@ -114,6 +116,30 @@ void main() {
         .whereType<MultiOverlayPainter>()
         .single;
     expect(emptyPainter.results, isEmpty);
+    // A different pose must also replace the overlay atomically, not merely
+    // keep the skeleton forever. This exercises consecutive uncached decodes.
+    final moving = [detectedHand(Handedness.right, 300)];
+    await show(frame(moving, 3, bytes: Uint8List.fromList(png)),
+        waitForDecode: false);
+    expect(
+        tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .map((w) => w.foregroundPainter)
+            .whereType<MultiOverlayPainter>()
+            .single
+            .results,
+        isEmpty);
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .map((w) => w.foregroundPainter)
+            .whereType<MultiOverlayPainter>()
+            .single
+            .results,
+        moving);
     expect(tester.takeException(), isNull);
   });
 }
