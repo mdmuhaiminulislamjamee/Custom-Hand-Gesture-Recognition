@@ -1,4 +1,24 @@
-# Feedback refresh - 11 November 2026
+# Two-hand stability - 14 November 2026
+
+- Retained both established, spatially separated hand identities during low
+  Left/Right confidence observations. The existing spatial match now runs
+  before rejecting weak labels. Fresh image/world landmarks are still required.
+- Kept the .75 confidence requirement for new physical identities. Existing
+  overlap abstention, 350 ms track expiry, reset behavior and single-hand
+  uncertainty handling are unchanged. A matched track supplies its previously
+  confirmed side/confidence; no geometry or classifier threshold is lowered.
+- Preserved every mobile model asset, manifest, feature/geometry rule, command
+  controller, detector setting and dependency from the feedback-refresh bundle.
+  The matching `source_model/` snapshot is retained even where the desktop
+  checkout has a newer ONNX model. No training or conversion was performed.
+- Added regressions for weak/flipped handedness, fresh coordinates, mirrored
+  inputs, invalid confidence, expiry and reset. Included GestureLab 2.0.12
+  source and a newly compiled ARM64 diagnostic APK using the same models.
+- Kept previous archives immutable. `HOST_CHECKS.json` and the runtime's
+  `validation/two_hand_stability_release.json` bind the new source, APK and
+  unchanged assets. Physical phone/NCM improvement still needs device testing.
+
+## Previous model release: feedback refresh - 11 November 2026
 
 - Used all 990 new valid reviewed records absent from the previous training
   snapshot: 480 Down, 240 Thumb Down, 150 Stop Inverted, 90 Like and 30 rejection

@@ -14,7 +14,7 @@
   "flutter/lib/detector/hand_detector_factory.dart": "ed388f2cc1a506e389dae5c982746845484776e1de80eeec344e7f3a6ec0252a",
   "flutter/lib/ncm_static_gesture_runtime.dart": "ed4d2e27343734ad4777496875c0b87c07e68393a6d024b1622b40a22d9b2da2",
   "flutter/lib/src/command_controller.dart": "a062349fdec9060fd7a09b1313d7446b6a12e9994e759e9f424bf26372d3322a",
-  "flutter/lib/src/detector_adapter.dart": "e02f0ec47e106077d3a45e5f0129732ec7d3a90a41d2abbfc22807ecae7ae6df",
+  "flutter/lib/src/detector_adapter.dart": "6e61841c7304eb6b29a78fd09d7e6427dadb657c83ca0ba470d311ad1ef07dc6",
   "flutter/lib/src/direction_stability.dart": "8ddd4985fae83c47e2c44c64974b18f4f62fe43a635679681c9cb0e46c5618a8",
   "flutter/lib/src/feature_extractor.dart": "8ea9e4d54484c575a37dac3d5b60c30300e4b37ebbdb7fae07d1bb1d789fa52c",
   "flutter/lib/src/frame_scheduler.dart": "991725c1f1fbff91fb8b0d57d240723676f106a5b187fa097de3ae9710ddcdae",
@@ -29,7 +29,7 @@
   "flutter/pubspec.lock": "e3bb8330c643ce9cb8272649195aad766755943a89717b9e68715362f6771264",
   "flutter/pubspec.yaml": "f1606bdbd9a4fecf586e284ad8f97dfbbdffcdd710c4a9f398179c99e21f1114",
   "flutter/test/command_controller_test.dart": "af415ee430a226d01058d798bd14f89b2301c1f85b174e4e6f33b57540aa7b65",
-  "flutter/test/detector_adapter_test.dart": "61aa91a566be4b505dab19fb4411878c9300f5607a2575d9517cd1b98e55e68e",
+  "flutter/test/detector_adapter_test.dart": "ca7e34aac9ee8f6ee35e05ed0532743d0e2e9b84b6f53f8a1a7d18694b44e7a7",
   "flutter/test/direction_pose_reference_test.dart": "20c96afddd6ca88f1bc66b87013529082b406431d082592b1ecc796a3443affb",
   "flutter/test/direction_runtime_sequence_test.dart": "f949d9365f497ca798a2513fc1b89e1d9348f4cf853f4f5380a5589940d6616c",
   "flutter/test/direction_stability_test.dart": "9d0d85fe057fd6e8be064d3a790a545a61ada821b47dd44168052e0b6701fc1a",
@@ -87,7 +87,7 @@
   "flutter/tool/check_geometry_parity.dart": "d0a5b097de3ad5337296903392e135af15b70c0b7f5e94f70f5249d343582397",
   "HOST_TESTING.md": "119a496c39b99523c20541834283b2e21a7e790f7b84af100417f0caa2a57251",
   "IOS_INTEGRATION.md": "0ef5321087bd57e47b3deab4ba8111354050f8d469e56311f3af46021e2b117d",
-  "README.md": "c6160d30831b7b7f3a82b24ef524a584a8d98ce014233560b8c32142a0ada0f4",
+  "README.md": "f93b9feb6e76aec6b10f67c0820fc6083d0df3f08164f0df73fba778ff2e4755",
   "tools/requirements-verification.txt": "c69a396778cedf0568f880cfdea223c16030dcd9cfc36a4fa44375c5fca1df05",
   "tools/verify_static_runtime.py": "54d7c0ea4d8eabd9459871f0869da39f175cd9f9dc3d03ea8334c5cc7a1021ef",
   "validation/cache_geometry_reference.json": "37abc30e045386e2174ff5b22034a388d984cfdb37b09673d35238f86e3cf357",
@@ -108,5 +108,6 @@
   "validation/right_pose_reference.json": "bde63b278b196ee4c91fb45d23d9b03297cf6c5208e0c918098983dd3683423b",
   "validation/right_stability_release.json": "75d82faf4cb0ea127901b43d3a2cecabe86559a995852f46c352c710ddb72d89",
   "validation/thumb_surface_checks.json": "847536baaac3f1a41c4be04d61265ef963abc069e9af8684afa0a3651c6e78e9",
+  "validation/two_hand_stability_release.json": "649c1dbdb46c774b04a19a5ca54d704839f3e241aa04addf6d0f00ff49e0acb6",
   "VALIDATION.md": "97858af57e87951e1fdc7d89ef8a7305783231d1141cc042af619bf1a4fc328e"
 }

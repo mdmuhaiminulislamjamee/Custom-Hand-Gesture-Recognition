@@ -27,6 +27,30 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def source_models(handover: Path | None = None) -> dict[str, bytes]:
+    names = ("gesture_mlp_production.onnx", "gesture_mlp_onnx_metadata.json",
+             "gesture_mobile_runtime_config.json", "gesture_artifact_manifest.json")
+    if handover is None:
+        return {name: (ROOT / "models" / name).read_bytes() for name in names}
+    # A tracking-only mobile update must retain the source snapshot belonging
+    # to the deployed TFLite model, even if desktop weights have since changed.
+    with zipfile.ZipFile(handover) as archive:
+        roots = [name.removesuffix("SHA256SUMS.json") for name in archive.namelist()
+                 if name.count("/") == 1 and name.endswith("/SHA256SUMS.json")]
+        if len(roots) != 1:
+            raise ValueError("Expected one checksummed handover root")
+        prefix = roots[0]
+        sums = json.loads(archive.read(prefix + "SHA256SUMS.json"))
+        models = {}
+        for name in names:
+            relative = "source_model/" + name
+            data = archive.read(prefix + relative)
+            if digest(data) != sums[relative]:
+                raise ValueError("Handover source snapshot failed checksum: " + name)
+            models[name] = data
+        return models
+
+
 def included(path: Path, base: Path) -> bool:
     relative = path.relative_to(base)
     return (
@@ -43,6 +67,7 @@ def main() -> None:
     parser.add_argument("--bundle-name", default=BUNDLE)
     parser.add_argument("--release-revision", default="current_model_20261111")
     parser.add_argument("--apk", default=APK, help="APK path relative to flutter_gesture_tester")
+    parser.add_argument("--source-handover", type=Path, help="Preserve the matching source-model snapshot from this existing handover")
     parser.add_argument("--retrained", action="store_true", help="The source classifier was retrained for this release")
     parser.add_argument("--supersedes", action="append", help="Earlier archive superseded by this release; repeat as needed")
     parser.add_argument("--native-output", type=Path, help="Optionally also export the unchanged native filter update")
@@ -106,9 +131,8 @@ def main() -> None:
         "paths on another workstation. Flutter builds/tests do not invoke this script. "
         "Run the root verify_handover.py for portable payload/APK verification.\n"
     ).encode("utf-8")
-    for name in ("gesture_mlp_production.onnx", "gesture_mlp_onnx_metadata.json",
-                 "gesture_mobile_runtime_config.json", "gesture_artifact_manifest.json"):
-        payload["source_model/" + name] = (ROOT / "models" / name).read_bytes()
+    for name, data in source_models(args.source_handover).items():
+        payload["source_model/" + name] = data
     payload["source_model/README.md"] = (
         "# Production classifier source snapshot\n\n"
         "These exact ONNX/configuration/metadata files identify the source used for "

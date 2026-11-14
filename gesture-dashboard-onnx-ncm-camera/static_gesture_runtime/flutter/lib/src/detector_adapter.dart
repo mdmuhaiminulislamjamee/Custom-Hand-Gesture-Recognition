@@ -6,8 +6,10 @@ import '../detector/camera_frame_adapter.dart';
 import 'runtime_api.dart';
 
 class _TrackedHand {
-  _TrackedHand(this.side, this.x, this.y, this.scale, this.lastSeenMs);
+  _TrackedHand(this.side, this.x, this.y, this.scale, this.lastSeenMs,
+      this.handednessConfidence);
   final StaticPhysicalHand side;
+  final double handednessConfidence;
   double x, y, scale, lastSeenMs;
 }
 
@@ -48,7 +50,7 @@ class StaticDetectorAdapter {
       final confidence = hand.handednessScore ?? 0;
       if (physicalRight == null ||
           !confidence.isFinite ||
-          confidence < .75 ||
+          confidence < 0 ||
           confidence > 1 ||
           (hand.rotation != null && !hand.rotation!.isFinite) ||
           (hand.rotatedSize != null &&
@@ -115,7 +117,9 @@ class StaticDetectorAdapter {
       for (final side in StaticPhysicalHand.values) {
         final matching = [
           for (var i = 0; i < candidates.length; i++)
-            if (candidates[i].side == side) i
+            if (candidates[i].side == side &&
+                (candidates[i].hand.handednessScore ?? 0) >= .75)
+              i
         ];
         // Duplicate labels are ambiguous; abstain instead of exchanging history.
         if (matching.length == 1) assigned[side] = matching.single;
@@ -135,8 +139,15 @@ class StaticDetectorAdapter {
       final cosR = math.cos(rotation), sinR = math.sin(rotation);
       // Image z is still in the bundled model's 224px crop-input coordinates.
       final zScale = (hand.rotatedSize ?? 224) / 224;
+      // Only the existing two-hand spatial match can retain an uncertain side.
+      // Use that track's confirmed confidence with this frame's fresh points;
+      // new identities still require the original .75 handedness confidence.
+      final rawConfidence = hand.handednessScore ?? 0;
+      final confidence = rawConfidence >= .75
+          ? rawConfidence
+          : (_tracks[entry.key]?.handednessConfidence ?? rawConfidence);
       _tracks[entry.key] =
-          _TrackedHand(entry.key, c.x, c.y, c.scale, timestampMs);
+          _TrackedHand(entry.key, c.x, c.y, c.scale, timestampMs, confidence);
       hands.add(StaticGestureHand(
           hand: entry.key,
           normalizedLandmarks: [
@@ -157,7 +168,7 @@ class StaticDetectorAdapter {
                     ]
                 ]
               : null,
-          handednessConfidence: hand.handednessScore ?? 0));
+          handednessConfidence: confidence));
     }
     return StaticGestureFrame(
         timestampMs: timestampMs,

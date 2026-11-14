@@ -2,7 +2,7 @@
 
 Give the Boss app developer this complete archive:
 
-[Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip](Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip)
+[Boss_Static_Gesture_Handover_20261114_two_hand_stability.zip](Boss_Static_Gesture_Handover_20261114_two_hand_stability.zip)
 
 Its root `README.md` explains how to integrate the full pipeline, why the
 model alone is insufficient, and which file does what. `START_HERE.md` covers
@@ -15,17 +15,18 @@ qualified with the supported iPhone/NCM board.
 Verify the adjacent archive `.sha256` before transfer, and run the extracted
 `verify_handover.py` with Python 3.10+ to check the complete payload.
 
-This revision fits 990 reviewed records absent from the previous training
-snapshot: 480 Down, 240 Thumb Down, 150 Stop Inverted, 90 Like and 30 rejection
-examples. Larger fits regressed existing examples and were rejected. The
-accepted update preserves fixed test class metrics; its training-fit improvement
-is modest and is not a live accuracy claim. The model graph, scalar gates,
-detector, geometry and frame scheduling are retained. GestureLab 2.0.11 source
-and a rebuilt diagnostic APK are included. The exact model/configuration are
-under `source_model/`; current evidence is in
-`static_gesture_runtime/validation/feedback_refresh_release.json`.
-Ghost policy tuning is deferred; physical device acceptance is pending.
+This revision carries the handedness stability fix into the shared Flutter
+runtime and GestureLab 2.0.12 APK. Established, spatially separated hands retain
+their identities during temporary Left/Right confidence drops. New identities
+still require .75 confidence, current landmarks remain required, and existing
+overlap/reset/expiry rules remain in force.
+
+The previous mobile handover's model binaries, matching ONNX/configuration
+snapshot, features, geometry, scalar gates, detector configuration and command
+timing are preserved. `static_gesture_runtime/validation/two_hand_stability_release.json`
+records the exact comparison with the previous archive. No training or extra
+inference pass is included. Physical device acceptance remains pending.
 
 The older archives remain unchanged for history. This delivery supersedes the
-earlier 11 November `right_stability` bundle. [START_HERE.md](final_docs/START_HERE.md) and
+11 November `feedback_refresh` bundle. [START_HERE.md](final_docs/START_HERE.md) and
 [RELEASE_NOTES.md](final_docs/RELEASE_NOTES.md) describe integration and changes.

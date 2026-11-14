@@ -81,7 +81,7 @@ void main() {
 
   test('nonfinite scores skipped and malformed world cannot poison second hand',
       () {
-    for (final confidence in [double.nan, double.infinity, 1.1]) {
+    for (final confidence in [double.nan, double.infinity, -.1, 1.1]) {
       final frame = StaticDetectorAdapter()
           .frame(timestampMs: 100, width: 640, height: 480, detections: [
         detectedHand(Handedness.left, 100, confidence: confidence),
@@ -152,6 +152,80 @@ void main() {
           detectedHand(Handedness.left, 100),
           detectedHand(Handedness.left, 400)
         ]).hands,
+        isEmpty);
+  });
+  test(
+      'established two hands survive low confidence and flipped labels with fresh landmarks',
+      () {
+    for (final mirrored in [false, true]) {
+      final adapter = StaticDetectorAdapter();
+      final initial = adapter.frame(
+          timestampMs: 100,
+          width: 640,
+          height: 480,
+          modelInputMirrored: mirrored,
+          detections: [
+            detectedHand(Handedness.left, 100),
+            detectedHand(Handedness.right, 400)
+          ]);
+      for (var frame = 1; frame <= 3; frame++) {
+        final result = adapter.frame(
+            timestampMs: 100 + frame * 100,
+            width: 640,
+            height: 480,
+            modelInputMirrored: mirrored,
+            detections: [
+              detectedHand(Handedness.left, 400 + frame.toDouble(),
+                  confidence: .55),
+              detectedHand(Handedness.right, 100 + frame.toDouble(),
+                  confidence: .55)
+            ]);
+        expect(result.hands, hasLength(2));
+        for (final original in initial.hands) {
+          final current =
+              result.hands.singleWhere((h) => h.hand == original.hand);
+          final delta = (mirrored ? -frame : frame) / 640;
+          expect(current.normalizedLandmarks.first.first,
+              closeTo(original.normalizedLandmarks.first.first + delta, 1e-12));
+          expect(current.handednessConfidence, .99);
+        }
+      }
+      expect(
+          adapter.frame(
+              timestampMs: 500, width: 640, height: 480, detections: []).hands,
+          isEmpty);
+    }
+  });
+  test('weak labels cannot acquire or revive identities after expiry or reset',
+      () {
+    final adapter = StaticDetectorAdapter();
+    final weak = [
+      detectedHand(Handedness.left, 100, confidence: .55),
+      detectedHand(Handedness.right, 400, confidence: .55)
+    ];
+    expect(
+        adapter
+            .frame(timestampMs: 0, width: 640, height: 480, detections: weak)
+            .hands,
+        isEmpty);
+    adapter.frame(timestampMs: 100, width: 640, height: 480, detections: [
+      detectedHand(Handedness.left, 100),
+      detectedHand(Handedness.right, 400)
+    ]);
+    expect(
+        adapter
+            .frame(timestampMs: 450, width: 640, height: 480, detections: weak)
+            .hands,
+        isEmpty);
+    adapter.frame(timestampMs: 500, width: 640, height: 480, detections: [
+      detectedHand(Handedness.left, 100),
+      detectedHand(Handedness.right, 400)
+    ]);
+    adapter.reset();
+    expect(
+        adapter
+            .frame(timestampMs: 600, width: 640, height: 480, detections: weak)
+            .hands,
         isEmpty);
   });
   test(

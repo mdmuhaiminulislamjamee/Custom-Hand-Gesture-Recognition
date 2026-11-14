@@ -14,6 +14,7 @@ import re
 import subprocess
 
 from verify_ncm_apk import verify as verify_apk
+from package_boss_handover import source_models
 
 ROOT = Path(__file__).resolve().parents[1]
 RETIRED = {'flutter_gesture_tester/lib/services/native_gesture_engine.dart',
@@ -98,6 +99,7 @@ def main() -> None:
     parser.add_argument('--output', type=Path, default=ROOT / 'handover_static/final_docs/HOST_CHECKS.json')
     parser.add_argument('--date', default='2026-11-11')
     parser.add_argument('--release-revision', default='current_model_20261111')
+    parser.add_argument('--source-handover', type=Path, help='Keep the deployed mobile model source snapshot for a tracking-only update')
     args = parser.parse_args()
 
     host_report = args.host_report_dir.resolve()
@@ -129,8 +131,9 @@ def main() -> None:
                           if key not in RETIRED})
 
     package = ROOT / 'static_gesture_runtime'
-    production_sha = sha(ROOT / 'models/gesture_mlp_production.onnx')
-    config_sha = sha(ROOT / 'models/gesture_mobile_runtime_config.json')
+    model_source = source_models(args.source_handover)
+    production_sha = hashlib.sha256(model_source['gesture_mlp_production.onnx']).hexdigest()
+    config_sha = hashlib.sha256(model_source['gesture_mobile_runtime_config.json']).hexdigest()
     conversion = read(package / 'validation/conversion_report.json')
     require(conversion['source_onnx_sha256'] == production_sha, 'Conversion is for another production model')
     require(conversion['runtime_config_sha256'] == config_sha, 'Conversion scalar gates use another runtime config')
@@ -153,13 +156,15 @@ def main() -> None:
         source_hashes[path.relative_to(ROOT).as_posix()] = sha(path)
     for name in ('gesture_mlp_production.onnx', 'gesture_mlp_onnx_metadata.json',
                  'gesture_mobile_runtime_config.json', 'gesture_artifact_manifest.json'):
-        source_hashes['source_model/' + name] = sha(ROOT / 'models' / name)
+        source_hashes['source_model/' + name] = hashlib.sha256(model_source[name]).hexdigest()
 
     artifact = {key: value for key, value in build.items() if key not in ('stage', 'apk', 'flutter_reuse')}
     artifact.update(model_assets_matching_runtime=len(apk_verification['model_sha256']), apksigner_verify='passed')
     result = dict(status='passed', date=args.date, release_revision=args.release_revision,
                   generated_at_utc=datetime.now(timezone.utc).isoformat(),
-                  scope='Current-model conversion and geometry parity, fresh Flutter host tests, native Android filter and USB-NCM checks, newly compiled Android APK',
+                  scope=('Preserved mobile-model verification and geometry parity, fresh Flutter host tests, native Android filter and USB-NCM checks, newly compiled Android APK'
+                         if args.source_handover else
+                         'Current-model conversion and geometry parity, fresh Flutter host tests, native Android filter and USB-NCM checks, newly compiled Android APK'),
                   toolchain=dict(flutter='3.47.8', dart='3.13.7', android_build_jdk='17', mediapipe_native_android='1.1.1'),
                   flutter_tests=dict(runtime_passed=test_counts['runtime'], tester_passed=test_counts['tester'],
                                      policy_cases=native_filter['policy_cases'],

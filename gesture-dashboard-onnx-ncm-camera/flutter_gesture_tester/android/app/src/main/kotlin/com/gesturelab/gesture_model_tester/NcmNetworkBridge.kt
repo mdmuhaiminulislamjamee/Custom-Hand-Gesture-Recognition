@@ -68,7 +68,7 @@ class NcmNetworkBridge(context: Context, messenger: BinaryMessenger) : Closeable
         val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         val devices = manager.deviceList.values.toList()
         val rows = mutableListOf("USB devices currently attached: ${devices.size}",
-            "Transport revision: v2.0.11, direct USB-NCM fallback with forced interface claims enabled")
+            "Transport revision: v2.0.12, direct USB-NCM fallback with forced interface claims enabled")
         if (devices.isEmpty()) rows += "No USB device is currently enumerated. Reconnect the powered camera with OTG enabled, then inspect again."
         rows += devices.flatMap { device ->
             val rows = mutableListOf(

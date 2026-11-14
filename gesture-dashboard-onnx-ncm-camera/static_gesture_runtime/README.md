@@ -6,10 +6,20 @@ The production ONNX model and Windows reference use the matching qualified model
 No training or Boss-app data is required to integrate this runtime.
 
 The complete Boss handover is generated as
-`handover_static/Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip`. Start with
+`handover_static/Boss_Static_Gesture_Handover_20261114_two_hand_stability.zip`. Start with
 its `START_HERE.md`. It includes this latest runtime, the iOS example, current
 Flutter tester source, the verified Android test APK and integrity checks.
 Earlier `candidate`, `overlay`, and `fix1` archives are superseded by that bundle.
+
+The 14 November tracking update keeps established, spatially separated physical
+hands through temporary low-confidence handedness observations. The adapter
+uses each matched track's confirmed side and fresh image/world landmarks.
+New identities still require .75 handedness confidence; overlapping hands
+abstain, and tracks still expire after 350 ms or clear on reset. The model,
+feature extraction, geometry, false-hand filters, detector configuration,
+10 FPS scheduling and command timing are unchanged from the 11 November mobile
+delivery. `validation/two_hand_stability_release.json` records the exact source
+and model preservation. This updates both the tester and iOS integration path.
 
 The 31 October detector revision adds cached BlazeFace rejection before hand
 tracking, classification and preview. Acquisition uses .55 detection confidence;
@@ -19,7 +29,7 @@ face overlap remain eligible. Compact real hands directly over the face may be
 rejected, and stricter acquisition can reduce range. The bundle also includes a
 native Android/iOS filter source update in `native_false_hand_update/`.
 
-The 11 November FP32 TFLite conversion now uses the current production ONNX
+The 11 November FP32 TFLite conversion uses the preserved mobile source ONNX
 `d8a37784b603fc9917ef5635f40c2b20b1032c7898a1fe98b3babc9b33c00044`.
 It preserves the current learned model: all 18,073
 validation/test rows keep the same top label and scalar accept/reject result.
@@ -60,7 +70,7 @@ code, including the thumb-direction and hand-surface fixes.
 INT8 can replace FP32 only in a future release that passes qualification and
 target-device acceptance with updated matching manifests. The supplied
 inference plugin is `flutter_litert` 3.9.4. That dependency version, model
-precision and the Android tester's 2.0.11 release number describe different things.
+precision and the Android tester's 2.0.12 release number describe different things.
 
 ## Package contents
 

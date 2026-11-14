@@ -1,9 +1,9 @@
 {
   "status": "passed",
-  "date": "2026-11-11",
-  "release_revision": "feedback_refresh_20261111",
-  "generated_at_utc": "2026-11-11T11:58:28.165191+00:00",
-  "scope": "Current-model conversion and geometry parity, fresh Flutter host tests, native Android filter and USB-NCM checks, newly compiled Android APK",
+  "date": "2026-11-14",
+  "release_revision": "two_hand_stability_20261114",
+  "generated_at_utc": "2026-11-14T03:34:27.125606+00:00",
+  "scope": "Preserved mobile-model verification and geometry parity, fresh Flutter host tests, native Android filter and USB-NCM checks, newly compiled Android APK",
   "toolchain": {
     "flutter": "3.47.8",
     "dart": "3.13.7",
@@ -11,7 +11,7 @@
     "mediapipe_native_android": "1.1.1"
   },
   "flutter_tests": {
-    "runtime_passed": 76,
+    "runtime_passed": 78,
     "tester_passed": 8,
     "policy_cases": 42,
     "opencv_host_hook": "Skipped only in isolated tests; normal native builds in APK and delivery"
@@ -67,7 +67,7 @@
     "source_sha256": {
       "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmProtocol.kt": "243f66f8c5b3ca9691f1f7acccdcc35667c5a94049db1c82858ffdcead56adc1",
       "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmStream.kt": "486bf40148981cba46b70b72f33165f204db6acbee541a85fe2531d2bb22237e",
-      "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "c4e3c36766bdf17eafac14764d2a8fe7bb50ba2c474cfa5ad143ca9ac9284945"
+      "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "454874224ddf9997649c23d748ee646e6bb303decc9784bfc3930b5758a9cc9e"
     },
     "physical_usb_tested": false
   },
@@ -264,10 +264,10 @@
   "runtime_config_sha256": "82e4341c9c22a3e1b1139e6db7a464187f80cb8622d96dca90de3ffd0de1528e",
   "android_artifact": {
     "passed": true,
-    "sha256": "12e52310a94cec1f32d7bb7d5374c42a18f5f07270332e4c5162534f360b4a0e",
-    "bytes": 30172630,
-    "version_name": "2.0.11",
-    "version_code": 13,
+    "sha256": "e4f6abe8bf88ad04103c1170523cff9e1e4970455b86a3016aabf51559650de6",
+    "bytes": 30172442,
+    "version_name": "2.0.12",
+    "version_code": 14,
     "mode": "release",
     "abi": "arm64-v8a",
     "minimum_api": 24,
@@ -280,7 +280,7 @@
   },
   "source_sha256": {
     "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/MainActivity.kt": "81e0137e86bf7a9cd3b112617e91919d86b0d11360ad6fff5357510bb96481db",
-    "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "c4e3c36766bdf17eafac14764d2a8fe7bb50ba2c474cfa5ad143ca9ac9284945",
+    "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/NcmNetworkBridge.kt": "454874224ddf9997649c23d748ee646e6bb303decc9784bfc3930b5758a9cc9e",
     "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmProtocol.kt": "243f66f8c5b3ca9691f1f7acccdcc35667c5a94049db1c82858ffdcead56adc1",
     "flutter_gesture_tester/android/app/src/main/kotlin/com/gesturelab/gesture_model_tester/UsbNcmStream.kt": "486bf40148981cba46b70b72f33165f204db6acbee541a85fe2531d2bb22237e",
     "flutter_gesture_tester/lib/main.dart": "924e1cf175d69020d08158d77c8723df6431b5f7bbdd664a9b2c5b2a61bb2c22",
@@ -289,7 +289,7 @@
     "flutter_gesture_tester/lib/services/phone_frame_gate.dart": "61bcc5b9598db891ca595eee74996f48122083f9613c162a4fc9a956f8786abe",
     "flutter_gesture_tester/lib/services/phone_static_gesture_engine.dart": "b22f6eec5c7b7fd62484273fcddd3e53f1ef35ffc0898d316ec31fb8c8e0b3b2",
     "flutter_gesture_tester/pubspec.lock": "507558c83e77dfa68b41a1f4bce366a20d466165a825f73070d088d97a61fb4f",
-    "flutter_gesture_tester/pubspec.yaml": "a451f61f39d9719c5b9c1d65f978e822b8e51e2d0f28540a07ea3ec698d7310d",
+    "flutter_gesture_tester/pubspec.yaml": "8139a0e7b863fe69bf3d2f6db7eddcd862083f640f45f173e7b24bbaedeceae9",
     "flutter_gesture_tester/test/android_ncm_transport_test.dart": "cdd92451b149f00e7060a4c9c9f079c29f6a198072e92b6ac14a7943f7877843",
     "flutter_gesture_tester/test/gesture_result_test.dart": "ec71e0709bee7fcb1013dd3c83d9f5e16c03d6bcf4e5d6ac12dc587a2abeb81f",
     "flutter_gesture_tester/test/phone_frame_gate_test.dart": "d2a3c12bc3a0b14aec92a3a96972b8109d46bfabe8dd4d8db17aadc6ce66919f",
@@ -305,7 +305,7 @@
     "static_gesture_runtime/flutter/lib/detector/hand_detector_factory.dart": "ed388f2cc1a506e389dae5c982746845484776e1de80eeec344e7f3a6ec0252a",
     "static_gesture_runtime/flutter/lib/ncm_static_gesture_runtime.dart": "ed4d2e27343734ad4777496875c0b87c07e68393a6d024b1622b40a22d9b2da2",
     "static_gesture_runtime/flutter/lib/src/command_controller.dart": "a062349fdec9060fd7a09b1313d7446b6a12e9994e759e9f424bf26372d3322a",
-    "static_gesture_runtime/flutter/lib/src/detector_adapter.dart": "e02f0ec47e106077d3a45e5f0129732ec7d3a90a41d2abbfc22807ecae7ae6df",
+    "static_gesture_runtime/flutter/lib/src/detector_adapter.dart": "6e61841c7304eb6b29a78fd09d7e6427dadb657c83ca0ba470d311ad1ef07dc6",
     "static_gesture_runtime/flutter/lib/src/direction_stability.dart": "8ddd4985fae83c47e2c44c64974b18f4f62fe43a635679681c9cb0e46c5618a8",
     "static_gesture_runtime/flutter/lib/src/feature_extractor.dart": "8ea9e4d54484c575a37dac3d5b60c30300e4b37ebbdb7fae07d1bb1d789fa52c",
     "static_gesture_runtime/flutter/lib/src/frame_scheduler.dart": "991725c1f1fbff91fb8b0d57d240723676f106a5b187fa097de3ae9710ddcdae",
@@ -320,7 +320,7 @@
     "static_gesture_runtime/flutter/pubspec.lock": "e3bb8330c643ce9cb8272649195aad766755943a89717b9e68715362f6771264",
     "static_gesture_runtime/flutter/pubspec.yaml": "f1606bdbd9a4fecf586e284ad8f97dfbbdffcdd710c4a9f398179c99e21f1114",
     "static_gesture_runtime/flutter/test/command_controller_test.dart": "af415ee430a226d01058d798bd14f89b2301c1f85b174e4e6f33b57540aa7b65",
-    "static_gesture_runtime/flutter/test/detector_adapter_test.dart": "61aa91a566be4b505dab19fb4411878c9300f5607a2575d9517cd1b98e55e68e",
+    "static_gesture_runtime/flutter/test/detector_adapter_test.dart": "ca7e34aac9ee8f6ee35e05ed0532743d0e2e9b84b6f53f8a1a7d18694b44e7a7",
     "static_gesture_runtime/flutter/test/direction_pose_reference_test.dart": "20c96afddd6ca88f1bc66b87013529082b406431d082592b1ecc796a3443affb",
     "static_gesture_runtime/flutter/test/direction_runtime_sequence_test.dart": "f949d9365f497ca798a2513fc1b89e1d9348f4cf853f4f5380a5589940d6616c",
     "static_gesture_runtime/flutter/test/direction_stability_test.dart": "9d0d85fe057fd6e8be064d3a790a545a61ada821b47dd44168052e0b6701fc1a",
@@ -385,7 +385,8 @@
     "static_gesture_runtime/validation/python_reference.json": "57f8846e8e04b2b4bad4abd901968753b3dfad89ef9f14f0a7f3291b201cfbda",
     "static_gesture_runtime/validation/right_pose_reference.json": "bde63b278b196ee4c91fb45d23d9b03297cf6c5208e0c918098983dd3683423b",
     "static_gesture_runtime/validation/right_stability_release.json": "75d82faf4cb0ea127901b43d3a2cecabe86559a995852f46c352c710ddb72d89",
-    "static_gesture_runtime/validation/thumb_surface_checks.json": "847536baaac3f1a41c4be04d61265ef963abc069e9af8684afa0a3651c6e78e9"
+    "static_gesture_runtime/validation/thumb_surface_checks.json": "847536baaac3f1a41c4be04d61265ef963abc069e9af8684afa0a3651c6e78e9",
+    "static_gesture_runtime/validation/two_hand_stability_release.json": "649c1dbdb46c774b04a19a5ca54d704839f3e241aa04addf6d0f00ff49e0acb6"
   },
   "physical_ios_tested": false,
   "physical_ncm_tested": false,

@@ -50,10 +50,21 @@ Install `build/app/outputs/flutter-apk/app-release.apk` on a 64-bit Android API
 screen but are not connected to Boss app actions.
 
 The current NCM tester build is
-`releases/GestureLab-v2.0.11-litert-ncm-arm64-diagnostic-release.apk`. It is a
+`releases/GestureLab-v2.0.12-litert-ncm-arm64-diagnostic-release.apk`. It is a
 release-optimized test build signed with the Android debug certificate; replace
 that signing configuration with the owner's production key before store or Boss
 app distribution.
+
+Version 2.0.12 keeps established, spatially separated hand identities through
+temporary Left/Right confidence dips. It uses fresh landmarks and the existing
+track's confirmed side; new identities still require handedness confidence .75.
+Overlap abstention, the 350 ms track expiry and reset behavior are retained.
+This applies to both phone and NCM input through the shared detector adapter.
+The deployed v2.0.11 model assets, feature extraction, geometry, classifier
+gates, detector settings, frame scheduling and command timing are unchanged.
+No extra inference pass is added. The matching preservation report is
+`static_gesture_runtime/validation/two_hand_stability_release.json` in the
+handover; physical-camera improvement remains subject to device acceptance.
 
 Version 2.0.11 includes the preservation-qualified feedback refresh. Training
 uses 990 additional reviewed landmark records. Larger fits were rejected when

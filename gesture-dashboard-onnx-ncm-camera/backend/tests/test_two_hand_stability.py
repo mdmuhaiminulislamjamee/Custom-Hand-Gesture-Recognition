@@ -104,6 +104,33 @@ def test_initial_wrong_side_can_correct_before_consensus_locks():
     assert all(hand["handedness_stable"] for hand in previews)
 
 
+def test_uncertain_handedness_keeps_fresh_tracks_without_confirming_a_side():
+    selector = AutomaticHandSelector(RuntimeConfig())
+    detector = simulated_detector()
+    original = [observation(scale=.6), observation(x=.75, scale=.3, hand="Left")]
+    native_rows = [(row["area"], row["points"], SimpleNamespace(
+        category_name=row["handedness"], score=.55), None) for row in original]
+    detector._run_candidates = lambda *args, **kwargs: native_rows
+
+    def score(row):
+        row["probabilities"] = original[0]["probabilities"].copy()
+        row["gate_args"] = dict(known_gesture_mass=1.)
+        return 1.
+
+    image = np.full(SHAPE, 145, np.uint8)
+    for frame in range(6):
+        now = 1 + frame * .1
+        selector.detector_state["frame_time"] = now
+        rows = detector.detect_candidates(image, state=selector.detector_state, candidate_score=score)
+        assert len(rows) == 2
+        assert all(row["rejection_reason"] is None for row in rows)
+        _, _, previews = selector.update(rows, SHAPE, now)
+        assert all(row["handedness_confidence"] == .55 for row in rows)
+        assert all(not hand["handedness_stable"] for hand in previews)
+        assert [hand["track_id"] for hand in previews] == [1, 2]
+        assert all(track.handedness_frames == 0 for track in selector.tracks.values())
+
+
 def test_ambiguous_overlap_still_pauses_and_does_not_rewrite_hand_labels():
     selector = AutomaticHandSelector(RuntimeConfig())
     original = [observation(scale=.6), observation(x=.75, scale=.3, hand="Left")]
@@ -180,7 +207,8 @@ def test_preview_smoothing_reduces_jitter_without_changing_current_landmarks():
 
 
 @pytest.mark.parametrize("label", ["left", "right"])
-def test_live_direction_stays_recognized_when_two_hand_labels_flip(label):
+@pytest.mark.parametrize("handedness_confidence", [.99, .55])
+def test_live_direction_stays_recognized_when_two_hand_labels_flip(label, handedness_confidence):
     config = RuntimeConfig()
     probabilities = np.eye(len(config.class_names))[config.class_to_idx[label]]
     quality = dict(known_gesture_mass=1.)
@@ -191,11 +219,11 @@ def test_live_direction_stays_recognized_when_two_hand_labels_flip(label):
         ready=True, models={"ONNX": object()}, resolve_name=lambda name: "ONNX",
         predict_detailed=lambda *args: (probabilities.copy(), "ONNX", .01, quality),
         predict_many=lambda *args: {"ONNX": (probabilities.copy(), .01, quality)})
-    def resolve(p, points, *, handedness, **kwargs):
+    def resolve(p, points, *, handedness, handedness_confidence, **kwargs):
         expected = "Right" if points[0, 0] < .5 else "Left"
         if expected == "Left":
             assert kwargs.get("preferred_direction") is None
-        return p, {"pose_validation": dict(valid=handedness == expected,
+        return p, {"pose_validation": dict(valid=handedness == expected and handedness_confidence >= .75,
                                             geometry_supported=True, reason="side check")}
     engine.resolver = SimpleNamespace(resolve=resolve)
     native_rows = []
@@ -209,13 +237,17 @@ def test_live_direction_stays_recognized_when_two_hand_labels_flip(label):
         if frame >= 10 and frame % 2:
             near["handedness"] = "Left"
         native_rows = [(row["area"], row["points"], SimpleNamespace(
-            category_name=row["handedness"], score=.99), None) for row in (near, peer)]
+            category_name=row["handedness"],
+            score=handedness_confidence if frame >= 10 else .99), None) for row in (near, peer)]
         if frame % 2:
             native_rows.reverse()
         result = engine.process_frame(image, session, now=1 + frame * .1)
         if frame == 9:
             owner = result["hand_selection"]["selected_track_id"]
         if frame >= 10:
+            assert len(result["hands"]) == 2
+            assert all(hand["handedness_stable"] for hand in result["hands"])
+            assert len(session.hand_selector.tracks) == 2
             assert result["runtime_prediction"] == label
             assert result["hand_selection"]["selected_track_id"] == owner
             assert result["quality"]["detector"]["selected_handedness"] == "Right"

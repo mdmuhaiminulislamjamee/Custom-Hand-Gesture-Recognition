@@ -1,18 +1,19 @@
 # How to use the static gesture handover
 
-Use `Boss_Static_Gesture_Handover_20261111_feedback_refresh.zip` as a complete Flutter
+Use `Boss_Static_Gesture_Handover_20261114_two_hand_stability.zip` as a complete Flutter
 integration package. Extract it and start from the folder
-`Boss_Static_Gesture_Handover_20261111_feedback_refresh/`.
+`Boss_Static_Gesture_Handover_20261114_two_hand_stability/`.
 
-This revision fits 990 previously unused reviewed landmark records and selects
-a conservative update that preserves fixed regression class metrics. Larger
-fits were rejected for regressions. The graph, detector, strict directional
-entry, bounded continuation, geometry and frame scheduling are retained.
-GestureLab 2.0.11 contains the matching model and existing USB-NCM/preview fixes.
-`source_model/` contains the exact ONNX, metadata, runtime JSON and integrity
-manifest. `validation/feedback_refresh_release.json` in the runtime records
-training fit, per-class comparisons, image holds, timing and limitations.
-Ghost detection tuning is deferred; physical iOS/NCM acceptance remains pending.
+This revision keeps established two-hand identities through temporary low
+Left/Right confidence, using the existing spatial match and fresh landmarks.
+New identities retain the .75 confidence requirement, and overlap/reset/expiry
+behavior is unchanged. GestureLab 2.0.12 contains this shared adapter update.
+The previous mobile model assets, features, geometry, gates, detector settings
+and command timing are preserved. `source_model/` contains the matching mobile
+ONNX, metadata, runtime JSON and integrity manifest, rather than a newer desktop
+model. `validation/two_hand_stability_release.json` records preservation;
+earlier conversion/training reports remain historical evidence for these same
+weights. Physical iOS/NCM acceptance remains pending.
 
 **The `.tflite` model alone is insufficient to reproduce this handover's
 recognition and command behavior.** Integrate the supplied runtime code with
