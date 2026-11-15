@@ -1,0 +1,493 @@
+import 'dart:typed_data';
+import 'dart:math' as math;
+
+import 'command_controller.dart';
+import 'feature_extractor.dart';
+import 'frame_scheduler.dart';
+import 'geometry_policy.dart';
+import 'direction_stability.dart';
+
+part 'hand_ownership.dart';
+
+enum StaticPhysicalHand { left, right }
+
+typedef StaticGeometryEvaluator = StaticGeometryDecision Function({
+  required List<double> probabilities,
+  required double knownMass,
+  required List<List<double>> normalizedLandmarks,
+  required String physicalHand,
+  required double handednessConfidence,
+  required double width,
+  required double height,
+  List<List<double>>? worldLandmarks,
+  String? preferredDirection,
+});
+
+class StaticGestureHand {
+  StaticGestureHand(
+      {required this.hand,
+      required List<List<double>> normalizedLandmarks,
+      required this.handednessConfidence,
+      List<List<double>>? worldLandmarks})
+      : normalizedLandmarks = _copyPoints(normalizedLandmarks),
+        worldLandmarks =
+            worldLandmarks == null ? null : _copyPoints(worldLandmarks);
+
+  final StaticPhysicalHand hand;
+  final List<List<double>> normalizedLandmarks;
+  final List<List<double>>? worldLandmarks;
+  final double handednessConfidence;
+}
+
+class StaticGestureFrame {
+  StaticGestureFrame(
+      {required this.timestampMs,
+      required this.frameWidth,
+      required this.frameHeight,
+      required List<StaticGestureHand> hands})
+      : hands = List<StaticGestureHand>.unmodifiable(hands);
+  final double timestampMs;
+  final double frameWidth;
+  final double frameHeight;
+  final List<StaticGestureHand> hands;
+}
+
+class StaticClassifierOutput {
+  StaticClassifierOutput(
+      {required List<double> probabilities,
+      required this.knownMass,
+      this.inferenceMs = 0})
+      : probabilities = List<double>.unmodifiable(probabilities);
+  final List<double> probabilities;
+  final double knownMass;
+  final double inferenceMs;
+}
+
+abstract interface class StaticGestureClassifier {
+  bool get isInitialized;
+  Future<void> initialize();
+  Future<StaticClassifierOutput> predict(Float32List features);
+  Future<void> close();
+}
+
+class StaticGestureCommand {
+  const StaticGestureCommand(
+      {required this.label,
+      required this.action,
+      required this.hand,
+      required this.timestampMs,
+      required this.confidence,
+      required this.margin,
+      required this.knownMass});
+  final String label;
+  final String action;
+  final StaticPhysicalHand hand;
+  final double timestampMs;
+  final double confidence;
+  final double margin;
+  final double knownMass;
+}
+
+class StaticHandResult {
+  const StaticHandResult(
+      {required this.hand,
+      required this.geometry,
+      required this.controller,
+      required this.classifier});
+  final StaticPhysicalHand hand;
+  final StaticGeometryDecision geometry;
+  final StaticControllerResult controller;
+  final StaticClassifierOutput classifier;
+}
+
+class StaticGestureFrameResult {
+  StaticGestureFrameResult(
+      {required this.timestampMs,
+      required List<StaticHandResult> hands,
+      required this.command,
+      required this.runtimeMs,
+      required this.queueWaitMs,
+      required this.replacedFrames,
+      this.selectedHand,
+      this.switchPending = false,
+      this.selectionReason = 'waiting_for_gesture'})
+      : hands = List<StaticHandResult>.unmodifiable(hands);
+  final double timestampMs;
+  final List<StaticHandResult> hands;
+  final StaticGestureCommand? command;
+  final double runtimeMs;
+  final double queueWaitMs;
+  final int replacedFrames;
+
+  /// Only this hand supplies the public gesture and may dispatch a command.
+  final StaticPhysicalHand? selectedHand;
+  final bool switchPending;
+  final String selectionReason;
+}
+
+/// Landmarks-in runtime. The detector/camera adapter owns camera normalization;
+/// all hands must be physical identity in upright, unmirrored source space.
+class StaticGestureRuntimeApi {
+  StaticGestureRuntimeApi(
+      {required this.classifier,
+      this.onCommand,
+      this.onResult,
+      StaticGeometryEvaluator geometryEvaluator = StaticGeometryPolicy.evaluate,
+      StaticConfirmationPolicy policy = const StaticConfirmationPolicy()})
+      : _policy = policy,
+        _geometry = geometryEvaluator {
+    policy.validate();
+    _states = {
+      for (final hand in StaticPhysicalHand.values)
+        hand: _HandState(StaticCommandController(policy: policy))
+    };
+    _scheduler =
+        LatestFrameScheduler<_SubmittedFrame, StaticGestureFrameResult>(
+            process: _process);
+  }
+
+  final StaticGestureClassifier classifier;
+  final void Function(StaticGestureCommand event)? onCommand;
+  final void Function(StaticGestureFrameResult result)? onResult;
+  final StaticConfirmationPolicy _policy;
+  final StaticGeometryEvaluator _geometry;
+  late final Map<StaticPhysicalHand, _HandState> _states;
+  late final LatestFrameScheduler<_SubmittedFrame, StaticGestureFrameResult>
+      _scheduler;
+  final Stopwatch _clock = Stopwatch()..start();
+  final _HandOwnership _ownership = _HandOwnership();
+  bool _closed = false;
+  int _generation = 0;
+  double? _lastTimestampMs;
+  Future<void>? _initializing;
+
+  bool get isInitialized => !_closed && classifier.isInitialized;
+  int get pendingFrames => _scheduler.pendingCount;
+  int get replacedFrames => _scheduler.replacedFrames;
+
+  Future<void> initialize() {
+    if (_closed) throw StateError('Static gesture runtime is closed.');
+    return _initializing ??= classifier.initialize();
+  }
+
+  /// Returns null if this frame was replaced or invalidated by reset/close.
+  /// Calling once for every detector result, including empty results, cancels
+  /// stale native results immediately when their hand disappears.
+  Future<StaticGestureFrameResult?> processFrame(StaticGestureFrame frame) {
+    if (!isInitialized)
+      throw StateError('Initialize the static runtime first.');
+    _validateFrame(frame);
+    _lastTimestampMs = frame.timestampMs;
+    final present = frame.hands.map((hand) => hand.hand).toSet();
+    for (final entry in _states.entries) {
+      final state = entry.value;
+      if (present.contains(entry.key)) {
+        if (state.lastSeenMs != null &&
+            frame.timestampMs - state.lastSeenMs! >=
+                _policy.missingHandResetMs) {
+          state.controller.handLost();
+          state.preferredDirection = null;
+          state.direction.reset();
+          state.version++;
+        }
+        state.present = true;
+        state.lastSeenMs = frame.timestampMs;
+      } else {
+        state.direction.reset();
+        state.preferredDirection = null;
+        if (state.present) state.version++;
+        state.present = false;
+        if (state.lastSeenMs != null &&
+            frame.timestampMs - state.lastSeenMs! >=
+                _policy.missingHandResetMs) {
+          state.controller.handLost();
+          state.preferredDirection = null;
+        }
+      }
+    }
+    return _scheduler.submit(_SubmittedFrame(
+        frame,
+        _generation,
+        _clock.elapsedMicroseconds,
+        {for (final entry in _states.entries) entry.key: entry.value.version}));
+  }
+
+  void _validateFrame(StaticGestureFrame frame) {
+    if (!frame.timestampMs.isFinite ||
+        frame.timestampMs < 0 ||
+        (_lastTimestampMs != null && frame.timestampMs <= _lastTimestampMs!) ||
+        !frame.frameWidth.isFinite ||
+        frame.frameWidth <= 0 ||
+        !frame.frameHeight.isFinite ||
+        frame.frameHeight <= 0 ||
+        frame.hands.length > 2 ||
+        frame.hands.map((hand) => hand.hand).toSet().length !=
+            frame.hands.length) {
+      throw ArgumentError(
+          'Invalid frame or non-increasing timestamp; reset after stream changes.');
+    }
+    for (final hand in frame.hands) {
+      if (!hand.handednessConfidence.isFinite ||
+          hand.handednessConfidence < 0 ||
+          hand.handednessConfidence > 1 ||
+          !_validPoints(hand.normalizedLandmarks) ||
+          (hand.worldLandmarks != null &&
+              !_validPoints(hand.worldLandmarks!))) {
+        throw ArgumentError(
+            'Expected 21 finite XYZ landmarks and valid handedness confidence.');
+      }
+    }
+  }
+
+  Future<StaticGestureFrameResult> _process(_SubmittedFrame submitted) async {
+    final startedUs = _clock.elapsedMicroseconds;
+    final frame = submitted.frame;
+    final results = <StaticHandResult>[];
+    StaticGestureCommand? command;
+    for (final hand in frame.hands) {
+      final state = _states[hand.hand]!;
+      if (!_current(submitted, hand.hand)) continue;
+      Float32List features;
+      try {
+        features = StaticFeatureExtractor.extract(hand.normalizedLandmarks);
+      } on FormatException {
+        state.controller.handLost();
+        state.preferredDirection = null;
+        state.direction.reset();
+        continue;
+      } on ArgumentError {
+        state.controller.handLost();
+        state.preferredDirection = null;
+        state.direction.reset();
+        continue;
+      }
+      final output = await classifier.predict(features);
+      if (!_current(submitted, hand.hand)) continue;
+      _validateOutput(output);
+      var geometry = _geometry(
+        probabilities: output.probabilities,
+        knownMass: output.knownMass,
+        normalizedLandmarks: hand.normalizedLandmarks,
+        worldLandmarks: hand.worldLandmarks,
+        physicalHand: hand.hand.name,
+        handednessConfidence: hand.handednessConfidence,
+        width: frame.frameWidth,
+        height: frame.frameHeight,
+        preferredDirection:
+            frame.timestampMs - state.direction.confirmedAtMs <= 1000.001
+                ? state.preferredDirection
+                : null,
+      );
+      final order = List<int>.generate(13, (i) => i)
+        ..sort((a, b) =>
+            output.probabilities[b].compareTo(output.probabilities[a]));
+      final rawConfidence = output.probabilities[order[0]];
+      final rawMargin = rawConfidence - output.probabilities[order[1]];
+      final directional = Map<String, Object?>.from(
+          geometry.diagnostics['directional'] as Map? ?? const {});
+      final neutralBoundary = state.direction
+          .boundaryCandidate(geometry.label, geometry.accepted, directional);
+      var control = state.controller.process(
+        label: !neutralBoundary && geometry.accepted
+            ? geometry.label
+            : 'no_gesture',
+        confidence: geometry.confidence,
+        margin: geometry.margin,
+        timestampMs: frame.timestampMs,
+        minimumHoldMs: geometry.minimumHoldMs,
+        allowStrongShortcut: output.knownMass >= 0.70 &&
+            staticGestureLabels[order[0]] == geometry.label &&
+            rawConfidence >= _policy.strongConfidence &&
+            rawMargin >= _policy.strongMargin,
+        dispatch: false,
+      );
+      final shape = geometry.diagnostics['hand_shape'] as Map? ?? const {};
+      final override = state.direction.update(
+          candidate: geometry.label,
+          qualified: geometry.accepted,
+          confirmed: control.confirmed,
+          nowMs: frame.timestampMs,
+          directional: directional,
+          hardRejection:
+              geometry.diagnostics['resolved_label'] == 'no_gesture' ||
+                  shape['open_hand_lower_arc'] == true ||
+                  shape['reverse_closed_fist'] == true ||
+                  shape['downward_closed_fist'] == true,
+          confidence: rawConfidence,
+          margin: rawMargin,
+          knownMass: output.knownMass,
+          rawLabel: staticGestureLabels[order[0]]);
+      state.preferredDirection = state.direction.label;
+      if (override != null) {
+        final grace = override != 'no_gesture';
+        geometry = StaticGeometryDecision(
+            label: override,
+            accepted: grace,
+            confidence: geometry.confidence,
+            margin: geometry.margin,
+            minimumHoldMs: 0,
+            reason: grace
+                ? 'direction continuation grace'
+                : 'direction continuation released',
+            probabilities: geometry.probabilities,
+            knownMass: geometry.knownMass,
+            recovery: geometry.recovery,
+            diagnostics: geometry.diagnostics);
+        control = StaticControllerResult(
+            label: override,
+            confirmed: grace,
+            emit: false,
+            reason: geometry.reason,
+            matches: control.matches);
+      }
+      results.add(StaticHandResult(
+          hand: hand.hand,
+          geometry: geometry,
+          controller: control,
+          classifier: output));
+    }
+    // Evaluate both hands before choosing an owner. Detection order, confidence
+    // ranking and a peer's independent duplicate latch must not choose control.
+    results.removeWhere((hand) => !_current(submitted, hand.hand));
+    final selection = submitted.generation == _generation && !_closed
+        ? _ownership.update(frame, results)
+        : const _OwnershipDecision(null, false, false, 'invalidated');
+    if (selection.changed) {
+      // A handoff never inherits the inactive hand's accumulated gesture hold.
+      // Rebuild evidence from a fresh observation after the confirmed transfer.
+      for (final state in _states.values) {
+        state.controller.reset();
+        state.direction.reset();
+        state.preferredDirection = null;
+      }
+    }
+    for (var i = 0; i < results.length; i++) {
+      final hand = results[i];
+      var control = hand.controller;
+      if (!selection.changed &&
+          selection.allowCommand &&
+          selection.hand == hand.hand &&
+          control.commandReady &&
+          _current(submitted, hand.hand)) {
+        _states[hand.hand]!.controller.markEmitted(control.label);
+        control = StaticControllerResult(
+            label: control.label,
+            confirmed: true,
+            emit: true,
+            reason: 'confirmed command emitted',
+            matches: control.matches,
+            commandReady: true);
+        command = StaticGestureCommand(
+            label: control.label,
+            action: staticGestureActions[control.label]!,
+            hand: hand.hand,
+            timestampMs: frame.timestampMs,
+            confidence: hand.geometry.confidence,
+            margin: hand.geometry.margin,
+            knownMass: hand.classifier.knownMass);
+      }
+      results[i] = StaticHandResult(
+          hand: hand.hand,
+          geometry: hand.geometry,
+          controller: control,
+          classifier: hand.classifier);
+    }
+    final result = StaticGestureFrameResult(
+        timestampMs: frame.timestampMs,
+        hands: results,
+        command: command,
+        selectedHand: selection.hand,
+        switchPending: selection.pending,
+        selectionReason: selection.reason,
+        runtimeMs: (_clock.elapsedMicroseconds - startedUs) / 1000,
+        queueWaitMs: (startedUs - submitted.queuedUs) / 1000,
+        replacedFrames: _scheduler.replacedFrames);
+    if (command != null) onCommand?.call(command);
+    if (!_closed && submitted.generation == _generation) onResult?.call(result);
+    return result;
+  }
+
+  bool _current(_SubmittedFrame frame, StaticPhysicalHand hand) =>
+      !_closed &&
+      frame.generation == _generation &&
+      _states[hand]!.present &&
+      frame.versions[hand] == _states[hand]!.version;
+
+  /// Call after reconnect, orientation/mirror changes, or timestamp reset.
+  void reset() {
+    _generation++;
+    _lastTimestampMs = null;
+    _scheduler.reset();
+    _ownership.reset();
+    for (final state in _states.values) {
+      state.version++;
+      state.present = false;
+      state.lastSeenMs = null;
+      state.preferredDirection = null;
+      state.direction.reset();
+      state.controller.reset();
+    }
+  }
+
+  /// Cancels delayed results and clears temporal evidence after a bad detector
+  /// frame, without treating an exception as a deliberate gesture release.
+  void invalidateEvidence() {
+    _generation++;
+    _scheduler.reset();
+    _ownership.invalidateEvidence();
+    for (final state in _states.values) {
+      state.version++;
+      state.present = false;
+      state.preferredDirection = null;
+      state.direction.reset();
+      state.controller.handLost();
+    }
+  }
+
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    reset();
+    await _scheduler.close();
+    await _initializing;
+    await classifier.close();
+  }
+}
+
+class _HandState {
+  _HandState(this.controller);
+  final StaticCommandController controller;
+  final DirectionStability direction = DirectionStability();
+  int version = 0;
+  bool present = false;
+  double? lastSeenMs;
+  String? preferredDirection;
+}
+
+class _SubmittedFrame {
+  const _SubmittedFrame(
+      this.frame, this.generation, this.queuedUs, this.versions);
+  final StaticGestureFrame frame;
+  final int generation;
+  final int queuedUs;
+  final Map<StaticPhysicalHand, int> versions;
+}
+
+List<List<double>> _copyPoints(List<List<double>> points) =>
+    List<List<double>>.unmodifiable(
+        points.map((p) => List<double>.unmodifiable(p)));
+bool _validPoints(List<List<double>> points) =>
+    points.length == 21 &&
+    points
+        .every((point) => point.length == 3 && point.every((v) => v.isFinite));
+void _validateOutput(StaticClassifierOutput output) {
+  if (output.probabilities.length != 13 ||
+      output.probabilities
+          .any((value) => !value.isFinite || value < 0 || value > 1.00001) ||
+      (output.probabilities.fold(0.0, (a, b) => a + b) - 1).abs() > 0.10 ||
+      !output.knownMass.isFinite ||
+      output.knownMass < 0 ||
+      output.knownMass > 1.00001) {
+    throw StateError('Invalid classifier output.');
+  }
+}

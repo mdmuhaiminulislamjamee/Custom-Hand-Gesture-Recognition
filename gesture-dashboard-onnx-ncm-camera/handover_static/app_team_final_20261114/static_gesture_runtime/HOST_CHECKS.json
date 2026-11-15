@@ -1,0 +1,31 @@
+{
+  "ios_compile_tested": false,
+  "package_preservation": "validation/app_team_package_preservation.json",
+  "packaged_native_model_verification": {
+    "detector_files_verified": 43,
+    "models": {
+      "float32": {
+        "fixture_rows": 26,
+        "maximum_mass_error": 4.76837158203125e-07,
+        "maximum_probability_error": 8.493661880493164e-07,
+        "qualified_for_loading": true,
+        "top1_agreement": 1.0
+      },
+      "int8": {
+        "fixture_rows": 26,
+        "maximum_mass_error": 0.16509582102298737,
+        "maximum_probability_error": 0.06514507532119751,
+        "qualified_for_loading": false,
+        "top1_agreement": 1.0
+      }
+    },
+    "passed": true,
+    "physical_ios_tested": false
+  },
+  "physical_ios_tested": false,
+  "prior_qualification_reference": "reference/qualified_release/HOST_CHECKS.json",
+  "qualified_runtime_tests_passed": 86,
+  "scope": "Standalone package preservation, extracted native model fixtures and payload integrity; executable code unchanged from qualified release.",
+  "status": "passed",
+  "tester_app_included": false
+}

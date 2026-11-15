@@ -1,0 +1,7 @@
+# Isolate from the Windows reference environment.
+ai-edge-litert==2.1.5
+tflite==2.18.0
+flatbuffers==25.12.19
+onnx==1.19.1
+onnxruntime==1.23.2
+numpy>=1.26,<3

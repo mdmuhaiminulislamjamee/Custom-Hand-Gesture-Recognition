@@ -1,0 +1,92 @@
+/// On-device hand detection and landmark estimation using TensorFlow Lite.
+///
+/// This library provides a Flutter plugin for real-time human hand detection
+/// using MediaPipe-style models. It detects hands in images and extracts
+/// 21 hand landmarks (keypoints) for each detected hand.
+///
+/// Uses MediaPipe-style models for detection and landmark extraction:
+/// - SSD-based palm detection with 2016 anchors
+/// - MediaPipe hand landmark model (21 landmarks)
+/// - Rotation-aware cropping for hand alignment
+/// - MediaPipe gesture recognition (optional)
+///
+/// **Quick Start:**
+/// ```dart
+/// import 'package:hand_detection/hand_detection.dart';
+///
+/// // One-step construction
+/// final detector = await HandDetector.create();
+///
+/// // Or two-step, if you need to configure between construction and init
+/// final detector = HandDetector();
+/// await detector.initialize();
+///
+/// final hands = await detector.detect(imageBytes);
+/// for (final hand in hands) {
+///   print('Hand detected at ${hand.boundingBox}');
+///   print('Handedness: ${hand.handedness}');
+///   if (hand.hasLandmarks) {
+///     final wrist = hand.getLandmark(HandLandmarkType.wrist);
+///     print('Wrist position: (${wrist?.x}, ${wrist?.y})');
+///   }
+/// }
+///
+/// await detector.dispose();
+/// ```
+///
+/// **Gesture Recognition:**
+/// ```dart
+/// final detector = await HandDetector.create(enableGestures: true);
+///
+/// final hands = await detector.detect(imageBytes);
+/// for (final hand in hands) {
+///   if (hand.gesture != null) {
+///     print('Gesture: ${hand.gesture!.type}'); // thumbUp, victory, etc.
+///     print('Confidence: ${hand.gesture!.confidence}');
+///   }
+/// }
+/// ```
+///
+/// **Main Classes:**
+/// - [HandDetector]: Main API for hand detection (runs inference in a background isolate)
+/// - [HandDetectorIsolate]: Deprecated, kept for backward compatibility; prefer [HandDetector]
+/// - [Hand]: Detected hand with bounding box, landmarks, handedness, and gesture
+/// - [HandLandmark]: Single keypoint with 3D coordinates (x, y, z) and visibility
+/// - [HandLandmarkType]: Enum of 21 hand landmarks (wrist, finger joints, tips)
+/// - [Handedness]: Left or right hand indication
+/// - [BoundingBox]: Axis-aligned rectangle for hand location
+/// - [PalmDetection]: Raw palm detection result with rotation rectangle data
+/// - [GestureType]: Recognized gesture (thumbUp, victory, closedFist, etc.)
+/// - [GestureResult]: Gesture type with confidence score
+///
+/// **Detection Modes:**
+/// - [HandMode.boxes]: Fast detection returning only bounding boxes
+/// - [HandMode.boxesAndLandmarks]: Full pipeline with 21 landmarks per hand
+///
+/// **Supported Gestures (when enableGestures: true):**
+/// - closedFist, openPalm, pointingUp, thumbDown, thumbUp, victory, iLoveYou
+///
+/// **Model Variant:**
+/// - [HandLandmarkModel.lite]: Smaller model optimized for mobile latency
+/// - [HandLandmarkModel.full]: Full model with higher capacity
+///
+/// **21 Hand Landmarks:**
+/// - Wrist (0)
+/// - Thumb: CMC (1), MCP (2), IP (3), Tip (4)
+/// - Index: MCP (5), PIP (6), DIP (7), Tip (8)
+/// - Middle: MCP (9), PIP (10), DIP (11), Tip (12)
+/// - Ring: MCP (13), PIP (14), DIP (15), Tip (16)
+/// - Pinky: MCP (17), PIP (18), DIP (19), Tip (20)
+library;
+
+// Public entry point. Conditionally re-exports the native or web
+// implementation depending on the host platform:
+// - Web (Chrome / Edge / Firefox / Safari): web implementation backed by
+//   LiteRT.js (auto WebGPU/WASM) and Canvas preprocessing.
+// - Everything else (mobile, desktop): the native implementation backed by
+//   `flutter_litert` + `opencv_dart`, running inference in a background isolate.
+//
+// Both aggregators re-export the same shared pure-Dart types, overlay helpers,
+// and flutter_litert utilities, so user code sees one API on every platform.
+export 'src/web/hand_web_lib.dart'
+    if (dart.library.io) 'src/native/hand_native_lib.dart';

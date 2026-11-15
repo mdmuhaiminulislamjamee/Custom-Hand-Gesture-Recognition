@@ -1,0 +1,22 @@
+name: static_gesture_runtime
+description: Two-hand static gesture runtime with a shared MediaPipe detector and TFLite classifier.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+  flutter: '>=3.22.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  camera: 0.12.0+2
+  crypto: 3.0.8
+  flutter_litert: 3.9.4
+  hand_detection:
+    path: third_party/hand_detection
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+flutter:
+  assets:
+    - assets/models/

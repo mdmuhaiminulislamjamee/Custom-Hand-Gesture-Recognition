@@ -1,0 +1,46 @@
+{
+  "additional_inference_passes": 0,
+  "apk_included": false,
+  "assembled_at_utc": "2026-11-14T09:12:42.342272+00:00",
+  "default_model": "gesture_static_float32",
+  "entry_guide": "START_HERE.md",
+  "flutter_path_dependency": "flutter/",
+  "future_motion_and_ghost_tuning_included": false,
+  "ios_compile_tested": false,
+  "models": {
+    "blaze_face_short_range": {
+      "bytes": 229746,
+      "path": "flutter/third_party/hand_detection/assets/models/blaze_face_short_range.tflite",
+      "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+    },
+    "gesture_static_float32": {
+      "bytes": 78960,
+      "path": "flutter/assets/models/gesture_static_float32.tflite",
+      "sha256": "cbd53a5c6874172ec8b16cb07c96c228a3063252f0156a7ee9232b4861d3f192"
+    },
+    "gesture_static_int8": {
+      "bytes": 23240,
+      "path": "flutter/assets/models/gesture_static_int8.tflite",
+      "sha256": "3d066d70e5dbf94d0ebc5fc8c8963043bb5e62d8c6f3194d8c7c7ac868495fdc"
+    },
+    "hand_detection": {
+      "bytes": 2339846,
+      "path": "flutter/third_party/hand_detection/assets/models/hand_detection.tflite",
+      "sha256": "1b14e9422c6ad006cde6581a46c8b90dd573c07ab7f3934b5589e7cea3f89a54"
+    },
+    "hand_landmark_full": {
+      "bytes": 5478917,
+      "path": "flutter/third_party/hand_detection/assets/models/hand_landmark_full.tflite",
+      "sha256": "11c272b891e1a99ab034208e23937a8008388cf11ed2a9d776ed3d01d0ba00e3"
+    }
+  },
+  "physical_ios_tested": false,
+  "release": "static_gesture_runtime_20261114_app_team_final",
+  "runtime_code_changed": false,
+  "schema_version": 1,
+  "source_archive": {
+    "name": "Boss_Static_Gesture_Handover_20261114_ownership_preview.zip",
+    "sha256": "f18ece4b77ca2a09514a1bf00c2a7ec1e673171c43c3dff3eda6b05abf7315df"
+  },
+  "tester_app_included": false
+}

@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-29",
+  "flutter_tests_passed": 39,
+  "flutter_preview_check": "Rendered two detector bounding boxes at their unmirrored positions, preserved 4:3 aspect ratio, cleared both on empty detections; no gesture command needed.",
+  "detector_overlay_source": "Unmodified original dynamic runtime MultiOverlayPainter; up to two detector Hand objects from the paired JPEG.",
+  "dashboard_node_tests_passed": 10,
+  "dashboard_overlay_tests": "Contain-fit mapping, clipping, two boxes and 42 dots, isolated invalid hands, empty detection results.",
+  "python_ncm_tests_passed": 10,
+  "python_preview_pairing": "NCM websocket sends frame 7 JPEG with frame 7 landmarks even when receiver status has already advanced to frame 8.",
+  "browser_checks": [
+    "Two-hand NCM Live preview",
+    "Single-hand preview removes absent hand box",
+    "Empty detections remove all boxes, dots and skeletons",
+    "400x400 contain-fit preview preserves image and landmark alignment",
+    "Feedback NCM preview displays both hand boxes"
+  ],
+  "browser_inputs": "Synthetic hand drawings and mocked NCM transport in a temporary blank Chrome profile; no physical NCM/iPhone detector inference.",
+  "physical_ios_tested": false
+}
